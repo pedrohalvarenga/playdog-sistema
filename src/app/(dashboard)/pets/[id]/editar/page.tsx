@@ -37,6 +37,7 @@ export default function EditarPetPage() {
   const [vacinaV8, setVacinaV8] = useState('')
   const [vacinaRaiva, setVacinaRaiva] = useState('')
   const [vacinaGripe, setVacinaGripe] = useState('')
+  const [vacinaGiardia, setVacinaGiardia] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -58,6 +59,7 @@ export default function EditarPetPage() {
         setVacinaV8(pet.vacina_v8_v10 ?? '')
         setVacinaRaiva(pet.vacina_antirabica ?? '')
         setVacinaGripe(pet.vacina_gripe ?? '')
+        setVacinaGiardia((pet as any).vacina_giardia ?? '')
         setFotoAtual(pet.foto_url ?? null)
       }
       setTutores(ts ?? [])
@@ -77,6 +79,7 @@ export default function EditarPetPage() {
       if (dados.vacina_v8_v10) setVacinaV8(dados.vacina_v8_v10)
       if (dados.vacina_antirabica) setVacinaRaiva(dados.vacina_antirabica)
       if (dados.vacina_gripe) setVacinaGripe(dados.vacina_gripe)
+      if (dados.vacina_giardia) setVacinaGiardia(dados.vacina_giardia)
       setMsgVacina('Campos preenchidos! Confira e ajuste se necessário.')
     } catch {
       setMsgVacina('Não consegui ler o cartão. Preencha manualmente.')
@@ -122,6 +125,7 @@ export default function EditarPetPage() {
       vacina_v8_v10: vacinaV8 || null,
       vacina_antirabica: vacinaRaiva || null,
       vacina_gripe: vacinaGripe || null,
+      vacina_giardia: vacinaGiardia || null,
       foto_url: fotoUrl,
     }).eq('id', id)
 
@@ -302,6 +306,7 @@ export default function EditarPetPage() {
           <Input label="V8/V10 — última dose" type="date" value={vacinaV8} onChange={e => setVacinaV8(e.target.value)} />
           <Input label="Antirrábica — última dose" type="date" value={vacinaRaiva} onChange={e => setVacinaRaiva(e.target.value)} />
           <Input label="Gripe — última dose" type="date" value={vacinaGripe} onChange={e => setVacinaGripe(e.target.value)} />
+          <Input label="Giardia — última dose" type="date" value={vacinaGiardia} onChange={e => setVacinaGiardia(e.target.value)} />
         </section>
 
         <Button type="submit" size="lg" loading={loading}>

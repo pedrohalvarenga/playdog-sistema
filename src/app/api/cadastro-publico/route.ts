@@ -43,6 +43,7 @@ export async function POST(request: Request) {
     vacina_v8_v10: pet.vacina_v8_v10 || null,
     vacina_antirabica: pet.vacina_antirabica || null,
     vacina_gripe: pet.vacina_gripe || null,
+    vacina_giardia: pet.vacina_giardia || null,
     ativo: true,
   })
 

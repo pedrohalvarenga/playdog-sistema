@@ -34,6 +34,7 @@ export default function NovoPetPage() {
   const [vacinaV8, setVacinaV8] = useState('')
   const [vacinaRaiva, setVacinaRaiva] = useState('')
   const [vacinaGripe, setVacinaGripe] = useState('')
+  const [vacinaGiardia, setVacinaGiardia] = useState('')
 
   // Tutor
   const [tutorId, setTutorId] = useState('')
@@ -63,6 +64,7 @@ export default function NovoPetPage() {
       if (dados.vacina_v8_v10) setVacinaV8(dados.vacina_v8_v10)
       if (dados.vacina_antirabica) setVacinaRaiva(dados.vacina_antirabica)
       if (dados.vacina_gripe) setVacinaGripe(dados.vacina_gripe)
+      if (dados.vacina_giardia) setVacinaGiardia(dados.vacina_giardia)
       setMsgVacina('Campos preenchidos! Confira e ajuste se necessário.')
     } catch {
       setMsgVacina('Não consegui ler o cartão. Preencha manualmente.')
@@ -122,6 +124,7 @@ export default function NovoPetPage() {
       vacina_v8_v10: vacinaV8 || null,
       vacina_antirabica: vacinaRaiva || null,
       vacina_gripe: vacinaGripe || null,
+      vacina_giardia: vacinaGiardia || null,
       foto_url: fotoUrl,
       ativo: true,
     })
@@ -318,6 +321,7 @@ export default function NovoPetPage() {
           <Input label="V8/V10 — última dose" type="date" value={vacinaV8} onChange={e => setVacinaV8(e.target.value)} />
           <Input label="Antirrábica — última dose" type="date" value={vacinaRaiva} onChange={e => setVacinaRaiva(e.target.value)} />
           <Input label="Gripe — última dose" type="date" value={vacinaGripe} onChange={e => setVacinaGripe(e.target.value)} />
+          <Input label="Giardia — última dose" type="date" value={vacinaGiardia} onChange={e => setVacinaGiardia(e.target.value)} />
         </section>
 
         <Button type="submit" size="lg" loading={loading}>

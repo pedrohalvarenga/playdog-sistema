@@ -43,6 +43,25 @@ export const PORTE_LABELS: Record<string, string> = {
   G: 'Grande',
 }
 
+/**
+ * Vacinas anuais: vencida se > 365 dias, atenção se entre 335-365 dias, ok caso contrário.
+ * Retorna: 'ok' | 'atencao' | 'vencida' | 'sem_data'
+ */
+export function vacinaStatus(dataUltimaDose: string | null | undefined): 'ok' | 'atencao' | 'vencida' | 'sem_data' {
+  if (!dataUltimaDose) return 'sem_data'
+  const dose = parseISO(dataUltimaDose)
+  const dias = Math.floor((Date.now() - dose.getTime()) / 86_400_000)
+  if (dias > 365) return 'vencida'
+  if (dias > 335) return 'atencao'
+  return 'ok'
+}
+
+export function whatsappUrl(telefone: string): string {
+  const numero = telefone.replace(/\D/g, '')
+  const com55 = numero.startsWith('55') ? numero : `55${numero}`
+  return `https://wa.me/${com55}`
+}
+
 export const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
   recepcao: 'Recepção',

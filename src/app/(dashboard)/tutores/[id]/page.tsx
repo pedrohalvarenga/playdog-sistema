@@ -1,10 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Edit, Phone, MapPin, FileText, Dog, Plus } from 'lucide-react'
+import { ArrowLeft, Edit, Phone, MapPin, FileText, Dog, Plus, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
-import { PLANO_LABELS, PORTE_LABELS } from '@/lib/utils'
+import { PLANO_LABELS, PORTE_LABELS, whatsappUrl } from '@/lib/utils'
 import type { Pet } from '@/types'
 
 export default async function TutorPage({ params }: { params: Promise<{ id: string }> }) {
@@ -50,9 +50,19 @@ export default async function TutorPage({ params }: { params: Promise<{ id: stri
       <Card>
         <div className="flex flex-col gap-3">
           {tutor.telefone && (
-            <div className="flex items-center gap-3">
-              <Phone size={16} className="text-brand-orange flex-shrink-0" />
-              <p className="text-sm text-gray-700">{tutor.telefone}</p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Phone size={16} className="text-brand-orange flex-shrink-0" />
+                <p className="text-sm text-gray-700">{tutor.telefone}</p>
+              </div>
+              <a
+                href={whatsappUrl(tutor.telefone)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 bg-green-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold"
+              >
+                <MessageCircle size={13} /> WhatsApp
+              </a>
             </div>
           )}
           {tutor.endereco && (

@@ -31,7 +31,8 @@ Retorne APENAS um JSON válido neste formato exato (sem markdown, sem explicaç�
 {
   "vacina_v8_v10": "YYYY-MM-DD ou null",
   "vacina_antirabica": "YYYY-MM-DD ou null",
-  "vacina_gripe": "YYYY-MM-DD ou null"
+  "vacina_gripe": "YYYY-MM-DD ou null",
+  "vacina_giardia": "YYYY-MM-DD ou null"
 }
 
 Regras:
@@ -40,7 +41,8 @@ Regras:
 - Datas devem estar no formato YYYY-MM-DD
 - V8, V10, polivalente, múltipla = vacina_v8_v10
 - Antirrábica, raiva = vacina_antirabica
-- Gripe, tosse dos canis, Bordetella, parainfluenza = vacina_gripe`,
+- Gripe, tosse dos canis, Bordetella, parainfluenza = vacina_gripe
+- Giardia = vacina_giardia`,
           },
         ],
       },

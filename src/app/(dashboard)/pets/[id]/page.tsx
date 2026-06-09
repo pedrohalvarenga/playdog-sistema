@@ -1,14 +1,30 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
-import { formatDate, calcIdade, PLANO_LABELS, PORTE_LABELS } from '@/lib/utils'
+import { formatDate, calcIdade, PLANO_LABELS, PORTE_LABELS, vacinaStatus, whatsappUrl } from '@/lib/utils'
 import Badge from '@/components/ui/Badge'
 import Card from '@/components/ui/Card'
-import { Dog, Phone, Calendar, Syringe, ArrowLeft, Edit, Pill } from 'lucide-react'
+import { Dog, Phone, Calendar, Syringe, ArrowLeft, Edit, Pill, MessageCircle, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Pet } from '@/types'
 
 type PetComTutor = Pet & { tutor: { id: string; nome: string; telefone: string; whatsapp?: string } }
+
+function VacinaBadge({ data }: { data?: string | null }) {
+  const status = vacinaStatus(data)
+  if (status === 'sem_data') return <Badge variant="red">Não informada</Badge>
+  if (status === 'vencida') return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+      <AlertTriangle size={11} /> Vencida — {formatDate(data!)}
+    </span>
+  )
+  if (status === 'atencao') return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
+      <AlertTriangle size={11} /> Vencendo — {formatDate(data!)}
+    </span>
+  )
+  return <Badge variant="green">{formatDate(data!)}</Badge>
+}
 
 export default async function PetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -28,11 +44,16 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
     .order('data', { ascending: false })
     .limit(10)
 
+  const p = pet as any
   const vacinas = [
     { label: 'V8/V10', data: pet.vacina_v8_v10 },
     { label: 'Antirrábica', data: pet.vacina_antirabica },
     { label: 'Gripe', data: pet.vacina_gripe },
+    { label: 'Giardia', data: p.vacina_giardia },
   ]
+
+  const temVacinaVencida = vacinas.some(v => vacinaStatus(v.data) === 'vencida')
+  const temVacinaAtencao = vacinas.some(v => vacinaStatus(v.data) === 'atencao')
 
   return (
     <div className="py-6 flex flex-col gap-4">
@@ -45,8 +66,22 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
         </Link>
       </div>
 
+      {/* Alerta de vacina vencida */}
+      {temVacinaVencida && (
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+          <AlertTriangle size={20} className="text-red-500 flex-shrink-0" />
+          <p className="text-sm font-semibold text-red-700">Vacina(s) vencida(s)! Atualização necessária.</p>
+        </div>
+      )}
+      {!temVacinaVencida && temVacinaAtencao && (
+        <div className="flex items-center gap-3 bg-yellow-50 border border-yellow-200 rounded-2xl px-4 py-3">
+          <AlertTriangle size={20} className="text-yellow-500 flex-shrink-0" />
+          <p className="text-sm font-semibold text-yellow-700">Vacina(s) vencendo em breve. Agende a dose de reforço.</p>
+        </div>
+      )}
+
       {/* Header do pet */}
-      <div className="flex items-center gap-4 bg-brand-purple rounded-3xl p-5 text-white">
+      <div className={`flex items-center gap-4 rounded-3xl p-5 text-white ${temVacinaVencida ? 'bg-red-500' : 'bg-brand-purple'}`}>
         <div className="w-20 h-20 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
           {pet.foto_url ? (
             <Image src={pet.foto_url} alt={pet.nome} width={80} height={80} className="object-cover w-full h-full" />
@@ -57,7 +92,7 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
         <div>
           <h1 className="text-2xl font-bold">{pet.nome}</h1>
           {pet.raca && <p className="text-white/80 text-sm">{pet.raca}</p>}
-          <div className="flex gap-2 mt-2">
+          <div className="flex gap-2 mt-2 flex-wrap">
             <Badge variant="gray" className="bg-white/20 text-white">{PORTE_LABELS[pet.porte]}</Badge>
             <Badge variant="gray" className="bg-white/20 text-white">{pet.castrado ? 'Castrado' : 'Não castrado'}</Badge>
           </div>
@@ -66,15 +101,28 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
 
       {/* Tutor */}
       <Card>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
-            <Phone size={18} className="text-brand-orange" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+              <Phone size={18} className="text-brand-orange" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Tutor</p>
+              <Link href={`/tutores/${pet.tutor.id}`} className="font-bold text-gray-900 hover:text-brand-purple">{pet.tutor.nome}</Link>
+              <p className="text-sm text-gray-500">{pet.tutor.telefone}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-gray-400">Tutor</p>
-            <p className="font-bold text-gray-900">{pet.tutor.nome}</p>
-            <p className="text-sm text-gray-500">{pet.tutor.telefone}</p>
-          </div>
+          {pet.tutor.telefone && (
+            <a
+              href={whatsappUrl(pet.tutor.telefone)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 bg-green-500 text-white px-3 py-2 rounded-xl text-xs font-semibold"
+            >
+              <MessageCircle size={15} />
+              WhatsApp
+            </a>
+          )}
         </div>
       </Card>
 
@@ -104,31 +152,29 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
       )}
 
       {/* Medicação */}
-      {(pet as any).medicacao && (
+      {p.medicacao && (
         <Card className="border-l-4 border-brand-teal">
           <div className="flex items-center gap-2 mb-1">
             <Pill size={14} className="text-brand-teal" />
             <p className="text-xs text-brand-teal font-semibold">Medicação</p>
           </div>
-          <p className="text-sm text-gray-700 whitespace-pre-line">{(pet as any).medicacao}</p>
+          <p className="text-sm text-gray-700 whitespace-pre-line">{p.medicacao}</p>
         </Card>
       )}
 
       {/* Vacinas */}
-      <Card>
+      <Card className={temVacinaVencida ? 'border-2 border-red-300' : temVacinaAtencao ? 'border-2 border-yellow-300' : ''}>
         <div className="flex items-center gap-2 mb-3">
-          <Syringe size={18} className="text-brand-teal" />
+          <Syringe size={18} className={temVacinaVencida ? 'text-red-500' : 'text-brand-teal'} />
           <p className="font-bold text-gray-900 text-sm">Vacinas</p>
+          {temVacinaVencida && <span className="text-xs text-red-600 font-semibold">● Vencida</span>}
+          {!temVacinaVencida && temVacinaAtencao && <span className="text-xs text-yellow-600 font-semibold">● A vencer</span>}
         </div>
         <div className="flex flex-col gap-2">
           {vacinas.map(v => (
             <div key={v.label} className="flex items-center justify-between">
               <p className="text-sm text-gray-600">{v.label}</p>
-              {v.data ? (
-                <Badge variant="green">{formatDate(v.data)}</Badge>
-              ) : (
-                <Badge variant="red">Não informada</Badge>
-              )}
+              <VacinaBadge data={v.data} />
             </div>
           ))}
         </div>
@@ -142,11 +188,11 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
             <p className="font-bold text-gray-900 text-sm">Últimas presenças</p>
           </div>
           <div className="flex flex-col gap-2">
-            {historico.map((p) => (
-              <div key={p.id} className="flex items-center justify-between text-sm">
-                <p className="text-gray-700">{formatDate(p.data)}</p>
+            {historico.map((h) => (
+              <div key={h.id} className="flex items-center justify-between text-sm">
+                <p className="text-gray-700">{formatDate(h.data)}</p>
                 <p className="text-gray-400 text-xs">
-                  {p.checkin_at ? formatDate(p.checkin_at, 'HH:mm') : '—'} → {p.checkout_at ? formatDate(p.checkout_at, 'HH:mm') : 'presente'}
+                  {h.checkin_at ? formatDate(h.checkin_at, 'HH:mm') : '—'} → {h.checkout_at ? formatDate(h.checkout_at, 'HH:mm') : 'presente'}
                 </p>
               </div>
             ))}
