@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-import { Search, Users, Plus, ChevronRight, Dog } from 'lucide-react'
+import { Search, Users, Plus, ChevronRight, Dog, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
+import { whatsappUrl } from '@/lib/utils'
 import type { Tutor } from '@/types'
 
 type TutorComPets = Tutor & { pets: { id: string; nome: string }[] }
@@ -64,9 +65,9 @@ export default function TutoresPage() {
       ) : (
         <div className="flex flex-col gap-2">
           {tutores.map(tutor => (
-            <Link key={tutor.id} href={`/tutores/${tutor.id}`}>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-3">
+            <Card key={tutor.id}>
+              <div className="flex items-center gap-3">
+                <Link href={`/tutores/${tutor.id}`} className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center flex-shrink-0">
                     <Users size={22} className="text-brand-orange" />
                   </div>
@@ -74,16 +75,33 @@ export default function TutoresPage() {
                     <p className="font-bold text-gray-900">{tutor.nome}</p>
                     <p className="text-sm text-gray-500">{tutor.telefone}</p>
                     {tutor.pets?.length > 0 && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <Dog size={12} className="text-brand-purple" />
-                        <p className="text-xs text-gray-400">{tutor.pets.map(p => p.nome).join(', ')}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <Dog size={11} className="text-brand-purple flex-shrink-0" />
+                        <p className="text-xs text-gray-400 truncate">{tutor.pets.map(p => p.nome).join(', ')}</p>
                       </div>
                     )}
                   </div>
-                  <ChevronRight size={18} className="text-gray-300 flex-shrink-0" />
+                </Link>
+
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {tutor.telefone && (
+                    <a
+                      href={whatsappUrl(tutor.telefone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center text-green-600 active:bg-green-200 transition-colors"
+                      title="Abrir WhatsApp"
+                    >
+                      <MessageCircle size={18} />
+                    </a>
+                  )}
+                  <Link href={`/tutores/${tutor.id}`} className="text-gray-300">
+                    <ChevronRight size={18} />
+                  </Link>
                 </div>
-              </Card>
-            </Link>
+              </div>
+            </Card>
           ))}
 
           {tutores.length === 0 && (
