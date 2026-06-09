@@ -25,12 +25,12 @@ export async function POST(request: Request) {
     email,
     password: senha,
     email_confirm: true,
-    user_metadata: { nome },
+    user_metadata: { nome, role },
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-  await adminClient.from('profiles').insert({
+  await adminClient.from('profiles').upsert({
     id: newUser.user.id,
     email,
     nome,
