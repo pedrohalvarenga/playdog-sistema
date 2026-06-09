@@ -1,19 +1,23 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Camera, X } from 'lucide-react'
 import Link from 'next/link'
 import type { Tutor, Porte, PlanoTipo } from '@/types'
 
 export default function NovoPetPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [tutores, setTutores] = useState<Tutor[]>([])
   const [criandoTutor, setCriandoTutor] = useState(false)
+  const fotoRef = useRef<HTMLInputElement>(null)
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null)
+  const [fotoFile, setFotoFile] = useState<File | null>(null)
 
   // Pet
   const [nomePet, setNomePet] = useState('')
@@ -22,6 +26,7 @@ export default function NovoPetPage() {
   const [nascimento, setNascimento] = useState('')
   const [castrado, setCastrado] = useState(false)
   const [restricoes, setRestrioes] = useState('')
+  const [medicacao, setMedicacao] = useState('')
   const [plano, setPlano] = useState<PlanoTipo>('diaria_avulsa')
   const [vacinaV8, setVacinaV8] = useState('')
   const [vacinaRaiva, setVacinaRaiva] = useState('')
@@ -35,11 +40,22 @@ export default function NovoPetPage() {
   useEffect(() => {
     async function load() {
       const supabase = createClient()
-      const { data } = await supabase.from('tutores').select('*').order('nome').limit(100)
+      const { data } = await supabase.from('tutores').select('*').order('nome').limit(200)
       setTutores(data ?? [])
+      // Pré-selecionar tutor se vier como parâmetro da URL
+      const tutorIdParam = searchParams.get('tutor_id')
+      if (tutorIdParam) setTutorId(tutorIdParam)
     }
     load()
-  }, [])
+  }, [searchParams])
+
+  function onFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setFotoFile(file)
+    const url = URL.createObjectURL(file)
+    setFotoPreview(url)
+  }
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault()
@@ -54,9 +70,22 @@ export default function NovoPetPage() {
         .insert({ nome: nomeTutor, telefone })
         .select()
         .single()
-
       if (error) { setLoading(false); alert('Erro ao criar tutor'); return }
       idTutor = novoTutor.id
+    }
+
+    // Upload da foto se houver
+    let fotoUrl: string | null = null
+    if (fotoFile) {
+      const ext = fotoFile.name.split('.').pop()
+      const path = `pets/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('fotos')
+        .upload(path, fotoFile, { upsert: true })
+      if (!uploadError) {
+        const { data: urlData } = supabase.storage.from('fotos').getPublicUrl(path)
+        fotoUrl = urlData.publicUrl
+      }
     }
 
     const { error } = await supabase.from('pets').insert({
@@ -67,10 +96,12 @@ export default function NovoPetPage() {
       data_nascimento: nascimento || null,
       castrado,
       restricoes: restricoes || null,
+      medicacao: medicacao || null,
       plano,
       vacina_v8_v10: vacinaV8 || null,
       vacina_antirabica: vacinaRaiva || null,
       vacina_gripe: vacinaGripe || null,
+      foto_url: fotoUrl,
       ativo: true,
     })
 
@@ -96,6 +127,39 @@ export default function NovoPetPage() {
       </div>
 
       <form onSubmit={salvar} className="flex flex-col gap-5">
+        {/* Foto */}
+        <section className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col items-center gap-3">
+          <h2 className="font-bold text-gray-700 text-sm uppercase tracking-wide self-start">Foto do cão</h2>
+          <input ref={fotoRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFotoChange} />
+          {fotoPreview ? (
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={fotoPreview} alt="Preview" className="w-32 h-32 rounded-2xl object-cover" />
+              <button
+                type="button"
+                onClick={() => { setFotoPreview(null); setFotoFile(null) }}
+                className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fotoRef.current?.click()}
+              className="w-32 h-32 rounded-2xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-brand-purple hover:text-brand-purple transition-colors"
+            >
+              <Camera size={28} />
+              <span className="text-xs font-medium">Adicionar foto</span>
+            </button>
+          )}
+          {fotoPreview && (
+            <button type="button" onClick={() => fotoRef.current?.click()} className="text-xs text-brand-purple font-semibold">
+              Trocar foto
+            </button>
+          )}
+        </section>
+
         {/* Tutor */}
         <section className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col gap-4">
           <h2 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Tutor</h2>
@@ -178,6 +242,22 @@ export default function NovoPetPage() {
             onChange={e => setRestrioes(e.target.value)}
             placeholder="Ex: Agressivo com machos, não come ração X..."
           />
+        </section>
+
+        {/* Medicação */}
+        <section className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col gap-3">
+          <h2 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Medicação</h2>
+          <p className="text-xs text-gray-400">Preencha se o animal faz uso de algum medicamento</p>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-semibold text-gray-700">Medicamento, dose e horário</label>
+            <textarea
+              value={medicacao}
+              onChange={e => setMedicacao(e.target.value)}
+              rows={4}
+              className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-base bg-white resize-none"
+              placeholder={`Ex:\nFrontal 1cp às 8h e às 20h\nPrednizona 5mg às 12h com comida`}
+            />
+          </div>
         </section>
 
         {/* Plano */}

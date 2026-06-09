@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { formatDate, calcIdade, PLANO_LABELS, PORTE_LABELS } from '@/lib/utils'
 import Badge from '@/components/ui/Badge'
 import Card from '@/components/ui/Card'
-import { Dog, Phone, Calendar, Syringe, ArrowLeft, Edit } from 'lucide-react'
+import { Dog, Phone, Calendar, Syringe, ArrowLeft, Edit, Pill } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Pet } from '@/types'
@@ -100,6 +100,17 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
         <Card className="border-l-4 border-brand-orange">
           <p className="text-xs text-brand-orange font-semibold mb-1">⚠️ Restrições / Comportamento</p>
           <p className="text-sm text-gray-700">{pet.restricoes}</p>
+        </Card>
+      )}
+
+      {/* Medicação */}
+      {(pet as any).medicacao && (
+        <Card className="border-l-4 border-brand-teal">
+          <div className="flex items-center gap-2 mb-1">
+            <Pill size={14} className="text-brand-teal" />
+            <p className="text-xs text-brand-teal font-semibold">Medicação</p>
+          </div>
+          <p className="text-sm text-gray-700 whitespace-pre-line">{(pet as any).medicacao}</p>
         </Card>
       )}
 
