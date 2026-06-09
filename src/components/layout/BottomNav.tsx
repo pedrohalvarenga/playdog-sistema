@@ -15,7 +15,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Início', icon: Home, roles: ['admin', 'recepcao', 'banho_tosa', 'motorista'] },
-  { href: '/creche', label: 'Creche', icon: CalendarCheck, roles: ['admin', 'recepcao'] },
+  { href: '/creche', label: 'Chamada', icon: CalendarCheck, roles: ['admin', 'recepcao'] },
   { href: '/pets', label: 'Pets', icon: Dog, roles: ['admin', 'recepcao', 'banho_tosa'] },
   { href: '/tutores', label: 'Tutores', icon: Users, roles: ['admin', 'recepcao'] },
   { href: '/admin', label: 'Admin', icon: Settings, roles: ['admin'] },

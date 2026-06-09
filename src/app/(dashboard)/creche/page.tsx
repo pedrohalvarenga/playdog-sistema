@@ -56,7 +56,7 @@ export default function CrechePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Creche</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Chamada</h1>
           <p className="text-sm text-gray-400">{formatDate(hoje, "dd 'de' MMMM, yyyy")}</p>
         </div>
         <Link href="/creche/checkin">
@@ -99,7 +99,7 @@ export default function CrechePage() {
           {/* Pets presentes */}
           {presentes.length > 0 && (
             <div>
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Na creche agora</h2>
+              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Presentes agora</h2>
               <div className="flex flex-col gap-2">
                 {presentes.map(p => (
                   <Card key={p.id}>
@@ -163,7 +163,7 @@ export default function CrechePage() {
           {filtradas.length === 0 && (
             <div className="text-center py-12 text-gray-400">
               <Dog size={48} className="mx-auto mb-3 opacity-30" />
-              <p className="font-medium">Nenhum pet na creche hoje</p>
+              <p className="font-medium">Nenhum pet na chamada hoje</p>
               <p className="text-sm">Faça o check-in do primeiro pet</p>
             </div>
           )}

@@ -40,12 +40,35 @@ export default function CheckinPage() {
     const timer = setTimeout(async () => {
       setLoading(true)
       const supabase = createClient()
-      const { data } = await supabase
+      // Busca por nome do pet
+      const { data: porNome } = await supabase
         .from('pets')
         .select('*, tutor:tutores(nome)')
         .eq('ativo', true)
-        .or(`nome.ilike.%${busca}%,tutores.nome.ilike.%${busca}%`)
+        .ilike('nome', `%${busca}%`)
         .limit(10)
+
+      // Busca tutores cujo nome bate, depois traz os pets deles
+      const { data: tutoresBusca } = await supabase
+        .from('tutores')
+        .select('id')
+        .ilike('nome', `%${busca}%`)
+        .limit(20)
+
+      const idsTutores = tutoresBusca?.map(t => t.id) ?? []
+      const { data: porTutor } = idsTutores.length > 0
+        ? await supabase
+            .from('pets')
+            .select('*, tutor:tutores(nome)')
+            .eq('ativo', true)
+            .in('tutor_id', idsTutores)
+            .limit(10)
+        : { data: [] as typeof porNome }
+
+      // Mescla sem duplicatas
+      const todos = [...(porNome ?? []), ...(porTutor ?? [])]
+      const unicos = todos.filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i)
+      const data = unicos.slice(0, 15)
       setPets((data as PetComTutor[]) ?? [])
       setLoading(false)
     }, 300)
@@ -69,7 +92,7 @@ export default function CheckinPage() {
         <Link href="/creche" className="p-2 rounded-xl text-gray-400 hover:text-gray-600">
           <ArrowLeft size={24} />
         </Link>
-        <h1 className="text-xl font-bold text-gray-900">Check-in na Creche</h1>
+        <h1 className="text-xl font-bold text-gray-900">Check-in — Chamada</h1>
       </div>
 
       <div className="relative">
