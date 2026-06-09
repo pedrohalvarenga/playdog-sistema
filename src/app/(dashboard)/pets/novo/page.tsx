@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import { ArrowLeft, Camera, X } from 'lucide-react'
+import { ArrowLeft, Camera, X, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import type { Tutor, Porte, PlanoTipo } from '@/types'
 
@@ -16,8 +16,11 @@ export default function NovoPetPage() {
   const [tutores, setTutores] = useState<Tutor[]>([])
   const [criandoTutor, setCriandoTutor] = useState(false)
   const fotoRef = useRef<HTMLInputElement>(null)
+  const vacinaRef = useRef<HTMLInputElement>(null)
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
   const [fotoFile, setFotoFile] = useState<File | null>(null)
+  const [analisandoVacinas, setAnalisandoVacinas] = useState(false)
+  const [msgVacina, setMsgVacina] = useState('')
 
   // Pet
   const [nomePet, setNomePet] = useState('')
@@ -48,6 +51,24 @@ export default function NovoPetPage() {
     }
     load()
   }, [searchParams])
+
+  async function analisarCartaoVacinas(file: File) {
+    setAnalisandoVacinas(true)
+    setMsgVacina('Analisando com IA...')
+    const fd = new FormData()
+    fd.append('arquivo', file)
+    try {
+      const res = await fetch('/api/analisar-vacinas', { method: 'POST', body: fd })
+      const dados = await res.json()
+      if (dados.vacina_v8_v10) setVacinaV8(dados.vacina_v8_v10)
+      if (dados.vacina_antirabica) setVacinaRaiva(dados.vacina_antirabica)
+      if (dados.vacina_gripe) setVacinaGripe(dados.vacina_gripe)
+      setMsgVacina('Campos preenchidos! Confira e ajuste se necessário.')
+    } catch {
+      setMsgVacina('Não consegui ler o cartão. Preencha manualmente.')
+    }
+    setAnalisandoVacinas(false)
+  }
 
   function onFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -277,6 +298,23 @@ export default function NovoPetPage() {
         {/* Vacinas */}
         <section className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col gap-4">
           <h2 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Vacinas</h2>
+          <input ref={vacinaRef} type="file" accept="image/*,application/pdf" capture="environment" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) analisarCartaoVacinas(f) }} />
+          <button
+            type="button"
+            onClick={() => vacinaRef.current?.click()}
+            disabled={analisandoVacinas}
+            className="w-full py-3 rounded-2xl border-2 border-dashed border-brand-purple bg-purple-50 flex items-center justify-center gap-2 text-brand-purple font-semibold text-sm disabled:opacity-50"
+          >
+            {analisandoVacinas
+              ? <><Loader2 size={16} className="animate-spin" /> Analisando cartão...</>
+              : <><Camera size={16} /> Fotografar cartão de vacinas (IA)</>}
+          </button>
+          {msgVacina && (
+            <p className={`text-xs text-center font-medium ${msgVacina.includes('Campos') ? 'text-green-600' : 'text-gray-400'}`}>
+              {msgVacina}
+            </p>
+          )}
           <Input label="V8/V10 — última dose" type="date" value={vacinaV8} onChange={e => setVacinaV8(e.target.value)} />
           <Input label="Antirrábica — última dose" type="date" value={vacinaRaiva} onChange={e => setVacinaRaiva(e.target.value)} />
           <Input label="Gripe — última dose" type="date" value={vacinaGripe} onChange={e => setVacinaGripe(e.target.value)} />
