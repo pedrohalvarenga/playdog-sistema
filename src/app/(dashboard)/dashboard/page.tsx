@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { Dog, CalendarCheck, Users, TrendingUp } from 'lucide-react'
+import { Dog, CalendarCheck, Users, TrendingUp, Moon } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import { formatDate } from '@/lib/utils'
 import type { Profile } from '@/types'
@@ -9,16 +9,18 @@ async function getStats() {
   const supabase = await createClient()
   const hoje = new Date().toISOString().split('T')[0]
 
-  const [presencasHoje, totalPets, totalTutores] = await Promise.all([
+  const [presencasHoje, totalPets, totalTutores, hospedadosHoje] = await Promise.all([
     supabase.from('presencas').select('id', { count: 'exact' }).eq('data', hoje).is('checkout_at', null),
     supabase.from('pets').select('id', { count: 'exact' }).eq('ativo', true),
     supabase.from('tutores').select('id', { count: 'exact' }),
+    supabase.from('hospedagens').select('id', { count: 'exact' }).eq('status', 'hospedado'),
   ])
 
   return {
     petsPresentes: presencasHoje.count ?? 0,
     totalPets: totalPets.count ?? 0,
     totalTutores: totalTutores.count ?? 0,
+    hospedados: hospedadosHoje.count ?? 0,
   }
 }
 
@@ -81,13 +83,23 @@ export default async function DashboardPage() {
             </div>
           </Link>
 
-          <Link href="/pets/novo" className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 active:bg-gray-50">
+          <Link href="/hotel" className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 active:bg-gray-50">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center">
+              <Moon size={24} className="text-indigo-500" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900">Hotel — {stats.hospedados} hospedados</p>
+              <p className="text-sm text-gray-400">Reservas e agenda do hotel</p>
+            </div>
+          </Link>
+
+          <Link href="/hotel/reservas/nova" className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 active:bg-gray-50">
             <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center">
               <Dog size={24} className="text-brand-orange" />
             </div>
             <div>
-              <p className="font-semibold text-gray-900">Cadastrar Pet</p>
-              <p className="text-sm text-gray-400">Novo pet ou tutor</p>
+              <p className="font-semibold text-gray-900">Nova Reserva Hotel</p>
+              <p className="text-sm text-gray-400">Agendar hospedagem</p>
             </div>
           </Link>
         </div>

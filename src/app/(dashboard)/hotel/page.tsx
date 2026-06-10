@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Moon, LogIn, LogOut, Plus, AlertTriangle, Calendar } from 'lucide-react'
+import { Moon, LogIn, LogOut, Plus, AlertTriangle, Calendar, Settings } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Link from 'next/link'
 import { formatDate, formatTime } from '@/lib/utils'
@@ -77,13 +77,18 @@ export default function HotelPage() {
           <h1 className="text-2xl font-bold text-gray-900">Hotel</h1>
           <p className="text-sm text-gray-400">{formatDate(hoje, "dd 'de' MMMM, yyyy")}</p>
         </div>
-        <Link
-          href="/hotel/reservas/nova"
-          className="flex items-center gap-1.5 bg-brand-purple text-white px-4 py-2 rounded-2xl text-sm font-semibold active:bg-purple-700"
-        >
-          <Plus size={18} />
-          Nova reserva
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/hotel/config" className="p-2 rounded-xl text-gray-400 hover:text-gray-700">
+            <Settings size={20} />
+          </Link>
+          <Link
+            href="/hotel/reservas/nova"
+            className="flex items-center gap-1.5 bg-brand-purple text-white px-4 py-2 rounded-2xl text-sm font-semibold active:bg-purple-700"
+          >
+            <Plus size={18} />
+            Nova reserva
+          </Link>
+        </div>
       </div>
 
       {/* Contadores */}
