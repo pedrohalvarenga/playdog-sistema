@@ -4,16 +4,16 @@ import { Resend } from 'resend'
 import { addDays, parseISO, format, startOfMonth, endOfMonth } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
 const DESTINATARIO = 'ac.staico@gmail.com'
 const VACINA_VALIDADE_DIAS = 365
 
 export async function GET(request: Request) {
-  // Verifica o secret para evitar chamadas não autorizadas
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const resend = new Resend(process.env.RESEND_API_KEY)
 
   const adminClient = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
