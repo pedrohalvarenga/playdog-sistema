@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { EyeOff, Eye, Trash2 } from 'lucide-react'
 
 interface Props {
@@ -16,13 +15,20 @@ interface Props {
 export default function AdminActions({ tipo, id, ativo, nome, redirectApos }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState<'ocultar' | 'excluir' | null>(null)
-  const tabela = tipo === 'pet' ? 'pets' : 'tutores'
 
   async function ocultar() {
     setLoading('ocultar')
-    const supabase = createClient()
-    await supabase.from(tabela).update({ ativo: !ativo }).eq('id', id)
-    router.refresh()
+    const res = await fetch('/api/admin/registro', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo, id, ativo: !ativo }),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      alert('Erro: ' + (err.error ?? 'Não foi possível alterar'))
+    } else {
+      router.refresh()
+    }
     setLoading(null)
   }
 
@@ -32,9 +38,18 @@ export default function AdminActions({ tipo, id, ativo, nome, redirectApos }: Pr
     )
     if (!confirmar) return
     setLoading('excluir')
-    const supabase = createClient()
-    await supabase.from(tabela).delete().eq('id', id)
-    router.push(redirectApos ?? (tipo === 'pet' ? '/pets' : '/tutores'))
+    const res = await fetch('/api/admin/registro', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo, id }),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      alert('Erro: ' + (err.error ?? 'Não foi possível excluir'))
+      setLoading(null)
+    } else {
+      router.push(redirectApos ?? (tipo === 'pet' ? '/pets' : '/tutores'))
+    }
   }
 
   return (
