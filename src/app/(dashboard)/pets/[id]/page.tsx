@@ -65,7 +65,7 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
 
   const p = pet as any
   const vacinas = [
-    { label: 'V8/V10', data: pet.vacina_v8_v10 },
+    { label: 'V7/V8/V10 ou sorologia', data: pet.vacina_v8_v10 },
     { label: 'Antirrábica', data: pet.vacina_antirabica },
     { label: 'Gripe', data: pet.vacina_gripe },
     { label: 'Giardia', data: p.vacina_giardia },

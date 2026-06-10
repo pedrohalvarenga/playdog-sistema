@@ -360,7 +360,7 @@ export default function NovoPetPage() {
               {msgVacina}
             </p>
           )}
-          <VacinaInput label="V8/V10 — última dose" value={vacinaV8} onChange={setVacinaV8} />
+          <VacinaInput label="V7/V8/V10 ou sorologia — última dose" value={vacinaV8} onChange={setVacinaV8} />
           <VacinaInput label="Antirrábica — última dose" value={vacinaRaiva} onChange={setVacinaRaiva} />
           <VacinaInput label="Gripe — última dose" value={vacinaGripe} onChange={setVacinaGripe} />
           <VacinaInput label="Giardia — última dose" value={vacinaGiardia} onChange={setVacinaGiardia} />
