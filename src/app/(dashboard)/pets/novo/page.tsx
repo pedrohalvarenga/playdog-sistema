@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import DateInput from '@/components/ui/DateInput'
+import FotoComCrop from '@/components/ui/FotoComCrop'
 import { ArrowLeft, Camera, X, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import VacinaInput from '@/components/pets/VacinaInput'
@@ -17,7 +18,6 @@ export default function NovoPetPage() {
   const [loading, setLoading] = useState(false)
   const [tutores, setTutores] = useState<Tutor[]>([])
   const [criandoTutor, setCriandoTutor] = useState(false)
-  const fotoRef = useRef<HTMLInputElement>(null)
   const vacinaRef = useRef<HTMLInputElement>(null)
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
   const [fotoFile, setFotoFile] = useState<File | null>(null)
@@ -80,13 +80,6 @@ export default function NovoPetPage() {
     setAnalisandoVacinas(false)
   }
 
-  function onFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setFotoFile(file)
-    const url = URL.createObjectURL(file)
-    setFotoPreview(url)
-  }
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault()
@@ -164,34 +157,11 @@ export default function NovoPetPage() {
         {/* Foto */}
         <section className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col items-center gap-3">
           <h2 className="font-bold text-gray-700 text-sm uppercase tracking-wide self-start">Foto do cão</h2>
-          <input ref={fotoRef} type="file" accept="image/*" className="hidden" onChange={onFotoChange} />
-          {fotoPreview ? (
-            <div className="relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={fotoPreview} alt="Preview" className="w-32 h-32 rounded-2xl object-cover" />
-              <button
-                type="button"
-                onClick={() => { setFotoPreview(null); setFotoFile(null) }}
-                className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => fotoRef.current?.click()}
-              className="w-32 h-32 rounded-2xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-brand-purple hover:text-brand-purple transition-colors"
-            >
-              <Camera size={28} />
-              <span className="text-xs font-medium">Adicionar foto</span>
-            </button>
-          )}
-          {fotoPreview && (
-            <button type="button" onClick={() => fotoRef.current?.click()} className="text-xs text-brand-purple font-semibold">
-              Trocar foto
-            </button>
-          )}
+          <FotoComCrop
+            previewUrl={fotoPreview}
+            onFotoProcessada={(file, preview) => { setFotoFile(file); setFotoPreview(preview) }}
+            onRemover={() => { setFotoFile(null); setFotoPreview(null) }}
+          />
         </section>
 
         {/* Tutor */}
