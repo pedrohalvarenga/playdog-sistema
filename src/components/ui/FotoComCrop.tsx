@@ -105,12 +105,14 @@ export default function FotoComCrop({ fotoAtual, onFotoProcessada, onRemover, pr
             </div>
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={cancelar}
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/10 text-white font-semibold"
               >
                 <X size={18} /> Cancelar
               </button>
               <button
+                type="button"
                 onClick={confirmar}
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-brand-purple text-white font-semibold"
               >
