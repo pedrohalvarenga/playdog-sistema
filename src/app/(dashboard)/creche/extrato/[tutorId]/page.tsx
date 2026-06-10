@@ -140,6 +140,9 @@ export default function ExtratoPage() {
             </Link>
             <h1 className="text-xl font-bold text-gray-900">Extrato</h1>
           </div>
+          <Link href="/creche/envio-lote" className="text-xs text-brand-purple font-semibold">
+            Envio em lote
+          </Link>
           <div className="flex gap-2">
             <button
               onClick={() => window.print()}

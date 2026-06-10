@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { formatDate, calcIdade, PLANO_LABELS, PORTE_LABELS, vacinaStatus, whatsappUrl } from '@/lib/utils'
 import Badge from '@/components/ui/Badge'
 import Card from '@/components/ui/Card'
-import { Dog, Phone, Calendar, Syringe, ArrowLeft, Edit, Pill, MessageCircle, AlertTriangle, CreditCard } from 'lucide-react'
+import { Dog, Phone, Calendar, Syringe, ArrowLeft, Edit, Pill, MessageCircle, AlertTriangle, CreditCard, SlidersHorizontal, Plus } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Pet } from '@/types'
@@ -134,9 +134,14 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
             </p>
             {p.saldo_diarias < 0 && <p className="text-xs text-red-500 font-semibold mt-0.5">Saldo negativo</p>}
           </div>
-          <Link href={`/creche/comprar-diarias/${id}`} className="flex items-center gap-1.5 bg-brand-purple text-white px-3 py-2 rounded-xl text-xs font-semibold">
-            <CreditCard size={14} /> Comprar
-          </Link>
+          <div className="flex gap-2">
+            <Link href={`/creche/comprar-diarias/${id}`} className="flex items-center gap-1.5 bg-brand-purple text-white px-3 py-2 rounded-xl text-xs font-semibold">
+              <CreditCard size={14} /> Comprar
+            </Link>
+            <Link href={`/creche/ajustar-saldo/${id}`} className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-2 rounded-xl text-xs font-semibold">
+              <SlidersHorizontal size={14} /> Ajustar
+            </Link>
+          </div>
         </div>
       </Card>
 
@@ -195,12 +200,17 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
       </Card>
 
       {/* Ocorrências */}
-      {ocorrencias && ocorrencias.length > 0 && (
-        <Card className="border-l-4 border-yellow-400">
-          <div className="flex items-center gap-2 mb-3">
+      <Card className={ocorrencias && ocorrencias.length > 0 ? 'border-l-4 border-yellow-400' : ''}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
             <AlertTriangle size={18} className="text-yellow-500" />
             <p className="font-bold text-gray-900 text-sm">Ocorrências</p>
           </div>
+          <Link href={`/pets/${id}/ocorrencia`} className="flex items-center gap-1 text-xs text-brand-purple font-semibold">
+            <Plus size={14} /> Registrar
+          </Link>
+        </div>
+        {ocorrencias && ocorrencias.length > 0 ? (
           <div className="flex flex-col gap-3">
             {ocorrencias.map((o: { id: string; descricao: string; created_at: string }) => (
               <div key={o.id} className="border-b border-gray-100 pb-2 last:border-0 last:pb-0">
@@ -209,8 +219,10 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
               </div>
             ))}
           </div>
-        </Card>
-      )}
+        ) : (
+          <p className="text-sm text-gray-400">Nenhuma ocorrência registrada</p>
+        )}
+      </Card>
 
       {/* Histórico */}
       {historico && historico.length > 0 && (
