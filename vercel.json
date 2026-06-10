@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/vacinas-mes",
       "schedule": "0 8 1 * *"
+    },
+    {
+      "path": "/api/financeiro/recorrentes",
+      "schedule": "0 7 1 * *"
     }
   ]
 }

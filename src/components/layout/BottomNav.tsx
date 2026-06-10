@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Dog, Users, CalendarCheck, Settings } from 'lucide-react'
+import { Home, Dog, Users, CalendarCheck, Settings, DollarSign } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { type UserRole } from '@/types'
 
@@ -14,11 +14,12 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: '/dashboard', label: 'Início', icon: Home, roles: ['admin', 'recepcao', 'banho_tosa', 'motorista'] },
-  { href: '/creche', label: 'Chamada', icon: CalendarCheck, roles: ['admin', 'recepcao'] },
-  { href: '/pets', label: 'Pets', icon: Dog, roles: ['admin', 'recepcao', 'banho_tosa'] },
-  { href: '/tutores', label: 'Tutores', icon: Users, roles: ['admin', 'recepcao'] },
-  { href: '/admin', label: 'Admin', icon: Settings, roles: ['admin'] },
+  { href: '/dashboard',   label: 'Início',      icon: Home,        roles: ['admin', 'recepcao', 'banho_tosa', 'motorista'] },
+  { href: '/creche',      label: 'Chamada',     icon: CalendarCheck, roles: ['admin', 'recepcao'] },
+  { href: '/pets',        label: 'Pets',        icon: Dog,         roles: ['admin', 'recepcao', 'banho_tosa'] },
+  { href: '/financeiro',  label: 'Financeiro',  icon: DollarSign,  roles: ['admin', 'recepcao'] },
+  { href: '/tutores',     label: 'Tutores',     icon: Users,       roles: ['admin', 'recepcao'] },
+  { href: '/admin',       label: 'Admin',       icon: Settings,    roles: ['admin'] },
 ]
 
 export default function BottomNav({ role }: { role: UserRole }) {
