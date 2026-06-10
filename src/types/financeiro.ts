@@ -59,6 +59,8 @@ export interface Despesa {
   area: AreaNegocio
   categoria: CategoriaDespesa
   conta_id: string
+  tutor_id?: string
+  pet_id?: string
   fornecedor?: string
   descricao?: string
   status: StatusFinanceiro
@@ -70,6 +72,8 @@ export interface Despesa {
   registrado_por?: string
   created_at: string
   conta?: ContaFinanceira
+  tutor?: { nome: string }
+  pet?: { nome: string }
   parcelamento?: Parcelamento
 }
 

@@ -32,6 +32,9 @@ export default function NovaReceitaPage() {
   const [tutorBusca, setTutorBusca] = useState('')
   const [tutores, setTutores] = useState<{ id: string; nome: string }[]>([])
   const [tutorId, setTutorId] = useState('')
+  const [petBusca, setPetBusca] = useState('')
+  const [pets, setPets] = useState<{ id: string; nome: string }[]>([])
+  const [petId, setPetId] = useState('')
   const [erro, setErro] = useState('')
 
   useEffect(() => {
@@ -72,6 +75,17 @@ export default function NovaReceitaPage() {
     return () => clearTimeout(t)
   }, [tutorBusca])
 
+  // Busca pets
+  useEffect(() => {
+    if (petBusca.length < 2) { setPets([]); return }
+    const t = setTimeout(async () => {
+      const supabase = createClient()
+      const { data } = await supabase.from('pets').select('id, nome').ilike('nome', `%${petBusca}%`).limit(5)
+      if (data) setPets(data)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [petBusca])
+
   const conta = contas.find(c => c.id === contaId)
   const mostrarTaxa = (forma === 'debito' || forma === 'credito') && conta?.tipo === 'pagbank_pj'
   const valorLiquido = mostrarTaxa && typeof taxaCartao === 'number' && taxaCartao > 0
@@ -90,6 +104,7 @@ export default function NovaReceitaPage() {
       taxa_cartao: mostrarTaxa && typeof taxaCartao === 'number' ? taxaCartao : null,
       valor_liquido: valorLiquido,
       tutor_id: tutorId || null,
+      pet_id: petId || null,
       descricao: descricao || null,
       status,
       data_vencimento: status === 'pendente' ? dataVenc : null,
@@ -250,6 +265,37 @@ export default function NovaReceitaPage() {
                     onClick={() => { setTutorId(t.id); setTutorBusca(t.nome); setTutores([]) }}
                     className="py-2 px-4 rounded-xl bg-white border border-gray-200 text-sm text-left hover:border-brand-purple">
                     {t.nome}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Pet (opcional) */}
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-gray-700">Pet (opcional)</label>
+        {petId ? (
+          <div className="flex items-center gap-2 py-3 px-4 rounded-2xl bg-purple-50 border-2 border-brand-purple">
+            <span className="text-sm font-semibold text-brand-purple flex-1">
+              {pets.find(p => p.id === petId)?.nome ?? petBusca}
+            </span>
+            <button type="button" onClick={() => { setPetId(''); setPetBusca('') }}
+              className="text-xs text-gray-400">remover</button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <input type="text" placeholder="Buscar pet..." value={petBusca}
+              onChange={e => setPetBusca(e.target.value)}
+              className="w-full py-3 px-4 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-base bg-white" />
+            {pets.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {pets.map(p => (
+                  <button key={p.id} type="button"
+                    onClick={() => { setPetId(p.id); setPetBusca(p.nome); setPets([]) }}
+                    className="py-2 px-4 rounded-xl bg-white border border-gray-200 text-sm text-left hover:border-brand-purple">
+                    {p.nome}
                   </button>
                 ))}
               </div>
