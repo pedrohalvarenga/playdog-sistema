@@ -12,13 +12,35 @@ export async function POST(request: Request) {
 
   const hoje = new Date().toISOString().split('T')[0]
 
-  const { data, error } = await supabase.rpc('fazer_checkin', {
-    p_pet_id: pet_id,
-    p_data: hoje,
-    p_registrado_por: user.id,
-  })
+  // Registra a presença
+  const { data: presenca, error: errPresenca } = await supabase
+    .from('presencas')
+    .insert({
+      pet_id,
+      data: hoje,
+      checkin_at: new Date().toISOString(),
+      registrado_por: user.id,
+    })
+    .select('id')
+    .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  if (errPresenca) {
+    return NextResponse.json({ error: errPresenca.message }, { status: 400 })
+  }
 
-  return NextResponse.json({ presenca_id: data })
+  // Decrementa saldo (ignora erro se coluna ainda não existir)
+  const { data: pet } = await supabase
+    .from('pets')
+    .select('saldo_diarias')
+    .eq('id', pet_id)
+    .single()
+
+  if (pet && typeof pet.saldo_diarias === 'number') {
+    await supabase
+      .from('pets')
+      .update({ saldo_diarias: pet.saldo_diarias - 1 })
+      .eq('id', pet_id)
+  }
+
+  return NextResponse.json({ presenca_id: presenca.id })
 }
