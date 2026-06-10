@@ -4,7 +4,7 @@ import Link from 'next/link'
 import {
   TrendingUp, TrendingDown, Wallet, CreditCard, Banknote,
   AlertCircle, Clock, ArrowRight, LayoutGrid,
-  BarChart2, PieChart, Target, LineChart,
+  BarChart2, PieChart, Target, LineChart, Dog,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import { formatDate } from '@/lib/utils'
@@ -197,10 +197,11 @@ export default async function FinanceiroPage() {
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Análise & Planejamento</p>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { href: '/financeiro/dashboard', label: 'Dashboard', icon: BarChart2, cor: 'bg-purple-50 text-purple-700' },
-              { href: '/financeiro/dre',       label: 'DRE por Área', icon: PieChart,  cor: 'bg-indigo-50 text-indigo-700' },
-              { href: '/financeiro/orcamento', label: 'Orçamento',   icon: Target,    cor: 'bg-teal-50 text-teal-700' },
-              { href: '/financeiro/projecao',  label: 'Projeção',    icon: LineChart,  cor: 'bg-orange-50 text-orange-700' },
+              { href: '/financeiro/dashboard',                    label: 'Dashboard',        icon: BarChart2, cor: 'bg-purple-50 text-purple-700' },
+              { href: '/financeiro/dre',                         label: 'DRE por Área',     icon: PieChart,  cor: 'bg-indigo-50 text-indigo-700' },
+              { href: '/financeiro/orcamento',                   label: 'Orçamento',        icon: Target,    cor: 'bg-teal-50 text-teal-700' },
+              { href: '/financeiro/projecao',                    label: 'Projeção',         icon: LineChart, cor: 'bg-orange-50 text-orange-700' },
+              { href: '/financeiro/relatorios/faturamento',      label: 'Fat. por Pet/Tutor', icon: Dog,    cor: 'bg-pink-50 text-pink-700' },
             ].map(m => (
               <Link key={m.href} href={m.href}>
                 <Card className={`flex items-center gap-3 ${m.cor}`}>
