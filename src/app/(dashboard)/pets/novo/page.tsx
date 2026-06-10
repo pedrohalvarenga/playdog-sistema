@@ -101,14 +101,17 @@ export default function NovoPetPage() {
     // Upload da foto se houver
     let fotoUrl: string | null = null
     if (fotoFile) {
-      const ext = fotoFile.name.split('.').pop()
-      const path = `pets/${Date.now()}.${ext}`
-      const { error: uploadError } = await supabase.storage
-        .from('fotos')
-        .upload(path, fotoFile, { upsert: true })
-      if (!uploadError) {
-        const { data: urlData } = supabase.storage.from('fotos').getPublicUrl(path)
-        fotoUrl = urlData.publicUrl
+      const fd = new FormData()
+      fd.append('arquivo', fotoFile)
+      const res = await fetch('/api/upload-foto-pet', { method: 'POST', body: fd })
+      if (res.ok) {
+        const { url } = await res.json()
+        fotoUrl = url
+      } else {
+        const err = await res.json().catch(() => ({ error: 'Erro desconhecido' }))
+        setLoading(false)
+        alert(`Erro ao enviar foto: ${err.error}`)
+        return
       }
     }
 
