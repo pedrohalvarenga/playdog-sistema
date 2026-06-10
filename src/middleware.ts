@@ -31,8 +31,12 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  // Rotas públicas — não exigem autenticação
+  const publicPaths = ['/login', '/cadastro', '/api/cadastro-publico', '/api/upload-foto-pet', '/api/analisar-vacinas']
+  const isPublic = publicPaths.some(p => pathname.startsWith(p))
+
   // Redireciona para login se não autenticado
-  if (!user && !pathname.startsWith('/login')) {
+  if (!user && !isPublic) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
