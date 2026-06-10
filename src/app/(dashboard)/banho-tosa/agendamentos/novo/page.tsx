@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import type { Pet } from '@/types'
 
-type PetComTutor = Pet & { tutor: { nome: string; endereco?: string | null } }
+type PetComTutor = Pet & { tutor: { nome: string; telefone?: string | null; endereco?: string | null } }
 
 function toLocalDate(d: Date) {
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -49,7 +49,7 @@ export default function NovoAgendamentoPage() {
       const supabase = createClient()
       const { data: pets } = await supabase
         .from('pets')
-        .select('*, tutor:tutores(nome, endereco)')
+        .select('*, tutor:tutores(nome, telefone, endereco)')
         .eq('ativo', true)
         .or(`nome.ilike.%${petBusca.toLowerCase()}%,identificador.ilike.%${petBusca.toLowerCase()}%`)
         .limit(8)
@@ -99,31 +99,24 @@ export default function NovoAgendamentoPage() {
 
     if (error) { setErro(error.message); setSaving(false); return }
 
-    // Cria registro(s) de transporte
+    // Passageiro entra sozinho na lista do dia: ida e volta independentes.
+    // buscar = só a ida é nossa | levar = só a volta é nossa | ambos = as duas
     if (taxiDog && agendamento) {
-      const tiposTransporte = taxiTipo === 'ambos'
-        ? (['buscar', 'levar'] as const)
-        : ([taxiTipo] as const)
-
-      const horaParaTipo = (tipo: 'buscar' | 'levar') => {
-        if (taxiTipo === 'ambos') {
-          return tipo === 'buscar' ? horaChegada : (horaSaida || horaChegada)
-        }
-        return tipo === 'buscar' ? horaChegada : (horaSaida || horaChegada)
+      const meioIda   = taxiTipo === 'buscar' || taxiTipo === 'ambos' ? 'playdog' : 'tutor'
+      const meioVolta = taxiTipo === 'levar'  || taxiTipo === 'ambos' ? 'playdog' : 'tutor'
+      const base = {
+        origem: 'banho_tosa',
+        origem_id: agendamento.id,
+        pet_id: petSelecionado.id,
+        data,
+        endereco: taxiEndereco.trim(),
+        telefone: petSelecionado.tutor?.telefone ?? null,
+        status: 'pendente',
       }
-
-      await supabase.from('transportes').insert(
-        tiposTransporte.map(tipo => ({
-          origem: 'banho_tosa',
-          origem_id: agendamento.id,
-          pet_id: petSelecionado.id,
-          data,
-          horario: horaParaTipo(tipo),
-          tipo,
-          endereco: taxiEndereco.trim(),
-          status: 'pendente',
-        }))
-      )
+      await supabase.from('transportes').insert([
+        { ...base, tipo: 'buscar', meio: meioIda,   horario: horaChegada },
+        { ...base, tipo: 'levar',  meio: meioVolta, horario: horaSaida || horaChegada },
+      ])
     }
 
     router.push('/banho-tosa')

@@ -1,5 +1,5 @@
--- ============================================================
--- PLAY DOG — Módulo Banho & Tosa + Transportes
+﻿-- ============================================================
+-- PLAY DOG â€” MÃ³dulo Banho & Tosa + Transportes
 -- Execute este script no Supabase SQL Editor
 -- ============================================================
 
@@ -37,7 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_agendamentos_bt_status ON public.agendamentos_ban
 
 -- ============================================================
 -- TABELA: transportes
--- Genérica — suporta banho_tosa agora; hotel e creche no futuro.
+-- GenÃ©rica â€” suporta banho_tosa agora; hotel e creche no futuro.
 -- origem_id aponta para o registro de origem (agendamento, hospedagem, etc.)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.transportes (
@@ -60,7 +60,7 @@ CREATE INDEX IF NOT EXISTS idx_transportes_status  ON public.transportes(status)
 CREATE INDEX IF NOT EXISTS idx_transportes_origem  ON public.transportes(origem_id);
 
 -- ============================================================
--- TRIGGER: mantém updated_at atualizado
+-- TRIGGER: mantÃ©m updated_at atualizado
 -- ============================================================
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
@@ -83,26 +83,27 @@ ALTER TABLE public.transportes              ENABLE ROW LEVEL SECURITY;
 
 -- agendamentos_banho_tosa
 CREATE POLICY "bt_agend_select" ON public.agendamentos_banho_tosa
-  FOR SELECT USING (my_role() IN ('admin','recepcao','banho_tosa'));
+  FOR SELECT USING (get_my_role() IN ('admin','recepcao','banho_tosa'));
 
 CREATE POLICY "bt_agend_insert" ON public.agendamentos_banho_tosa
-  FOR INSERT WITH CHECK (my_role() IN ('admin','recepcao'));
+  FOR INSERT WITH CHECK (get_my_role() IN ('admin','recepcao'));
 
 CREATE POLICY "bt_agend_update" ON public.agendamentos_banho_tosa
-  FOR UPDATE USING (my_role() IN ('admin','recepcao','banho_tosa'));
+  FOR UPDATE USING (get_my_role() IN ('admin','recepcao','banho_tosa'));
 
 CREATE POLICY "bt_agend_delete" ON public.agendamentos_banho_tosa
-  FOR DELETE USING (my_role() = 'admin');
+  FOR DELETE USING (get_my_role() = 'admin');
 
 -- transportes
 CREATE POLICY "transp_select" ON public.transportes
-  FOR SELECT USING (my_role() IN ('admin','recepcao','banho_tosa','motorista'));
+  FOR SELECT USING (get_my_role() IN ('admin','recepcao','banho_tosa','motorista'));
 
 CREATE POLICY "transp_insert" ON public.transportes
-  FOR INSERT WITH CHECK (my_role() IN ('admin','recepcao'));
+  FOR INSERT WITH CHECK (get_my_role() IN ('admin','recepcao'));
 
 CREATE POLICY "transp_update" ON public.transportes
-  FOR UPDATE USING (my_role() IN ('admin','recepcao','motorista'));
+  FOR UPDATE USING (get_my_role() IN ('admin','recepcao','motorista'));
 
 CREATE POLICY "transp_delete" ON public.transportes
-  FOR DELETE USING (my_role() = 'admin');
+  FOR DELETE USING (get_my_role() = 'admin');
+

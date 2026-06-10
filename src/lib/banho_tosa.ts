@@ -1,4 +1,4 @@
-import type { StatusAgendamento, StatusTransporte } from '@/types/banho_tosa'
+import type { StatusAgendamento } from '@/types/banho_tosa'
 
 export const STATUS_BT_LABELS: Record<StatusAgendamento, string> = {
   agendado:       'Agendado',
@@ -16,20 +16,6 @@ export const STATUS_BT_CORES: Record<StatusAgendamento, string> = {
   cancelado:      'bg-red-100 text-red-600',
 }
 
-export const STATUS_TRANSP_LABELS: Record<StatusTransporte, string> = {
-  pendente:  'Pendente',
-  em_rota:   'Em rota',
-  concluido: 'Concluído',
-  cancelado: 'Cancelado',
-}
-
-export const STATUS_TRANSP_CORES: Record<StatusTransporte, string> = {
-  pendente:  'bg-orange-100 text-orange-700',
-  em_rota:   'bg-blue-100 text-blue-700',
-  concluido: 'bg-green-100 text-green-700',
-  cancelado: 'bg-red-100 text-red-600',
-}
-
 export function proximoStatusBT(status: StatusAgendamento): StatusAgendamento | null {
   const flow: Record<StatusAgendamento, StatusAgendamento | null> = {
     agendado:       'em_atendimento',
@@ -37,16 +23,6 @@ export function proximoStatusBT(status: StatusAgendamento): StatusAgendamento | 
     pronto:         'entregue',
     entregue:       null,
     cancelado:      null,
-  }
-  return flow[status]
-}
-
-export function proximoStatusTransporte(status: StatusTransporte): StatusTransporte | null {
-  const flow: Record<StatusTransporte, StatusTransporte | null> = {
-    pendente:  'em_rota',
-    em_rota:   'concluido',
-    concluido: null,
-    cancelado: null,
   }
   return flow[status]
 }

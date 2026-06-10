@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
-import { Dog, CalendarCheck, Users, TrendingUp, Moon, Scissors } from 'lucide-react'
+import { Dog, CalendarCheck, Users, TrendingUp, Moon, Scissors, Car } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import { formatDate } from '@/lib/utils'
+import { STATUS_ROTA_LABELS, STATUS_ROTA_CORES } from '@/lib/transporte'
+import type { Rota, Transporte } from '@/types/transporte'
 import type { Profile } from '@/types'
 import Link from 'next/link'
 
@@ -27,12 +29,34 @@ async function getStats() {
   }
 }
 
+async function getRotasHoje() {
+  const supabase = await createClient()
+  const hoje = new Date().toISOString().split('T')[0]
+  const { data: rotas } = await supabase.from('rotas').select('*').eq('data', hoje).order('tipo')
+  if (!rotas || rotas.length === 0) return []
+
+  const { data: paradas } = await supabase
+    .from('transportes')
+    .select('id, rota_id, status')
+    .in('rota_id', rotas.map(r => r.id))
+
+  return (rotas as Rota[]).map(r => {
+    const minhas = ((paradas ?? []) as Pick<Transporte, 'id' | 'rota_id' | 'status'>[]).filter(p => p.rota_id === r.id)
+    return {
+      ...r,
+      total: minhas.length,
+      feitas: minhas.filter(p => p.status === 'concluido').length,
+    }
+  })
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user!.id).single<Profile>()
 
   const stats = await getStats()
+  const rotasHoje = await getRotasHoje()
   const hoje = formatDate(new Date(), "EEEE, dd 'de' MMMM")
 
   return (
@@ -71,6 +95,39 @@ export default async function DashboardPage() {
           <p className="text-sm opacity-80">Receita do mês</p>
         </Card>
       </div>
+
+      {/* Transporte: rotas do dia com progresso */}
+      {rotasHoje.length > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Transporte hoje</h2>
+          <div className="flex flex-col gap-2">
+            {rotasHoje.map(r => (
+              <Link key={r.id} href={`/transportes/rota/${r.id}`}
+                className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 active:bg-gray-50">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${r.tipo === 'coleta' ? 'bg-blue-100' : 'bg-purple-100'}`}>
+                  <Car size={24} className={r.tipo === 'coleta' ? 'text-blue-500' : 'text-brand-purple'} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-gray-900">{r.tipo === 'coleta' ? 'Coleta' : 'Entrega'}</p>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_ROTA_CORES[r.status]}`}>
+                      {STATUS_ROTA_LABELS[r.status]}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-400">
+                    {r.feitas} de {r.total} {r.tipo === 'coleta' ? 'embarcados' : 'entregues'}
+                  </p>
+                </div>
+                {r.total > 0 && (
+                  <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center">
+                    <span className="text-xs font-bold text-gray-600">{Math.round((r.feitas / r.total) * 100)}%</span>
+                  </div>
+                )}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Ações rápidas */}
       <div>

@@ -1,7 +1,5 @@
 export type StatusAgendamento = 'agendado' | 'em_atendimento' | 'pronto' | 'entregue' | 'cancelado'
 export type TipoTaxi = 'buscar' | 'levar' | 'ambos'
-export type StatusTransporte = 'pendente' | 'em_rota' | 'concluido' | 'cancelado'
-export type OrigemTransporte = 'banho_tosa' | 'hotel' | 'creche'
 
 export interface AgendamentoBanhoTosa {
   id: string
@@ -37,31 +35,6 @@ export interface AgendamentoBanhoTosa {
       telefone: string | null
       whatsapp: string | null
       endereco: string | null
-    }
-  }
-}
-
-export interface Transporte {
-  id: string
-  origem: OrigemTransporte
-  origem_id: string
-  pet_id: string
-  data: string
-  horario: string | null
-  tipo: 'buscar' | 'levar'
-  endereco: string
-  status: StatusTransporte
-  observacoes: string | null
-  created_at: string
-  pet?: {
-    id: string
-    nome: string
-    identificador: string | null
-    foto_url: string | null
-    tutor?: {
-      nome: string
-      telefone: string | null
-      whatsapp: string | null
     }
   }
 }
