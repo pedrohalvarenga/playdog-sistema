@@ -6,10 +6,15 @@ import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import { PLANO_LABELS, PORTE_LABELS, whatsappUrl } from '@/lib/utils'
 import type { Pet } from '@/types'
+import AdminActions from '@/components/AdminActions'
 
 export default async function TutorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: perfil } = await supabase.from('profiles').select('role').eq('id', user?.id ?? '').single()
+  const isAdmin = perfil?.role === 'admin'
 
   const { data: tutor } = await supabase
     .from('tutores')
@@ -141,6 +146,12 @@ export default async function TutorPage({ params }: { params: Promise<{ id: stri
           </Card>
         )}
       </div>
+      {/* Ações admin */}
+      {isAdmin && (
+        <Card>
+          <AdminActions tipo="tutor" id={id} ativo={tutor.ativo ?? true} nome={tutor.nome} />
+        </Card>
+      )}
     </div>
   )
 }

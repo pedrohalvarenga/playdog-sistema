@@ -7,6 +7,7 @@ import { Dog, Phone, Calendar, Syringe, ArrowLeft, Edit, Pill, MessageCircle, Al
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Pet } from '@/types'
+import AdminActions from '@/components/AdminActions'
 
 type PetComTutor = Pet & { tutor: { id: string; nome: string; telefone: string; whatsapp?: string } }
 
@@ -29,6 +30,11 @@ function VacinaBadge({ data }: { data?: string | null }) {
 export default async function PetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: perfil } = await supabase.from('profiles').select('role').eq('id', user?.id ?? '').single()
+  const isAdmin = perfil?.role === 'admin'
+
   const { data: pet } = await supabase
     .from('pets')
     .select('*, tutor:tutores(*)')
@@ -241,6 +247,13 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
               </div>
             ))}
           </div>
+        </Card>
+      )}
+
+      {/* Ações admin */}
+      {isAdmin && (
+        <Card>
+          <AdminActions tipo="pet" id={id} ativo={pet.ativo} nome={pet.nome} />
         </Card>
       )}
     </div>

@@ -23,6 +23,7 @@ export default function TutoresPage() {
       let query = supabase
         .from('tutores')
         .select('*, pets(id, nome)')
+        .eq('ativo', true)
         .order('nome')
 
       if (busca.length >= 2) {
