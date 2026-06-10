@@ -174,7 +174,7 @@ export default function CadastroPublicoPage() {
             {/* Foto */}
             <section className="bg-white rounded-3xl p-4 shadow-sm flex flex-col items-center gap-3">
               <h3 className="font-bold text-gray-700 text-sm uppercase tracking-wide self-start">Foto do pet (opcional)</h3>
-              <input ref={fotoRef} type="file" accept="image/*" capture="environment" className="hidden"
+              <input ref={fotoRef} type="file" accept="image/*" className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) { setFotoFile(f); setFotoPreview(URL.createObjectURL(f)) } }} />
               {fotoPreview ? (
                 <div className="relative">
@@ -260,7 +260,7 @@ export default function CadastroPublicoPage() {
 
             {/* Upload cartão */}
             <section className="bg-white rounded-3xl p-4 shadow-sm flex flex-col gap-3">
-              <input ref={vacinaRef} type="file" accept="image/*,application/pdf" capture="environment" className="hidden"
+              <input ref={vacinaRef} type="file" accept="image/*,application/pdf" className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) analisarCartaoVacinas(f) }} />
               <button
                 type="button"

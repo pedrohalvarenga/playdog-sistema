@@ -154,7 +154,7 @@ export default function NovoPetPage() {
         {/* Foto */}
         <section className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col items-center gap-3">
           <h2 className="font-bold text-gray-700 text-sm uppercase tracking-wide self-start">Foto do cão</h2>
-          <input ref={fotoRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFotoChange} />
+          <input ref={fotoRef} type="file" accept="image/*" className="hidden" onChange={onFotoChange} />
           {fotoPreview ? (
             <div className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -301,7 +301,7 @@ export default function NovoPetPage() {
         {/* Vacinas */}
         <section className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col gap-4">
           <h2 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Vacinas</h2>
-          <input ref={vacinaRef} type="file" accept="image/*,application/pdf" capture="environment" className="hidden"
+          <input ref={vacinaRef} type="file" accept="image/*,application/pdf" className="hidden"
             onChange={e => { const f = e.target.files?.[0]; if (f) analisarCartaoVacinas(f) }} />
           <button
             type="button"
