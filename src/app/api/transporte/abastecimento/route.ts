@@ -22,6 +22,7 @@ export async function POST(request: Request) {
   const km = parseFloat(String(formData.get('km') ?? '').replace(',', '.'))
   const litros = parseFloat(String(formData.get('litros') ?? '').replace(',', '.'))
   const valor = parseFloat(String(formData.get('valor') ?? '').replace(',', '.'))
+  const dataParam = String(formData.get('data') ?? '').trim()
   const arquivo = formData.get('arquivo') as File | null
 
   if (isNaN(km) || km <= 0 || isNaN(litros) || litros <= 0 || isNaN(valor) || valor <= 0) {
@@ -50,8 +51,9 @@ export async function POST(request: Request) {
 
   // Despesa automática na área transporte
   const hoje = new Date().toISOString().split('T')[0]
+  const dataAbastecimento = dataParam || hoje
   const { data: despesa, error: errDesp } = await admin.from('despesas').insert({
-    data: hoje,
+    data: dataAbastecimento,
     valor,
     area: 'transporte',
     categoria: 'combustivel',
@@ -64,6 +66,7 @@ export async function POST(request: Request) {
   if (errDesp) return NextResponse.json({ error: errDesp.message }, { status: 500 })
 
   const { error: errAb } = await admin.from('abastecimentos').insert({
+    data: dataAbastecimento,
     km_painel: km,
     litros,
     valor_total: valor,

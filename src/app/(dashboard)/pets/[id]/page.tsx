@@ -11,9 +11,24 @@ import AdminActions from '@/components/AdminActions'
 
 type PetComTutor = Pet & { tutor: { id: string; nome: string; telefone: string; whatsapp?: string } }
 
+const AREA_SERVICO_LABELS: Record<string, string> = {
+  creche: 'Creche', hotel: 'Hotel', banho_tosa: 'Banho e Tosa', adaptacao: 'Adaptação',
+}
+const AREA_SERVICO_CORES: Record<string, string> = {
+  creche: 'bg-purple-100 text-purple-700',
+  hotel: 'bg-blue-100 text-blue-700',
+  banho_tosa: 'bg-teal-100 text-teal-700',
+  adaptacao: 'bg-yellow-100 text-yellow-700',
+}
+
 function VacinaBadge({ data }: { data?: string | null }) {
   const status = vacinaStatus(data)
   if (status === 'sem_data') return <Badge variant="red">Não informada</Badge>
+  if (status === 'nao_vacinado') return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+      Não vacinado
+    </span>
+  )
   if (status === 'vencida') return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
       <AlertTriangle size={11} /> Vencida — {formatDate(data!)}
@@ -102,6 +117,17 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
           </div>
         </div>
       </div>
+
+      {/* Áreas de serviço */}
+      {(p.areas_servico?.length ?? 0) > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {(p.areas_servico as string[]).map((a: string) => (
+            <span key={a} className={`px-3 py-1 rounded-full text-xs font-semibold ${AREA_SERVICO_CORES[a] ?? 'bg-gray-100 text-gray-600'}`}>
+              {AREA_SERVICO_LABELS[a] ?? a}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Tutor */}
       <Card>

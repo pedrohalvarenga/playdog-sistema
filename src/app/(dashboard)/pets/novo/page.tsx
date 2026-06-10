@@ -7,7 +7,8 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { ArrowLeft, Camera, X, Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import type { Tutor, Porte, PlanoTipo } from '@/types'
+import VacinaInput from '@/components/pets/VacinaInput'
+import type { Tutor, Porte, PlanoTipo, AreaServicoPet } from '@/types'
 
 export default function NovoPetPage() {
   const router = useRouter()
@@ -36,6 +37,11 @@ export default function NovoPetPage() {
   const [vacinaRaiva, setVacinaRaiva] = useState('')
   const [vacinaGripe, setVacinaGripe] = useState('')
   const [vacinaGiardia, setVacinaGiardia] = useState('')
+  const [areasServico, setAreasServico] = useState<AreaServicoPet[]>([])
+
+  function toggleArea(a: AreaServicoPet) {
+    setAreasServico(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a])
+  }
 
   // Tutor
   const [tutorId, setTutorId] = useState('')
@@ -127,6 +133,7 @@ export default function NovoPetPage() {
       vacina_antirabica: vacinaRaiva || null,
       vacina_gripe: vacinaGripe || null,
       vacina_giardia: vacinaGiardia || null,
+      areas_servico: areasServico,
       foto_url: fotoUrl,
       ativo: true,
     })
@@ -287,7 +294,39 @@ export default function NovoPetPage() {
           </div>
         </section>
 
-        {/* Plano */}
+        {/* Áreas de serviço */}
+        <section className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col gap-3">
+          <h2 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Áreas de serviço</h2>
+          <p className="text-xs text-gray-400">Selecione todas as áreas que este cão utiliza</p>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { value: 'creche',     label: 'Creche' },
+              { value: 'hotel',      label: 'Hotel' },
+              { value: 'banho_tosa', label: 'Banho e Tosa' },
+              { value: 'adaptacao',  label: 'Adaptação' },
+            ] as { value: AreaServicoPet; label: string }[]).map(a => (
+              <button
+                key={a.value}
+                type="button"
+                onClick={() => toggleArea(a.value)}
+                className={`py-3 px-2 rounded-2xl text-sm font-semibold border-2 transition-all ${
+                  areasServico.includes(a.value)
+                    ? 'border-brand-purple bg-purple-50 text-brand-purple'
+                    : 'border-gray-200 bg-white text-gray-500'
+                }`}
+              >
+                {areasServico.includes(a.value) ? '✓ ' : ''}{a.label}
+              </button>
+            ))}
+          </div>
+          {areasServico.includes('adaptacao') && (
+            <p className="text-xs text-gray-400 bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2">
+              Adaptação: cliente em prospecção — visitou mas ainda não contratou. Usado para ações de marketing.
+            </p>
+          )}
+        </section>
+
+        {/* Plano contratado */}
         <section className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col gap-3">
           <h2 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Plano contratado</h2>
           <div className="grid grid-cols-2 gap-2">
@@ -321,10 +360,10 @@ export default function NovoPetPage() {
               {msgVacina}
             </p>
           )}
-          <Input label="V8/V10 — última dose" type="date" value={vacinaV8} onChange={e => setVacinaV8(e.target.value)} />
-          <Input label="Antirrábica — última dose" type="date" value={vacinaRaiva} onChange={e => setVacinaRaiva(e.target.value)} />
-          <Input label="Gripe — última dose" type="date" value={vacinaGripe} onChange={e => setVacinaGripe(e.target.value)} />
-          <Input label="Giardia — última dose" type="date" value={vacinaGiardia} onChange={e => setVacinaGiardia(e.target.value)} />
+          <VacinaInput label="V8/V10 — última dose" value={vacinaV8} onChange={setVacinaV8} />
+          <VacinaInput label="Antirrábica — última dose" value={vacinaRaiva} onChange={setVacinaRaiva} />
+          <VacinaInput label="Gripe — última dose" value={vacinaGripe} onChange={setVacinaGripe} />
+          <VacinaInput label="Giardia — última dose" value={vacinaGiardia} onChange={setVacinaGiardia} />
         </section>
 
         <Button type="submit" size="lg" loading={loading}>

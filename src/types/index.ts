@@ -4,6 +4,8 @@ export type Porte = 'P' | 'M' | 'G'
 
 export type PlanoTipo = 'diaria_avulsa' | 'pacote_semanal' | 'pacote_mensal' | 'hotel'
 
+export type AreaServicoPet = 'creche' | 'hotel' | 'banho_tosa' | 'adaptacao'
+
 export type FormaPagamentoCreche = 'pix_pagbank' | 'pix_c6' | 'dinheiro' | 'debito' | 'credito'
 
 export interface Profile {
@@ -44,6 +46,7 @@ export interface Pet {
   vacina_v8_v10?: string
   vacina_antirabica?: string
   vacina_gripe?: string
+  areas_servico?: AreaServicoPet[]
   plano: PlanoTipo
   plano_diarias_total?: number
   plano_inicio?: string
