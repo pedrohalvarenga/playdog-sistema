@@ -1,10 +1,25 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Dog, Camera, X, CheckCircle, Loader2 } from 'lucide-react'
+import { Dog, Camera, X, CheckCircle, Loader2, Plus } from 'lucide-react'
 import type { Porte, PlanoTipo } from '@/types'
 
 const PORTE_LABELS: Record<Porte, string> = { P: 'Pequeno', M: 'Médio', G: 'Grande' }
+
+interface PetCadastro {
+  nome: string
+  raca: string
+  porte: Porte
+  data_nascimento: string
+  castrado: boolean
+  restricoes: string
+  medicacao: string
+  plano: PlanoTipo
+  vacina_v8_v10: string
+  vacina_antirabica: string
+  vacina_gripe: string
+  fotoFile: File | null
+}
 
 export default function CadastroPublicoPage() {
   const [etapa, setEtapa] = useState<'tutor' | 'pet' | 'vacinas' | 'sucesso'>('tutor')
@@ -21,7 +36,10 @@ export default function CadastroPublicoPage() {
   const [cpf, setCpf] = useState('')
   const [endereco, setEndereco] = useState('')
 
-  // Pet
+  // Pets já concluídos (quando o tutor tem mais de um cão)
+  const [petsSalvos, setPetsSalvos] = useState<PetCadastro[]>([])
+
+  // Pet em edição
   const [nomePet, setNomePet] = useState('')
   const [raca, setRaca] = useState('')
   const [porte, setPorte] = useState<Porte>('M')
@@ -44,6 +62,29 @@ export default function CadastroPublicoPage() {
     { value: 'hotel', label: 'Hotel', desc: 'Hospedagem / pernoite' },
   ]
 
+  function montarPetAtual(): PetCadastro {
+    return {
+      nome: nomePet, raca, porte, data_nascimento: nascimento,
+      castrado, restricoes, medicacao, plano,
+      vacina_v8_v10: vacinaV8, vacina_antirabica: vacinaRaiva, vacina_gripe: vacinaGripe,
+      fotoFile,
+    }
+  }
+
+  function limparFormularioPet() {
+    setNomePet(''); setRaca(''); setPorte('M'); setNascimento('')
+    setCastrado(false); setRestrioes(''); setMedicacao(''); setPlano('diaria_avulsa')
+    setVacinaV8(''); setVacinaRaiva(''); setVacinaGripe(''); setMsgVacina('')
+    setFotoFile(null); setFotoPreview(null)
+  }
+
+  function adicionarOutroCao() {
+    setPetsSalvos(prev => [...prev, montarPetAtual()])
+    limparFormularioPet()
+    setEtapa('pet')
+    window.scrollTo({ top: 0 })
+  }
+
   async function analisarCartaoVacinas(file: File) {
     setAnalisandoVacinas(true)
     setMsgVacina('Analisando o cartão com IA...')
@@ -62,21 +103,30 @@ export default function CadastroPublicoPage() {
     setAnalisandoVacinas(false)
   }
 
+  async function uploadFoto(file: File | null): Promise<string | null> {
+    if (!file) return null
+    const fd = new FormData()
+    fd.append('arquivo', file)
+    try {
+      const r = await fetch('/api/upload-foto-pet', { method: 'POST', body: fd })
+      const d = await r.json()
+      return d.url ?? null
+    } catch {
+      return null
+    }
+  }
+
   async function enviar() {
     setLoading(true)
 
-    // Upload da foto se houver
-    let fotoUrl: string | null = null
-    if (fotoFile) {
-      const fd = new FormData()
-      fd.append('arquivo', fotoFile)
-      fd.append('pasta', 'pets-publico')
-      // Faz upload via endpoint separado para não expor service key
-      try {
-        const r = await fetch('/api/upload-foto-pet', { method: 'POST', body: fd })
-        const d = await r.json()
-        if (d.url) fotoUrl = d.url
-      } catch { /* segue sem foto */ }
+    const todosPets = [...petsSalvos, montarPetAtual()]
+
+    // Upload das fotos (uma por pet, se houver)
+    const petsComFoto = []
+    for (const p of todosPets) {
+      const fotoUrl = await uploadFoto(p.fotoFile)
+      const { fotoFile: _, ...dados } = p
+      petsComFoto.push({ ...dados, foto_url: fotoUrl })
     }
 
     const res = await fetch('/api/cadastro-publico', {
@@ -84,17 +134,13 @@ export default function CadastroPublicoPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         tutor: { nome, telefone, cpf, endereco },
-        pet: {
-          nome: nomePet, raca, porte, data_nascimento: nascimento,
-          castrado, restricoes, medicacao, plano,
-          vacina_v8_v10: vacinaV8, vacina_antirabica: vacinaRaiva, vacina_gripe: vacinaGripe,
-          foto_url: fotoUrl,
-        },
+        pets: petsComFoto,
       }),
     })
 
     setLoading(false)
     if (res.ok) {
+      setPetsSalvos(todosPets)
       setEtapa('sucesso')
     } else {
       alert('Ocorreu um erro. Tente novamente.')
@@ -102,6 +148,10 @@ export default function CadastroPublicoPage() {
   }
 
   if (etapa === 'sucesso') {
+    const nomesPets = petsSalvos.map(p => p.nome).filter(Boolean)
+    const listaNomes = nomesPets.length > 1
+      ? nomesPets.slice(0, -1).join(', ') + ' e ' + nomesPets[nomesPets.length - 1]
+      : nomesPets[0] ?? ''
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-xl">
@@ -111,7 +161,7 @@ export default function CadastroPublicoPage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Cadastro realizado!</h1>
           <p className="text-gray-500 mb-1">Olá, <strong>{nome}</strong>!</p>
           <p className="text-gray-500">
-            <strong>{nomePet}</strong> está cadastrado(a) na Play Dog. Em breve nossa equipe entrará em contato.
+            <strong>{listaNomes}</strong> {nomesPets.length > 1 ? 'estão cadastrados' : 'está cadastrado(a)'} na Play Dog. Em breve nossa equipe entrará em contato.
           </p>
           <div className="mt-6 p-4 bg-purple-50 rounded-2xl">
             <p className="text-xs text-purple-600 font-medium">Guarde nosso número</p>
@@ -121,6 +171,8 @@ export default function CadastroPublicoPage() {
       </div>
     )
   }
+
+  const numeroCaoAtual = petsSalvos.length + 1
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50">
@@ -144,6 +196,18 @@ export default function CadastroPublicoPage() {
       </div>
 
       <div className="p-4 max-w-lg mx-auto">
+
+        {/* Pets já adicionados */}
+        {petsSalvos.length > 0 && etapa !== 'tutor' && (
+          <div className="bg-green-50 border border-green-200 rounded-2xl px-4 py-3 mb-4 flex items-center gap-2">
+            <CheckCircle size={18} className="text-green-500 flex-shrink-0" />
+            <p className="text-sm text-green-700">
+              {petsSalvos.length === 1
+                ? <><strong>{petsSalvos[0].nome}</strong> já foi adicionado(a).</>
+                : <><strong>{petsSalvos.map(p => p.nome).join(', ')}</strong> já foram adicionados.</>}
+            </p>
+          </div>
+        )}
 
         {/* ETAPA 1 — TUTOR */}
         {etapa === 'tutor' && (
@@ -169,7 +233,9 @@ export default function CadastroPublicoPage() {
         {/* ETAPA 2 — PET */}
         {etapa === 'pet' && (
           <div className="flex flex-col gap-4">
-            <h2 className="text-xl font-bold text-gray-900 mt-2">Dados do pet</h2>
+            <h2 className="text-xl font-bold text-gray-900 mt-2">
+              {numeroCaoAtual > 1 ? `Dados do ${numeroCaoAtual}º cão` : 'Dados do pet'}
+            </h2>
 
             {/* Foto */}
             <section className="bg-white rounded-3xl p-4 shadow-sm flex flex-col items-center gap-3">
@@ -239,11 +305,13 @@ export default function CadastroPublicoPage() {
             </section>
 
             <div className="flex gap-3">
-              <button onClick={() => setEtapa('tutor')} className="flex-1 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl">
-                ← Voltar
-              </button>
+              {petsSalvos.length === 0 && (
+                <button onClick={() => setEtapa('tutor')} className="flex-1 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl">
+                  ← Voltar
+                </button>
+              )}
               <button
-                onClick={() => { if (!nomePet) { alert('Informe o nome do pet'); return } setEtapa('vacinas') }}
+                onClick={() => { if (!nomePet) { alert('Informe o nome do pet'); return } setEtapa('vacinas'); window.scrollTo({ top: 0 }) }}
                 className="flex-1 py-4 bg-brand-purple text-white font-bold rounded-2xl"
               >
                 Continuar →
@@ -255,7 +323,9 @@ export default function CadastroPublicoPage() {
         {/* ETAPA 3 — VACINAS */}
         {etapa === 'vacinas' && (
           <div className="flex flex-col gap-4">
-            <h2 className="text-xl font-bold text-gray-900 mt-2">Cartão de vacinas</h2>
+            <h2 className="text-xl font-bold text-gray-900 mt-2">
+              Cartão de vacinas{nomePet ? ` — ${nomePet}` : ''}
+            </h2>
             <p className="text-sm text-gray-500">Tire uma foto do cartão de vacinas e a IA preenche os campos automaticamente.</p>
 
             {/* Upload cartão */}
@@ -288,8 +358,18 @@ export default function CadastroPublicoPage() {
               <Field label="Gripe (tosse dos canis)" value={vacinaGripe} onChange={setVacinaGripe} type="date" />
             </section>
 
+            {/* Tem mais um cão? */}
+            <button
+              type="button"
+              onClick={adicionarOutroCao}
+              disabled={loading}
+              className="w-full py-4 rounded-2xl border-2 border-dashed border-brand-purple bg-purple-50 flex items-center justify-center gap-2 text-brand-purple font-bold disabled:opacity-50"
+            >
+              <Plus size={20} /> Tenho outro cão — cadastrar mais um
+            </button>
+
             <div className="flex gap-3">
-              <button onClick={() => setEtapa('pet')} className="flex-1 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl">
+              <button onClick={() => { setEtapa('pet'); window.scrollTo({ top: 0 }) }} className="flex-1 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl">
                 ← Voltar
               </button>
               <button
@@ -300,6 +380,11 @@ export default function CadastroPublicoPage() {
                 {loading ? <><Loader2 size={18} className="animate-spin" /> Enviando...</> : 'Finalizar cadastro'}
               </button>
             </div>
+            {petsSalvos.length > 0 && (
+              <p className="text-xs text-gray-400 text-center -mt-1">
+                Ao finalizar, {petsSalvos.length + 1} cães serão cadastrados de uma só vez.
+              </p>
+            )}
             <div className="pb-8" />
           </div>
         )}
@@ -314,6 +399,9 @@ function DateField({ label, value, onChange }: { label: string; value: string; o
     const [y, m, d] = value.split('-')
     return y && m && d ? `${d}/${m}/${y}` : ''
   })
+  React.useEffect(() => {
+    if (!value) setDisplay('')
+  }, [value])
   function handle(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/\D/g, '').slice(0, 8)
     let masked = digits
