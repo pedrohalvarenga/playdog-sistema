@@ -1,21 +1,27 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Pencil } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import StatusBadge from '@/components/financeiro/StatusBadge'
 import PendenciaActions from '@/components/financeiro/PendenciaActions'
+import AdminLancamentoActions from '@/components/financeiro/AdminLancamentoActions'
 import { formatDate } from '@/lib/utils'
 import { formatCurrency } from '@/lib/financeiro'
 import {
   AREA_LABELS, AREA_CORES, CATEGORIA_RECEITA_LABELS,
   FORMA_PAGAMENTO_LABELS,
 } from '@/lib/financeiro'
+import type { Profile } from '@/types'
 import type { Receita } from '@/types/financeiro'
 
 export default async function ReceitaDetalhe({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single<Pick<Profile, 'role'>>()
+  const isAdmin = profile?.role === 'admin'
   const { data } = await supabase
     .from('receitas')
     .select('*, conta:contas_financeiras(nome), tutor:tutores(nome), pet:pets(nome)')
@@ -71,6 +77,10 @@ export default async function ReceitaDetalhe({ params }: { params: Promise<{ id:
         <div className="flex justify-center">
           <PendenciaActions id={r.id} tipo="receita" />
         </div>
+      )}
+
+      {isAdmin && (
+        <AdminLancamentoActions id={r.id} tipo="receita" voltarPara="/financeiro/receitas" />
       )}
     </div>
   )

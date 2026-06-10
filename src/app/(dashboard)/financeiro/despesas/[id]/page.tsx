@@ -5,6 +5,7 @@ import { ArrowLeft, AlertTriangle } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import StatusBadge from '@/components/financeiro/StatusBadge'
 import PendenciaActions from '@/components/financeiro/PendenciaActions'
+import AdminLancamentoActions from '@/components/financeiro/AdminLancamentoActions'
 import { formatDate } from '@/lib/utils'
 import { formatCurrency } from '@/lib/financeiro'
 import { AREA_LABELS, AREA_CORES, CATEGORIA_DESPESA_LABELS, isInvestimento } from '@/lib/financeiro'
@@ -17,7 +18,8 @@ export default async function DespesaDetalhe({ params }: { params: Promise<{ id:
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single<Pick<Profile, 'role'>>()
-  if (profile?.role !== 'admin') redirect('/financeiro')
+  const isAdmin = profile?.role === 'admin'
+  if (!isAdmin) redirect('/financeiro')
 
   const { data } = await supabase
     .from('despesas')
@@ -81,6 +83,8 @@ export default async function DespesaDetalhe({ params }: { params: Promise<{ id:
           <PendenciaActions id={d.id} tipo="despesa" />
         </div>
       )}
+
+      <AdminLancamentoActions id={d.id} tipo="despesa" voltarPara="/financeiro/despesas" />
     </div>
   )
 }

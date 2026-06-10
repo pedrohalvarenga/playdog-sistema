@@ -133,7 +133,7 @@ export default function LancamentoRapido() {
       {open && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={fechar}>
           <div
-            className="w-full max-w-lg mx-auto bg-white rounded-t-3xl p-5 pb-8 flex flex-col gap-4"
+            className="w-full max-w-lg mx-auto bg-white rounded-t-3xl p-5 pb-28 flex flex-col gap-4"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}

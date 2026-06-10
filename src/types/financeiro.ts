@@ -77,6 +77,42 @@ export interface Despesa {
   parcelamento?: Parcelamento
 }
 
+export type OrcamentoPeriodo = 'mensal' | 'trimestral' | 'semestral' | 'anual'
+
+export interface Orcamento {
+  id: string
+  area: AreaNegocio
+  periodo: OrcamentoPeriodo
+  ano: number
+  mes?: number | null
+  trimestre?: number | null
+  semestre?: number | null
+  meta_receita: number
+  teto_despesa: number
+  registrado_por?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ResultadoArea {
+  area: AreaNegocio
+  receita_bruta: number
+  taxas_cartao: number
+  despesas_diretas: number
+  investimentos: number
+  rateio_geral: number
+  resultado: number
+}
+
+export interface ProjecaoMes {
+  mes: string
+  nome_mes: string
+  receitas_previstas: number
+  despesas_previstas: number
+  saldo_projetado: number
+  alerta: boolean
+}
+
 export interface Parcelamento {
   id: string
   descricao: string

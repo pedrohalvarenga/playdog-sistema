@@ -4,6 +4,7 @@ import Link from 'next/link'
 import {
   TrendingUp, TrendingDown, Wallet, CreditCard, Banknote,
   AlertCircle, Clock, ArrowRight, LayoutGrid,
+  BarChart2, PieChart, Target, LineChart,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import { formatDate } from '@/lib/utils'
@@ -163,7 +164,7 @@ export default async function FinanceiroPage() {
 
       {/* Acesso rápido */}
       <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Módulos</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Lançamentos</p>
         <div className="grid grid-cols-2 gap-2">
           {[
             { href: '/financeiro/receitas', label: 'Receitas', icon: TrendingUp, cor: 'bg-green-50 text-green-700' },
@@ -189,6 +190,29 @@ export default async function FinanceiroPage() {
           ))}
         </div>
       </div>
+
+      {/* Análise e Planejamento (admin) */}
+      {isAdmin && (
+        <div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Análise & Planejamento</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { href: '/financeiro/dashboard', label: 'Dashboard', icon: BarChart2, cor: 'bg-purple-50 text-purple-700' },
+              { href: '/financeiro/dre',       label: 'DRE por Área', icon: PieChart,  cor: 'bg-indigo-50 text-indigo-700' },
+              { href: '/financeiro/orcamento', label: 'Orçamento',   icon: Target,    cor: 'bg-teal-50 text-teal-700' },
+              { href: '/financeiro/projecao',  label: 'Projeção',    icon: LineChart,  cor: 'bg-orange-50 text-orange-700' },
+            ].map(m => (
+              <Link key={m.href} href={m.href}>
+                <Card className={`flex items-center gap-3 ${m.cor}`}>
+                  <m.icon size={20} />
+                  <span className="font-semibold text-sm">{m.label}</span>
+                  <ArrowRight size={16} className="ml-auto opacity-60" />
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Últimas receitas */}
       {(ultimasReceitas ?? []).length > 0 && (
