@@ -33,8 +33,9 @@ export default function AdminActions({ tipo, id, ativo, nome, redirectApos }: Pr
   }
 
   async function excluir() {
+    const avisoTutor = tipo === 'tutor' ? '\n\n⚠️ ATENÇÃO: todos os cães cadastrados deste tutor também serão excluídos.' : ''
     const confirmar = window.confirm(
-      `Tem certeza que deseja EXCLUIR permanentemente "${nome}"?\n\nEsta ação não pode ser desfeita. Use "Ocultar" se quiser apenas remover da lista sem perder o histórico.`
+      `Tem certeza que deseja EXCLUIR permanentemente "${nome}"?${avisoTutor}\n\nEsta ação não pode ser desfeita. Use "Ocultar" se quiser apenas remover da lista sem perder o histórico.`
     )
     if (!confirmar) return
     setLoading('excluir')

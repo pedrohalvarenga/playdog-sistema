@@ -33,8 +33,14 @@ export async function DELETE(request: Request) {
   if (profile?.role !== 'admin') return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
 
   const { tipo, id } = await request.json()
-  const tabela = tipo === 'pet' ? 'pets' : 'tutores'
 
+  if (tipo === 'tutor') {
+    // Excluir pets vinculados antes de excluir o tutor
+    const { error: errPets } = await adminClient.from('pets').delete().eq('tutor_id', id)
+    if (errPets) return NextResponse.json({ error: errPets.message }, { status: 500 })
+  }
+
+  const tabela = tipo === 'pet' ? 'pets' : 'tutores'
   const { error } = await adminClient.from(tabela).delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
