@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { Profile } from '@/types'
 
-export default async function HotelLayout({ children }: { children: React.ReactNode }) {
+// Motorista não acessa a creche — o acesso dele é só ao transporte.
+export default async function CrecheLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -14,7 +15,6 @@ export default async function HotelLayout({ children }: { children: React.ReactN
     .single<Profile>()
 
   if (!profile || !profile.ativo) redirect('/login')
-  if (profile.role === 'banho_tosa') redirect('/dashboard')
   if (profile.role === 'motorista') redirect('/transportes')
 
   return <>{children}</>

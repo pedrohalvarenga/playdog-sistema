@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { Dog, CalendarCheck, Users, TrendingUp, Moon, Scissors, Car } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import { formatDate } from '@/lib/utils'
@@ -54,6 +55,9 @@ export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user!.id).single<Profile>()
+
+  // Motorista trabalha só com o transporte
+  if (profile?.role === 'motorista') redirect('/transportes')
 
   const stats = await getStats()
   const rotasHoje = await getRotasHoje()

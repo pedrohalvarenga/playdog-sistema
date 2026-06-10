@@ -59,7 +59,7 @@ export default function TransportesPage() {
     const [{ data: rows }, { data: rs }] = await Promise.all([
       supabase
         .from('transportes')
-        .select('*, pet:pets(id, nome, identificador, foto_url, tutor_id, tutor:tutores(nome, telefone, whatsapp, endereco))')
+        .select('*, pet:pets_rota(id, nome, identificador, foto_url, tutor_id, tutor:tutores_rota(nome, telefone, whatsapp, endereco))')
         .eq('data', data)
         .not('status', 'eq', 'cancelado')
         .order('ordem', { ascending: true, nullsFirst: false })

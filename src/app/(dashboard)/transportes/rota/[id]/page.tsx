@@ -45,7 +45,7 @@ export default function RotaPage() {
       supabase.from('rotas').select('*').eq('id', id).single(),
       supabase
         .from('transportes')
-        .select('*, pet:pets(id, nome, identificador, foto_url, tutor_id, tutor:tutores(nome, telefone, whatsapp, endereco))')
+        .select('*, pet:pets_rota(id, nome, identificador, foto_url, tutor_id, tutor:tutores_rota(nome, telefone, whatsapp, endereco))')
         .eq('rota_id', id)
         .order('ordem', { ascending: true, nullsFirst: false }),
     ])

@@ -263,16 +263,33 @@ CREATE POLICY "config_transp_insert" ON public.config_transporte
   FOR INSERT WITH CHECK (public.get_my_role() = 'admin');
 
 -- ============================================================
--- 8. Motorista precisa LER pets e tutores (nome, foto, endereço
--- e telefone nas paradas da rota) — apenas leitura.
+-- 8. Acesso do motorista a pets/tutores: SOMENTE nome, foto,
+-- identificador, endereço e telefone — via views restritas.
+-- O motorista NÃO lê as tabelas completas (vacinas, CPF,
+-- observações, planos etc. ficam fora do alcance dele).
 -- ============================================================
 DROP POLICY IF EXISTS "pets_select" ON public.pets;
 CREATE POLICY "pets_select" ON public.pets
-  FOR SELECT USING (public.get_my_role() IN ('admin','recepcao','banho_tosa','motorista'));
+  FOR SELECT USING (public.get_my_role() IN ('admin','recepcao','banho_tosa'));
 
 DROP POLICY IF EXISTS "tutores_select" ON public.tutores;
 CREATE POLICY "tutores_select" ON public.tutores
-  FOR SELECT USING (public.get_my_role() IN ('admin','recepcao','banho_tosa','motorista'));
+  FOR SELECT USING (public.get_my_role() IN ('admin','recepcao','banho_tosa'));
+
+-- Views com colunas mínimas (rodam como owner, ignoram o RLS da
+-- tabela base; o WHERE com get_my_role() controla quem lê)
+CREATE OR REPLACE VIEW public.pets_rota AS
+  SELECT id, nome, identificador, foto_url, tutor_id
+  FROM public.pets
+  WHERE public.get_my_role() IN ('admin','recepcao','banho_tosa','motorista');
+
+CREATE OR REPLACE VIEW public.tutores_rota AS
+  SELECT id, nome, telefone, whatsapp, endereco
+  FROM public.tutores
+  WHERE public.get_my_role() IN ('admin','recepcao','banho_tosa','motorista');
+
+GRANT SELECT ON public.pets_rota TO authenticated;
+GRANT SELECT ON public.tutores_rota TO authenticated;
 
 -- ============================================================
 -- FIM — Módulo Transporte

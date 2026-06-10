@@ -2,7 +2,9 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { Profile } from '@/types'
 
-export default async function HotelLayout({ children }: { children: React.ReactNode }) {
+// Motorista não acessa o cadastro de pets — só vê nome, foto,
+// endereço e telefone pelas telas de transporte.
+export default async function PetsLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -14,7 +16,6 @@ export default async function HotelLayout({ children }: { children: React.ReactN
     .single<Profile>()
 
   if (!profile || !profile.ativo) redirect('/login')
-  if (profile.role === 'banho_tosa') redirect('/dashboard')
   if (profile.role === 'motorista') redirect('/transportes')
 
   return <>{children}</>

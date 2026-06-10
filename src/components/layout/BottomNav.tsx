@@ -46,7 +46,7 @@ const moreItems: MoreItem[] = [
     label: 'Início',
     sublabel: 'Painel geral do sistema',
     icon: Home,
-    roles: ['admin', 'recepcao', 'banho_tosa', 'motorista'],
+    roles: ['admin', 'recepcao', 'banho_tosa'],
     iconColor: 'text-brand-purple',
     iconBg: 'bg-purple-100',
   },
