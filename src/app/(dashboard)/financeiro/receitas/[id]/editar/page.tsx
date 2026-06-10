@@ -30,7 +30,11 @@ export default function EditarReceitaPage() {
   const [status, setStatus] = useState<'pago' | 'pendente'>('pago')
   const [dataVenc, setDataVenc] = useState('')
   const [descricao, setDescricao] = useState('')
+  const [numDiarias, setNumDiarias] = useState<number | ''>('')
   const [erro, setErro] = useState('')
+
+  const CATEGORIAS_CRECHE: string[] = ['diaria_avulsa', 'pacote_semanal', 'pacote_mensal']
+  const mostrarDiarias = area === 'creche' && CATEGORIAS_CRECHE.includes(categoria)
 
   useEffect(() => {
     const supabase = createClient()
@@ -51,6 +55,7 @@ export default function EditarReceitaPage() {
         setStatus(r.status)
         setDataVenc(r.data_vencimento ?? '')
         setDescricao(r.descricao ?? '')
+        setNumDiarias(r.num_diarias ?? '')
       }
       setLoading(false)
     })
@@ -74,6 +79,7 @@ export default function EditarReceitaPage() {
       taxa_cartao: mostrarTaxa && typeof taxaCartao === 'number' ? taxaCartao : null,
       valor_liquido: valorLiquido,
       descricao: descricao || null,
+      num_diarias: mostrarDiarias && numDiarias !== '' ? numDiarias : null,
       status,
       data_vencimento: status === 'pendente' ? dataVenc : null,
     }).eq('id', id)
@@ -122,6 +128,19 @@ export default function EditarReceitaPage() {
           ))}
         </select>
       </div>
+
+      {mostrarDiarias && (
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-semibold text-gray-700">Nº de diárias</label>
+          <input
+            type="number" min="1" step="1" placeholder="Ex: 22"
+            value={numDiarias}
+            onChange={e => setNumDiarias(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+            className="w-full py-3 px-4 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-base bg-white"
+          />
+          <p className="text-xs text-gray-400">Quantas diárias este pagamento cobre</p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1">
         <label className="text-sm font-semibold text-gray-700">Forma de pagamento</label>

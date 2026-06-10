@@ -44,6 +44,7 @@ export interface Receita {
   pet_id?: string
   descricao?: string
   status: StatusFinanceiro
+  num_diarias?: number
   data_vencimento?: string
   registrado_por?: string
   created_at: string

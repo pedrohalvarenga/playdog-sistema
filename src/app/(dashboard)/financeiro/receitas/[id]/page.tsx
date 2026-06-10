@@ -44,6 +44,7 @@ export default async function ReceitaDetalhe({ params }: { params: Promise<{ id:
     ] : []),
     ...(r.tutor?.nome ? [{ label: 'Tutor', value: r.tutor.nome }] : []),
     ...(r.pet?.nome ? [{ label: 'Pet', value: r.pet.nome }] : []),
+    ...(r.num_diarias ? [{ label: 'Diárias', value: `${r.num_diarias} dia${r.num_diarias !== 1 ? 's' : ''}` }] : []),
     ...(r.descricao ? [{ label: 'Descrição', value: r.descricao }] : []),
     ...(r.data_vencimento ? [{ label: 'Vencimento', value: formatDate(r.data_vencimento) }] : []),
   ]

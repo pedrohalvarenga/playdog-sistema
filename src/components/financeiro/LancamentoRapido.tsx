@@ -13,7 +13,7 @@ import type { ContaFinanceira } from '@/types/financeiro'
 import type { AreaNegocio, CategoriaReceita, CategoriaDespesa, FormaPagamento } from '@/types/financeiro'
 
 type Tipo = 'receita' | 'despesa'
-type Step = 'tipo' | 'valor' | 'area' | 'categoria' | 'forma' | 'conta' | 'ok'
+type Step = 'tipo' | 'valor' | 'area' | 'categoria' | 'diarias' | 'forma' | 'conta' | 'ok'
 
 const CATEGORIAS_RECEITA_AREA: Record<AreaNegocio, CategoriaReceita[]> = {
   creche:     ['diaria_avulsa', 'pacote_semanal', 'pacote_mensal'],
@@ -45,7 +45,10 @@ export default function LancamentoRapido() {
   const [forma, setForma] = useState<FormaPagamento>('pix')
   const [conta, setConta] = useState<string | null>(null)
   const [contas, setContas] = useState<ContaFinanceira[]>([])
+  const [numDiarias, setNumDiarias] = useState<number | ''>('')
   const [saving, setSaving] = useState(false)
+
+  const CATEGORIAS_CRECHE = ['diaria_avulsa', 'pacote_semanal', 'pacote_mensal']
 
   useEffect(() => {
     if (open) {
@@ -58,7 +61,7 @@ export default function LancamentoRapido() {
 
   function reset() {
     setStep('tipo'); setTipo('receita'); setValorRaw('')
-    setArea(null); setCategoria(null); setForma('pix'); setConta(null)
+    setArea(null); setCategoria(null); setForma('pix'); setConta(null); setNumDiarias('')
   }
 
   function fechar() { setOpen(false); reset() }
@@ -90,6 +93,7 @@ export default function LancamentoRapido() {
         data: new Date().toISOString().split('T')[0],
         valor, area, categoria, forma_pagamento: forma,
         conta_id: conta, taxa_cartao: taxa, valor_liquido, status: 'pago',
+        num_diarias: numDiarias !== '' ? numDiarias : null,
       })
     } else {
       await supabase.from('despesas').insert({
@@ -237,7 +241,11 @@ export default function LancamentoRapido() {
                   {categorias.map(cat => (
                     <button
                       key={cat}
-                      onClick={() => { setCategoria(cat); setStep(tipo === 'receita' ? 'forma' : 'conta') }}
+                      onClick={() => {
+                      setCategoria(cat)
+                      if (tipo === 'receita' && CATEGORIAS_CRECHE.includes(cat)) setStep('diarias')
+                      else setStep(tipo === 'receita' ? 'forma' : 'conta')
+                    }}
                       className="py-3 px-4 rounded-2xl bg-gray-50 border-2 border-gray-200 text-gray-800 font-semibold text-sm text-left hover:border-brand-purple hover:bg-purple-50 transition-colors active:scale-95"
                     >
                       {tipo === 'receita'
@@ -246,6 +254,33 @@ export default function LancamentoRapido() {
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* STEP: número de diárias (creche) */}
+            {step === 'diarias' && (
+              <div className="flex flex-col gap-3">
+                <p className="text-sm text-gray-500 font-medium">Nº de diárias</p>
+                <input
+                  type="number" min="1" step="1" placeholder="Ex: 22"
+                  value={numDiarias}
+                  onChange={e => setNumDiarias(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+                  className="w-full py-3 px-4 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-lg bg-white text-center font-bold"
+                  autoFocus
+                />
+                <p className="text-xs text-gray-400 text-center">Quantas diárias este pagamento cobre</p>
+                <button
+                  onClick={() => setStep('forma')}
+                  className="w-full py-3 rounded-2xl bg-brand-purple text-white font-bold"
+                >
+                  Continuar →
+                </button>
+                <button
+                  onClick={() => { setNumDiarias(''); setStep('forma') }}
+                  className="w-full py-2 rounded-2xl text-gray-400 text-sm"
+                >
+                  Pular
+                </button>
               </div>
             )}
 
@@ -316,10 +351,10 @@ export default function LancamentoRapido() {
             {/* Barra de progresso / step indicator */}
             {step !== 'ok' && step !== 'tipo' && (
               <div className="flex gap-1 justify-center mt-1">
-                {(['valor','area','categoria','forma','conta'] as Step[]).map((s, i) => (
+                {(['valor','area','categoria','diarias','forma','conta'] as Step[]).map((s, i) => (
                   <div key={s} className={cn(
                     'h-1.5 rounded-full transition-all',
-                    step === s ? 'w-6 bg-brand-purple' : i < ['valor','area','categoria','forma','conta'].indexOf(step) ? 'w-3 bg-brand-purple/50' : 'w-3 bg-gray-200'
+                    step === s ? 'w-6 bg-brand-purple' : i < ['valor','area','categoria','diarias','forma','conta'].indexOf(step) ? 'w-3 bg-brand-purple/50' : 'w-3 bg-gray-200'
                   )} />
                 ))}
               </div>

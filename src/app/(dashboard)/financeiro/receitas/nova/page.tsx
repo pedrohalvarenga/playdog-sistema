@@ -35,7 +35,11 @@ export default function NovaReceitaPage() {
   const [petBusca, setPetBusca] = useState('')
   const [pets, setPets] = useState<{ id: string; nome: string }[]>([])
   const [petId, setPetId] = useState('')
+  const [numDiarias, setNumDiarias] = useState<number | ''>('')
   const [erro, setErro] = useState('')
+
+  const CATEGORIAS_CRECHE: string[] = ['diaria_avulsa', 'pacote_semanal', 'pacote_mensal']
+  const mostrarDiarias = area === 'creche' && CATEGORIAS_CRECHE.includes(categoria)
 
   useEffect(() => {
     const supabase = createClient()
@@ -106,6 +110,7 @@ export default function NovaReceitaPage() {
       tutor_id: tutorId || null,
       pet_id: petId || null,
       descricao: descricao || null,
+      num_diarias: mostrarDiarias && numDiarias !== '' ? numDiarias : null,
       status,
       data_vencimento: status === 'pendente' ? dataVenc : null,
     })
@@ -159,6 +164,20 @@ export default function NovaReceitaPage() {
           ))}
         </select>
       </div>
+
+      {/* Número de diárias (somente creche) */}
+      {mostrarDiarias && (
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-semibold text-gray-700">Nº de diárias</label>
+          <input
+            type="number" min="1" step="1" placeholder="Ex: 22"
+            value={numDiarias}
+            onChange={e => setNumDiarias(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+            className="w-full py-3 px-4 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-base bg-white"
+          />
+          <p className="text-xs text-gray-400">Quantas diárias este pagamento cobre</p>
+        </div>
+      )}
 
       {/* Forma de pagamento */}
       <div className="flex flex-col gap-1">
