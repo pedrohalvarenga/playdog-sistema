@@ -17,9 +17,11 @@ export default function EditarTutorPage() {
   const [loadingDados, setLoadingDados] = useState(true)
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
+  const [email, setEmail] = useState('')
   const [cpf, setCpf] = useState('')
   const [endereco, setEndereco] = useState('')
   const [observacoes, setObservacoes] = useState('')
+  const [precoPersonalizado, setPrecoPersonalizado] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -28,9 +30,11 @@ export default function EditarTutorPage() {
       if (data) {
         setNome(data.nome ?? '')
         setTelefone(data.telefone ?? '')
+        setEmail(data.email ?? '')
         setCpf(data.cpf ?? '')
         setEndereco(data.endereco ?? '')
         setObservacoes(data.observacoes ?? '')
+        setPrecoPersonalizado(data.preco_personalizado != null ? String(data.preco_personalizado) : '')
       }
       setLoadingDados(false)
     }
@@ -44,9 +48,11 @@ export default function EditarTutorPage() {
     const { error } = await supabase.from('tutores').update({
       nome,
       telefone,
+      email: email || null,
       cpf: cpf || null,
       endereco: endereco || null,
       observacoes: observacoes || null,
+      preco_personalizado: precoPersonalizado ? parseFloat(precoPersonalizado.replace(',', '.')) : null,
     }).eq('id', id)
     if (error) { setLoading(false); alert('Erro ao salvar'); return }
     router.push(`/tutores/${id}`)
@@ -73,6 +79,8 @@ export default function EditarTutorPage() {
         <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col gap-4">
           <Input label="Nome completo" value={nome} onChange={e => setNome(e.target.value)} required />
           <Input label="WhatsApp / Telefone" type="tel" value={telefone} onChange={e => setTelefone(e.target.value)} required />
+          <Input label="E-mail (para extrato)" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@exemplo.com" />
+          <Input label="Preço negociado por diária (R$)" type="text" inputMode="decimal" value={precoPersonalizado} onChange={e => setPrecoPersonalizado(e.target.value)} placeholder="Deixe vazio para usar o padrão" />
           <Input label="CPF (opcional)" value={cpf} onChange={e => setCpf(e.target.value)} placeholder="000.000.000-00" />
           <Input label="Endereço" value={endereco} onChange={e => setEndereco(e.target.value)} placeholder="Rua, número, bairro..." />
           <div className="flex flex-col gap-1.5">

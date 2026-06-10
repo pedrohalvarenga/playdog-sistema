@@ -4,6 +4,8 @@ export type Porte = 'P' | 'M' | 'G'
 
 export type PlanoTipo = 'diaria_avulsa' | 'pacote_semanal' | 'pacote_mensal' | 'hotel'
 
+export type FormaPagamentoCreche = 'pix_pagbank' | 'pix_c6' | 'dinheiro' | 'debito' | 'credito'
+
 export interface Profile {
   id: string
   email: string
@@ -18,9 +20,11 @@ export interface Tutor {
   nome: string
   telefone: string
   whatsapp?: string
+  email?: string
   cpf?: string
   endereco?: string
   observacoes?: string
+  preco_personalizado?: number
   created_at: string
   updated_at: string
 }
@@ -29,6 +33,7 @@ export interface Pet {
   id: string
   tutor_id: string
   nome: string
+  identificador?: string
   raca?: string
   porte: Porte
   data_nascimento?: string
@@ -43,6 +48,7 @@ export interface Pet {
   plano_diarias_total?: number
   plano_inicio?: string
   plano_fim?: string
+  saldo_diarias: number
   ativo: boolean
   created_at: string
   updated_at: string
@@ -69,5 +75,36 @@ export interface DiariaSaldo {
   diarias_usadas: number
   periodo_inicio: string
   periodo_fim: string
+  created_at: string
+}
+
+export interface ComprasDiarias {
+  id: string
+  pet_id: string
+  tutor_id: string
+  quantidade: number
+  valor_pago: number
+  forma_pagamento: FormaPagamentoCreche
+  data: string
+  observacoes?: string
+  registrado_por?: string
+  created_at: string
+}
+
+export interface AjusteSaldo {
+  id: string
+  pet_id: string
+  quantidade: number
+  motivo: string
+  registrado_por?: string
+  created_at: string
+}
+
+export interface Ocorrencia {
+  id: string
+  pet_id: string
+  descricao: string
+  foto_url?: string
+  registrado_por?: string
   created_at: string
 }

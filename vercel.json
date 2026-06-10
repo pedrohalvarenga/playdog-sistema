@@ -7,6 +7,10 @@
     {
       "path": "/api/financeiro/recorrentes",
       "schedule": "0 7 1 * *"
+    },
+    {
+      "path": "/api/cron/extrato-mensal",
+      "schedule": "0 9 1 * *"
     }
   ]
 }

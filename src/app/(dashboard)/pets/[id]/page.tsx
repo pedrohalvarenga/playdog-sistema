@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { formatDate, calcIdade, PLANO_LABELS, PORTE_LABELS, vacinaStatus, whatsappUrl } from '@/lib/utils'
 import Badge from '@/components/ui/Badge'
 import Card from '@/components/ui/Card'
-import { Dog, Phone, Calendar, Syringe, ArrowLeft, Edit, Pill, MessageCircle, AlertTriangle } from 'lucide-react'
+import { Dog, Phone, Calendar, Syringe, ArrowLeft, Edit, Pill, MessageCircle, AlertTriangle, CreditCard } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Pet } from '@/types'
@@ -37,12 +37,10 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
 
   if (!pet) notFound()
 
-  const { data: historico } = await supabase
-    .from('presencas')
-    .select('*')
-    .eq('pet_id', id)
-    .order('data', { ascending: false })
-    .limit(10)
+  const [{ data: historico }, { data: ocorrencias }] = await Promise.all([
+    supabase.from('presencas').select('*').eq('pet_id', id).order('data', { ascending: false }).limit(10),
+    supabase.from('ocorrencias').select('*').eq('pet_id', id).order('created_at', { ascending: false }).limit(5),
+  ])
 
   const p = pet as any
   const vacinas = [
@@ -126,6 +124,22 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
         </div>
       </Card>
 
+      {/* Saldo de diárias */}
+      <Card className={p.saldo_diarias < 0 ? 'border-2 border-red-300 bg-red-50' : p.saldo_diarias === 0 ? 'border-2 border-yellow-200' : ''}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-gray-400 mb-1">Saldo de diárias</p>
+            <p className={`text-2xl font-bold ${p.saldo_diarias < 0 ? 'text-red-600' : p.saldo_diarias === 0 ? 'text-yellow-600' : 'text-green-600'}`}>
+              {p.saldo_diarias} diária{p.saldo_diarias !== 1 ? 's' : ''}
+            </p>
+            {p.saldo_diarias < 0 && <p className="text-xs text-red-500 font-semibold mt-0.5">Saldo negativo</p>}
+          </div>
+          <Link href={`/creche/comprar-diarias/${id}`} className="flex items-center gap-1.5 bg-brand-purple text-white px-3 py-2 rounded-xl text-xs font-semibold">
+            <CreditCard size={14} /> Comprar
+          </Link>
+        </div>
+      </Card>
+
       {/* Plano */}
       <Card>
         <div className="flex items-center justify-between">
@@ -179,6 +193,24 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
           ))}
         </div>
       </Card>
+
+      {/* Ocorrências */}
+      {ocorrencias && ocorrencias.length > 0 && (
+        <Card className="border-l-4 border-yellow-400">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle size={18} className="text-yellow-500" />
+            <p className="font-bold text-gray-900 text-sm">Ocorrências</p>
+          </div>
+          <div className="flex flex-col gap-3">
+            {ocorrencias.map((o: { id: string; descricao: string; created_at: string }) => (
+              <div key={o.id} className="border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                <p className="text-xs text-gray-400">{formatDate(o.created_at, 'dd/MM/yyyy HH:mm')}</p>
+                <p className="text-sm text-gray-700 mt-0.5">{o.descricao}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Histórico */}
       {historico && historico.length > 0 && (

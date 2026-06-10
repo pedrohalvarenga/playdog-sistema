@@ -31,6 +31,7 @@ export default function EditarPetPage() {
   const [porte, setPorte] = useState<Porte>('M')
   const [nascimento, setNascimento] = useState('')
   const [castrado, setCastrado] = useState(false)
+  const [identificador, setIdentificador] = useState('')
   const [restricoes, setRestrioes] = useState('')
   const [medicacao, setMedicacao] = useState('')
   const [plano, setPlano] = useState<PlanoTipo>('diaria_avulsa')
@@ -53,6 +54,7 @@ export default function EditarPetPage() {
         setPorte(pet.porte ?? 'M')
         setNascimento(pet.data_nascimento ?? '')
         setCastrado(pet.castrado ?? false)
+        setIdentificador((pet as any).identificador ?? '')
         setRestrioes(pet.restricoes ?? '')
         setMedicacao(pet.medicacao ?? '')
         setPlano(pet.plano ?? 'diaria_avulsa')
@@ -115,6 +117,7 @@ export default function EditarPetPage() {
     const { error } = await supabase.from('pets').update({
       tutor_id: tutorId,
       nome: nomePet,
+      identificador: identificador || null,
       raca: raca || null,
       porte,
       data_nascimento: nascimento || null,
@@ -218,6 +221,7 @@ export default function EditarPetPage() {
           <h2 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Dados do Pet</h2>
 
           <Input label="Nome do pet" value={nomePet} onChange={e => setNomePet(e.target.value)} required />
+          <Input label="Como identificamos (apelido, raça, família...)" value={identificador} onChange={e => setIdentificador(e.target.value)} placeholder='Ex: "vira-lata caramelo", "irmão do Bob"' />
           <Input label="Raça" value={raca} onChange={e => setRaca(e.target.value)} placeholder="Ex: Golden Retriever" />
           <Input label="Data de nascimento" type="date" value={nascimento} onChange={e => setNascimento(e.target.value)} />
 

@@ -24,6 +24,7 @@ export default function NovoPetPage() {
 
   // Pet
   const [nomePet, setNomePet] = useState('')
+  const [identificador, setIdentificador] = useState('')
   const [raca, setRaca] = useState('')
   const [porte, setPorte] = useState<Porte>('M')
   const [nascimento, setNascimento] = useState('')
@@ -114,6 +115,7 @@ export default function NovoPetPage() {
     const { error } = await supabase.from('pets').insert({
       tutor_id: idTutor,
       nome: nomePet,
+      identificador: identificador || null,
       raca: raca || null,
       porte,
       data_nascimento: nascimento || null,
@@ -233,6 +235,7 @@ export default function NovoPetPage() {
           <h2 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Dados do Pet</h2>
 
           <Input label="Nome do pet" value={nomePet} onChange={e => setNomePet(e.target.value)} required />
+          <Input label="Como identificamos (apelido, raça, família...)" value={identificador} onChange={e => setIdentificador(e.target.value)} placeholder='Ex: "vira-lata caramelo", "irmão do Bob"' />
           <Input label="Raça" value={raca} onChange={e => setRaca(e.target.value)} placeholder="Ex: Golden Retriever" />
           <Input label="Data de nascimento" type="date" value={nascimento} onChange={e => setNascimento(e.target.value)} />
 
