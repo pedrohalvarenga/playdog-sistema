@@ -9,7 +9,7 @@ import Input from '@/components/ui/Input'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const [usuario, setUsuario] = useState('')
   const [senha, setSenha] = useState('')
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
@@ -19,11 +19,28 @@ export default function LoginPage() {
     setErro('')
     setLoading(true)
 
+    // Aceita e-mail ou primeiro nome: sem "@", resolve o nome para o e-mail
+    let email = usuario.trim()
+    if (!email.includes('@')) {
+      const res = await fetch('/api/auth/email-por-nome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: email }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setErro(res.status === 409 ? json.error : 'Nome ou senha incorretos.')
+        setLoading(false)
+        return
+      }
+      email = json.email
+    }
+
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
 
     if (error) {
-      setErro('E-mail ou senha incorretos.')
+      setErro('Nome, e-mail ou senha incorretos.')
       setLoading(false)
       return
     }
@@ -47,13 +64,14 @@ export default function LoginPage() {
         {/* Formulário */}
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <Input
-            id="email"
-            label="E-mail"
-            type="email"
-            placeholder="seu@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
+            id="usuario"
+            label="Nome ou e-mail"
+            type="text"
+            placeholder="Ex.: daniel ou seu@email.com"
+            value={usuario}
+            onChange={(e) => setUsuario(e.target.value)}
+            autoComplete="username"
+            autoCapitalize="none"
             required
           />
           <Input
