@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { Dog, CalendarCheck, Users, TrendingUp, Moon } from 'lucide-react'
+import { Dog, CalendarCheck, Users, TrendingUp, Moon, Scissors } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import { formatDate } from '@/lib/utils'
 import type { Profile } from '@/types'
@@ -9,11 +9,13 @@ async function getStats() {
   const supabase = await createClient()
   const hoje = new Date().toISOString().split('T')[0]
 
-  const [presencasHoje, totalPets, totalTutores, hospedadosHoje] = await Promise.all([
+  const [presencasHoje, totalPets, totalTutores, hospedadosHoje, banhoHoje] = await Promise.all([
     supabase.from('presencas').select('id', { count: 'exact' }).eq('data', hoje).is('checkout_at', null),
     supabase.from('pets').select('id', { count: 'exact' }).eq('ativo', true),
     supabase.from('tutores').select('id', { count: 'exact' }),
     supabase.from('hospedagens').select('id', { count: 'exact' }).eq('status', 'hospedado'),
+    supabase.from('agendamentos_banho_tosa').select('id', { count: 'exact' })
+      .eq('data', hoje).not('status', 'in', '(cancelado,entregue)'),
   ])
 
   return {
@@ -21,6 +23,7 @@ async function getStats() {
     totalPets: totalPets.count ?? 0,
     totalTutores: totalTutores.count ?? 0,
     hospedados: hospedadosHoje.count ?? 0,
+    banhoHoje: banhoHoje.count ?? 0,
   }
 }
 
@@ -100,6 +103,23 @@ export default async function DashboardPage() {
             <div>
               <p className="font-semibold text-gray-900">Nova Reserva Hotel</p>
               <p className="text-sm text-gray-400">Agendar hospedagem</p>
+            </div>
+          </Link>
+
+          <Link href="/banho-tosa" className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 active:bg-gray-50">
+            <div className="w-12 h-12 rounded-2xl bg-teal-100 flex items-center justify-center">
+              <Scissors size={24} className="text-brand-teal" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900">
+                Banho &amp; Tosa
+                {stats.banhoHoje > 0 && (
+                  <span className="ml-2 text-xs bg-brand-teal text-white px-2 py-0.5 rounded-full">
+                    {stats.banhoHoje} hoje
+                  </span>
+                )}
+              </p>
+              <p className="text-sm text-gray-400">Agendamentos e agenda</p>
             </div>
           </Link>
         </div>

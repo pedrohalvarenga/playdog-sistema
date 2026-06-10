@@ -6,6 +6,7 @@ import {
   CalendarCheck, Building2, Scissors, Dog, Users, DollarSign,
   Home, Settings, Car, Menu, X,
 } from 'lucide-react'
+
 import { cn } from '@/lib/utils'
 import { type UserRole } from '@/types'
 import { useState } from 'react'
@@ -21,8 +22,9 @@ interface QuickItem {
 const quickItems: QuickItem[] = [
   { href: '/creche',     label: 'Chamada',    icon: CalendarCheck, roles: ['admin', 'recepcao'] },
   { href: '/hotel',      label: 'Hotel',      icon: Building2,     roles: ['admin', 'recepcao'] },
-  { href: '/banho-tosa', label: 'Banho',      icon: Scissors,      roles: ['admin', 'recepcao', 'banho_tosa'] },
-  { href: '/pets',       label: 'Pets',       icon: Dog,           roles: ['admin', 'recepcao', 'banho_tosa'] },
+  { href: '/banho-tosa',   label: 'Banho',      icon: Scissors, roles: ['admin', 'recepcao', 'banho_tosa'] },
+  { href: '/transportes',  label: 'Corridas',   icon: Car,      roles: ['motorista'] },
+  { href: '/pets',         label: 'Pets',       icon: Dog,      roles: ['admin', 'recepcao', 'banho_tosa'] },
   { href: '/tutores',    label: 'Tutores',    icon: Users,         roles: ['admin', 'recepcao'] },
   { href: '/financeiro', label: 'Financeiro', icon: DollarSign,    roles: ['admin', 'recepcao'] },
 ]
@@ -58,9 +60,9 @@ const moreItems: MoreItem[] = [
     iconBg: 'bg-gray-100',
   },
   {
-    href: '/taxi',
-    label: 'Taxi Dog',
-    sublabel: 'Transporte de pets — em breve',
+    href: '/transportes',
+    label: 'Transportes',
+    sublabel: 'Corridas de hoje e agenda do motorista',
     icon: Car,
     roles: ['admin', 'recepcao', 'motorista'],
     iconColor: 'text-brand-orange',
