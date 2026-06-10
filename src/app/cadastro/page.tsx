@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import React, { useState, useRef } from 'react'
 import { Dog, Camera, X, CheckCircle, Loader2 } from 'lucide-react'
 import type { Porte, PlanoTipo } from '@/types'
 
@@ -197,7 +197,7 @@ export default function CadastroPublicoPage() {
             <section className="bg-white rounded-3xl p-4 shadow-sm flex flex-col gap-4">
               <Field label="Nome do pet *" value={nomePet} onChange={setNomePet} placeholder="Como o seu pet se chama" />
               <Field label="Raça" value={raca} onChange={setRaca} placeholder="Ex: Labrador, Poodle..." />
-              <Field label="Data de nascimento" value={nascimento} onChange={setNascimento} type="date" />
+              <DateField label="Data de nascimento" value={nascimento} onChange={setNascimento} />
 
               <div>
                 <label className="text-sm font-semibold text-gray-700 block mb-2">Porte</label>
@@ -304,6 +304,34 @@ export default function CadastroPublicoPage() {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [display, setDisplay] = React.useState(() => {
+    if (!value) return ''
+    const [y, m, d] = value.split('-')
+    return y && m && d ? `${d}/${m}/${y}` : ''
+  })
+  function handle(e: React.ChangeEvent<HTMLInputElement>) {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 8)
+    let masked = digits
+    if (digits.length > 2) masked = digits.slice(0, 2) + '/' + digits.slice(2)
+    if (digits.length > 4) masked = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4)
+    setDisplay(masked)
+    if (digits.length === 8) {
+      const d = digits.slice(0, 2), m = digits.slice(2, 4), y = digits.slice(4, 8)
+      onChange(`${y}-${m}-${d}`)
+    } else {
+      onChange('')
+    }
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-sm font-semibold text-gray-700">{label}</label>
+      <input type="text" inputMode="numeric" value={display} onChange={handle} placeholder="DD/MM/AAAA"
+        className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-base bg-white" />
     </div>
   )
 }

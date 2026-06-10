@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import DateInput from '@/components/ui/DateInput'
 import { ArrowLeft, Camera, X, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import VacinaInput from '@/components/pets/VacinaInput'
@@ -244,7 +245,7 @@ export default function NovoPetPage() {
           <Input label="Nome do pet" value={nomePet} onChange={e => setNomePet(e.target.value)} required />
           <Input label="Como identificamos (apelido, raça, família...)" value={identificador} onChange={e => setIdentificador(e.target.value)} placeholder='Ex: "vira-lata caramelo", "irmão do Bob"' />
           <Input label="Raça" value={raca} onChange={e => setRaca(e.target.value)} placeholder="Ex: Golden Retriever" />
-          <Input label="Data de nascimento" type="date" value={nascimento} onChange={e => setNascimento(e.target.value)} />
+          <DateInput label="Data de nascimento" value={nascimento} onChange={setNascimento} />
 
           <div>
             <label className="text-sm font-semibold text-gray-700 block mb-2">Porte</label>
