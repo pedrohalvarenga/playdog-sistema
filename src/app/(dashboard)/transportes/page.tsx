@@ -272,6 +272,9 @@ export default function TransportesPage() {
           <p className="text-sm text-gray-400">Passageiros do dia · Taxi Dog</p>
         </div>
         <div className="flex items-center gap-1">
+          <Link href="/transportes/abastecimento" className="p-2.5 rounded-xl bg-orange-100 text-brand-orange" title="Registrar abastecimento">
+            <Fuel size={18} />
+          </Link>
           <Link href="/transportes/relatorio" className="p-2.5 rounded-xl bg-gray-100 text-gray-500" title="Relatório por tutor">
             <FileText size={18} />
           </Link>
