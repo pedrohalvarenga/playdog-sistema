@@ -135,7 +135,7 @@ export default function EditarPetPage() {
       foto_url: fotoUrl,
     }).eq('id', id)
 
-    if (error) { setLoading(false); alert('Erro ao salvar'); return }
+    if (error) { setLoading(false); alert(`Erro ao salvar: ${error.message}`); return }
     router.push(`/pets/${id}`)
   }
 
