@@ -35,6 +35,7 @@ export default function EditarDespesaPage() {
   const [recorrente, setRecorrente] = useState(false)
   const [diaVencimento, setDiaVencimento] = useState('')
   const [erro, setErro] = useState('')
+  const [original, setOriginal] = useState<Record<string, unknown> | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -45,6 +46,7 @@ export default function EditarDespesaPage() {
       if (contasRes.data) setContas(contasRes.data as ContaFinanceira[])
       const d = despesaRes.data
       if (d) {
+        setOriginal(d)
         setData(d.data)
         setValor(d.valor)
         setArea(d.area)
@@ -67,7 +69,7 @@ export default function EditarDespesaPage() {
     if (status === 'pendente' && !dataVenc) { setErro('Informe a data de vencimento.'); return }
     setErro(''); setSaving(true)
     const supabase = createClient()
-    const { error } = await supabase.from('despesas').update({
+    const alteracoes = {
       data, valor, area, categoria,
       conta_id: contaId,
       fornecedor: fornecedor || null,
@@ -76,9 +78,17 @@ export default function EditarDespesaPage() {
       data_vencimento: status === 'pendente' ? dataVenc : null,
       recorrente,
       dia_vencimento: recorrente ? Number(diaVencimento) : null,
-    }).eq('id', id)
+    }
+    const { error } = await supabase.from('despesas').update(alteracoes).eq('id', id)
     setSaving(false)
     if (error) { setErro(error.message); return }
+    // Auditoria: notifica o desenvolvedor (não bloqueia a navegação)
+    fetch('/api/auditoria-financeira', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo: 'despesa', acao: 'editada', registro: original ?? { id }, alteracoes }),
+      keepalive: true,
+    }).catch(() => {})
     router.push(`/financeiro/despesas/${id}`)
   }
 

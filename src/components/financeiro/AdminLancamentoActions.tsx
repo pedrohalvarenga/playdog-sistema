@@ -21,7 +21,18 @@ export default function AdminLancamentoActions({ id, tipo, voltarPara }: Props) 
     setDeletando(true)
     const supabase = createClient()
     const tabela = tipo === 'receita' ? 'receitas' : 'despesas'
-    await supabase.from(tabela).delete().eq('id', id)
+    // Captura o registro antes de excluir, para a auditoria
+    const { data: registro } = await supabase.from(tabela).select('*').eq('id', id).single()
+    const { error } = await supabase.from(tabela).delete().eq('id', id)
+    if (!error && registro) {
+      // Notifica o desenvolvedor (não bloqueia a navegação)
+      fetch('/api/auditoria-financeira', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo, acao: 'excluida', registro }),
+        keepalive: true,
+      }).catch(() => {})
+    }
     router.push(voltarPara)
     router.refresh()
   }

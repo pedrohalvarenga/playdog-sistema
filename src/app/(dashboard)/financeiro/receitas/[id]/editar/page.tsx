@@ -37,6 +37,7 @@ export default function EditarReceitaPage() {
   const [petId, setPetId] = useState('')
   const [petNome, setPetNome] = useState('')
   const [petTutorId, setPetTutorId] = useState<string | null>(null)
+  const [original, setOriginal] = useState<Record<string, unknown> | null>(null)
 
   const CATEGORIAS_CRECHE: string[] = ['diaria_avulsa', 'pacote_semanal', 'pacote_mensal']
   const mostrarDiarias = area === 'creche' && CATEGORIAS_CRECHE.includes(categoria)
@@ -50,6 +51,7 @@ export default function EditarReceitaPage() {
       if (contasRes.data) setContas(contasRes.data as ContaFinanceira[])
       const r = receitaRes.data
       if (r) {
+        setOriginal(r)
         setData(r.data)
         setValor(r.valor)
         setArea(r.area)
@@ -94,7 +96,7 @@ export default function EditarReceitaPage() {
     if (status === 'pendente' && !dataVenc) { setErro('Informe a data de vencimento.'); return }
     setErro(''); setSaving(true)
     const supabase = createClient()
-    const { error } = await supabase.from('receitas').update({
+    const alteracoes = {
       data, valor, area, categoria,
       forma_pagamento: forma,
       conta_id: contaId,
@@ -106,9 +108,17 @@ export default function EditarReceitaPage() {
       ...(petId && petTutorId ? { tutor_id: petTutorId } : {}),
       status,
       data_vencimento: status === 'pendente' ? dataVenc : null,
-    }).eq('id', id)
+    }
+    const { error } = await supabase.from('receitas').update(alteracoes).eq('id', id)
     setSaving(false)
     if (error) { setErro(error.message); return }
+    // Auditoria: notifica o desenvolvedor (não bloqueia a navegação)
+    fetch('/api/auditoria-financeira', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo: 'receita', acao: 'editada', registro: original ?? { id }, alteracoes }),
+      keepalive: true,
+    }).catch(() => {})
     router.push(`/financeiro/receitas/${id}`)
   }
 

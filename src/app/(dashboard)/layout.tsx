@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import BottomNav from '@/components/layout/BottomNav'
 import TopBar from '@/components/layout/TopBar'
+import AlertaDespesasHoje from '@/components/financeiro/AlertaDespesasHoje'
 import type { Profile } from '@/types'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -25,6 +26,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {children}
       </main>
       <BottomNav role={profile.role} />
+      {profile.role === 'admin' && <AlertaDespesasHoje />}
     </div>
   )
 }

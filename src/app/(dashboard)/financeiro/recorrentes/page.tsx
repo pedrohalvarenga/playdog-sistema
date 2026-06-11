@@ -143,6 +143,22 @@ export default function RecorrentesPage() {
     gruposRecorrentes.push(d)
   }
 
+  // ===== Resumo do mês =====
+  const totalSalarios = funcionarios.reduce((s, f) => s + f.salario, 0)
+  const totalRecorrentesEstimado = gruposRecorrentes.reduce((s, d) => s + d.valor, 0)
+  const custoFixoMensal = totalSalarios + totalRecorrentesEstimado
+
+  const salariosPagos = funcionarios.reduce((s, f) => s + Math.min(pagoNoMes(f.id), f.salario), 0)
+  const salariosFaltam = Math.max(0, totalSalarios - salariosPagos)
+
+  // Ocorrências de despesas recorrentes dentro do mês atual
+  const recorrentesDoMes = recorrentes.filter(d => (d.data ?? '').startsWith(mesRef) || (d.data_vencimento ?? '').startsWith(mesRef))
+  const recPagas = recorrentesDoMes.filter(d => d.status === 'pago').reduce((s, d) => s + d.valor, 0)
+  const recPendentes = recorrentesDoMes.filter(d => d.status === 'pendente').reduce((s, d) => s + d.valor, 0)
+
+  const totalPago = salariosPagos + recPagas
+  const totalFalta = salariosFaltam + recPendentes
+
   if (loading) return <div className="py-6 text-center text-gray-400">Carregando...</div>
 
   return (
@@ -153,6 +169,24 @@ export default function RecorrentesPage() {
         </Link>
         <h1 className="text-xl font-bold text-gray-900 flex-1">Recorrentes & Salários</h1>
       </div>
+
+      {/* ===== RESUMO DO MÊS ===== */}
+      <Card className="bg-gradient-to-br from-brand-purple to-purple-700 text-white border-0">
+        <p className="text-xs opacity-80">Custo fixo mensal (salários + recorrentes)</p>
+        <p className="text-3xl font-bold mt-1">{formatCurrency(custoFixoMensal)}</p>
+        <div className="grid grid-cols-2 gap-2 mt-3">
+          <div className="bg-white/15 rounded-xl px-3 py-2">
+            <p className="text-[10px] opacity-80">Já pago em <span className="capitalize">{nomeMes.split(' ')[0]}</span></p>
+            <p className="font-bold text-lg text-green-300">{formatCurrency(totalPago)}</p>
+          </div>
+          <div className="bg-white/15 rounded-xl px-3 py-2">
+            <p className="text-[10px] opacity-80">Falta pagar</p>
+            <p className={`font-bold text-lg ${totalFalta > 0 ? 'text-yellow-300' : 'text-green-300'}`}>
+              {totalFalta > 0 ? formatCurrency(totalFalta) : 'Tudo pago ✓'}
+            </p>
+          </div>
+        </div>
+      </Card>
 
       {/* ===== FUNCIONÁRIOS ===== */}
       <div>
