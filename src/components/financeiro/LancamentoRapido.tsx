@@ -18,23 +18,25 @@ type Step = 'tipo' | 'valor' | 'area' | 'categoria' | 'diarias' | 'forma' | 'con
 interface PetOption { id: string; nome: string; tutor_id: string | null; identificador?: string | null }
 
 const CATEGORIAS_RECEITA_AREA: Record<AreaNegocio, CategoriaReceita[]> = {
-  creche:     ['diaria_avulsa', 'pacote_semanal', 'pacote_mensal'],
-  hotel:      ['hotel'],
-  loja:       ['venda_produto'],
-  banho_tosa: ['banho_tosa'],
-  transporte: ['transporte'],
-  outros:     ['festa', 'foto', 'outros'],
-  geral:      ['outros'],
+  creche:      ['diaria_avulsa', 'pacote_semanal', 'pacote_mensal'],
+  hotel:       ['hotel'],
+  loja:        ['venda_produto'],
+  banho_tosa:  ['banho_tosa'],
+  transporte:  ['transporte'],
+  veterinario: ['veterinario', 'outros'],
+  outros:      ['festa', 'foto', 'outros'],
+  geral:       ['outros'],
 }
 
 const CATEGORIAS_DESPESA_AREA: Record<AreaNegocio, CategoriaDespesa[]> = {
-  creche:     ['racao_petiscos', 'limpeza', 'salarios', 'manutencao', 'outros'],
-  hotel:      ['racao_petiscos', 'limpeza', 'salarios', 'manutencao', 'outros'],
-  loja:       ['outros'],
-  banho_tosa: ['produtos_banho_tosa', 'comissoes', 'outros'],
-  transporte: ['combustivel', 'manutencao', 'outros'],
-  outros:     ['marketing', 'impostos', 'taxas_bancarias', 'outros'],
-  geral:      ['aluguel', 'agua_luz_internet', 'contador', 'salarios', 'impostos', 'taxas_bancarias', 'outros'],
+  creche:      ['racao_petiscos', 'limpeza', 'salarios', 'manutencao', 'outros'],
+  hotel:       ['racao_petiscos', 'limpeza', 'salarios', 'manutencao', 'outros'],
+  loja:        ['outros'],
+  banho_tosa:  ['produtos_banho_tosa', 'comissoes', 'outros'],
+  transporte:  ['combustivel', 'manutencao', 'outros'],
+  veterinario: ['vacinas_veterinario', 'outros'],
+  outros:      ['marketing', 'impostos', 'taxas_bancarias', 'outros'],
+  geral:       ['aluguel', 'agua_luz_internet', 'contador', 'salarios', 'impostos', 'taxas_bancarias', 'outros'],
 }
 
 export default function LancamentoRapido() {

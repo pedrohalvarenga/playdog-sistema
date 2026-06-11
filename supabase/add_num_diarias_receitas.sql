@@ -1,0 +1,2 @@
+ALTER TABLE receitas
+  ADD COLUMN IF NOT EXISTS num_diarias INTEGER;

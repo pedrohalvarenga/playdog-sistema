@@ -8,7 +8,7 @@ import { salvarOrcamento } from './actions'
 import type { Profile } from '@/types'
 import type { AreaNegocio, OrcamentoPeriodo, Orcamento } from '@/types/financeiro'
 
-const AREAS_OP: AreaNegocio[] = ['creche', 'hotel', 'loja', 'banho_tosa', 'transporte', 'outros']
+const AREAS_OP: AreaNegocio[] = ['creche', 'hotel', 'loja', 'banho_tosa', 'transporte', 'veterinario', 'outros']
 const PERIODO_LABELS: Record<OrcamentoPeriodo, string> = {
   mensal: 'Mensal', trimestral: 'Trimestral', semestral: 'Semestral', anual: 'Anual',
 }

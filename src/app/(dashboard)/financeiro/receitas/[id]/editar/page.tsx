@@ -225,7 +225,7 @@ export default function EditarReceitaPage() {
               className={`py-2.5 rounded-2xl text-sm font-semibold border-2 transition-colors ${
                 status === s ? 'border-brand-purple bg-purple-50 text-brand-purple' : 'border-gray-200 bg-white text-gray-700'
               }`}>
-              {s === 'pago' ? 'Pago' : 'Pendente'}
+              {s === 'pago' ? 'Recebido' : 'Em aberto'}
             </button>
           ))}
         </div>

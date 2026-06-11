@@ -10,7 +10,8 @@ import type { SaldoConta } from '@/types/financeiro'
 
 const COR_AREA: Record<string, string> = {
   creche: '#a855f7', hotel: '#3b82f6', loja: '#22c55e',
-  banho_tosa: '#ec4899', transporte: '#f97316', outros: '#9ca3af', geral: '#64748b',
+  banho_tosa: '#ec4899', transporte: '#f97316', veterinario: '#14b8a6',
+  outros: '#9ca3af', geral: '#64748b',
 }
 
 export default async function FinanceiroDashboardPage() {

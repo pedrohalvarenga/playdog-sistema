@@ -1,13 +1,13 @@
-export type AreaNegocio = 'creche' | 'hotel' | 'loja' | 'banho_tosa' | 'transporte' | 'outros' | 'geral'
+export type AreaNegocio = 'creche' | 'hotel' | 'loja' | 'banho_tosa' | 'transporte' | 'veterinario' | 'outros' | 'geral'
 
 export type CategoriaReceita =
   | 'diaria_avulsa' | 'pacote_semanal' | 'pacote_mensal' | 'hotel'
-  | 'banho_tosa' | 'transporte' | 'venda_produto' | 'festa' | 'foto' | 'outros'
+  | 'banho_tosa' | 'transporte' | 'venda_produto' | 'festa' | 'foto' | 'veterinario' | 'outros'
 
 export type CategoriaDespesa =
   | 'racao_petiscos' | 'limpeza' | 'produtos_banho_tosa' | 'salarios' | 'comissoes'
   | 'combustivel' | 'manutencao' | 'investimento' | 'aluguel' | 'agua_luz_internet'
-  | 'contador' | 'marketing' | 'impostos' | 'taxas_bancarias' | 'outros'
+  | 'contador' | 'marketing' | 'impostos' | 'taxas_bancarias' | 'vacinas_veterinario' | 'outros'
 
 export type FormaPagamento = 'pix' | 'dinheiro' | 'debito' | 'credito'
 

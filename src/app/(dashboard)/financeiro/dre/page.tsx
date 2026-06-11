@@ -7,7 +7,7 @@ import { formatCurrency, AREA_LABELS, AREA_CORES } from '@/lib/financeiro'
 import type { Profile } from '@/types'
 import type { AreaNegocio, ResultadoArea } from '@/types/financeiro'
 
-const AREAS_OPERACIONAIS: AreaNegocio[] = ['creche', 'hotel', 'loja', 'banho_tosa', 'transporte', 'outros']
+const AREAS_OPERACIONAIS: AreaNegocio[] = ['creche', 'hotel', 'loja', 'banho_tosa', 'transporte', 'veterinario', 'outros']
 
 export default async function DREPage({
   searchParams,

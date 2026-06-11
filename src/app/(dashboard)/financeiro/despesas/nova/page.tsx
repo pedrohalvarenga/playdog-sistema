@@ -15,7 +15,7 @@ import type { ContaFinanceira, AreaNegocio, CategoriaDespesa } from '@/types/fin
 const CATEGORIAS_DESPESA: CategoriaDespesa[] = [
   'racao_petiscos','limpeza','produtos_banho_tosa','salarios','comissoes',
   'combustivel','manutencao','investimento','aluguel','agua_luz_internet',
-  'contador','marketing','impostos','taxas_bancarias','outros',
+  'contador','marketing','impostos','taxas_bancarias','vacinas_veterinario','outros',
 ]
 
 export default function NovaDespesaPage() {
@@ -237,15 +237,18 @@ export default function NovaDespesaPage() {
               className={`py-2.5 rounded-2xl text-sm font-semibold border-2 transition-colors ${
                 status === s ? 'border-brand-purple bg-purple-50 text-brand-purple' : 'border-gray-200 bg-white text-gray-700'
               }`}>
-              {s === 'pago' ? 'Pago' : 'Pendente'}
+              {s === 'pago' ? 'Pago' : 'Em aberto'}
             </button>
           ))}
         </div>
+        <p className="text-xs text-gray-400 mt-1">
+          Em aberto: use para despesas futuras ou para lembrar de pagar alguém. Aparece em Pendências até marcar como paga.
+        </p>
       </div>
 
       {status === 'pendente' && (
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-semibold text-gray-700">Data de vencimento</label>
+          <label className="text-sm font-semibold text-gray-700">Data de vencimento (quando pagar)</label>
           <input type="date" value={dataVenc} onChange={e => setDataVenc(e.target.value)}
             className="w-full py-3 px-4 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-base bg-white" />
         </div>

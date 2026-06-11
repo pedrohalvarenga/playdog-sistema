@@ -1,13 +1,14 @@
 import type { AreaNegocio, CategoriaReceita, CategoriaDespesa, FormaPagamento, StatusFinanceiro, TipoConta } from '@/types/financeiro'
 
 export const AREA_LABELS: Record<AreaNegocio, string> = {
-  creche:     'Creche',
-  hotel:      'Hotel',
-  loja:       'Loja',
-  banho_tosa: 'Banho & Tosa',
-  transporte: 'Transporte',
-  outros:     'Outros',
-  geral:      'Geral',
+  creche:      'Creche',
+  hotel:       'Hotel',
+  loja:        'Loja',
+  banho_tosa:  'Banho & Tosa',
+  transporte:  'Transporte',
+  veterinario: 'Veterinário',
+  outros:      'Outros',
+  geral:       'Geral',
 }
 
 export const CATEGORIA_RECEITA_LABELS: Record<CategoriaReceita, string> = {
@@ -20,6 +21,7 @@ export const CATEGORIA_RECEITA_LABELS: Record<CategoriaReceita, string> = {
   venda_produto:  'Venda de Produto',
   festa:          'Festa de Aniversário',
   foto:           'Sessão Fotográfica',
+  veterinario:    'Veterinário',
   outros:         'Outros',
 }
 
@@ -38,6 +40,7 @@ export const CATEGORIA_DESPESA_LABELS: Record<CategoriaDespesa, string> = {
   marketing:          'Marketing',
   impostos:           'Impostos',
   taxas_bancarias:    'Taxas Bancárias',
+  vacinas_veterinario:'Vacinas / Veterinário',
   outros:             'Outros',
 }
 
@@ -61,24 +64,26 @@ export const STATUS_LABELS: Record<StatusFinanceiro, string> = {
 }
 
 export const AREA_CORES: Record<AreaNegocio, string> = {
-  creche:     'bg-purple-100 text-purple-700',
-  hotel:      'bg-blue-100 text-blue-700',
-  loja:       'bg-green-100 text-green-700',
-  banho_tosa: 'bg-pink-100 text-pink-700',
-  transporte: 'bg-orange-100 text-orange-700',
-  outros:     'bg-gray-100 text-gray-600',
-  geral:      'bg-slate-100 text-slate-600',
+  creche:      'bg-purple-100 text-purple-700',
+  hotel:       'bg-blue-100 text-blue-700',
+  loja:        'bg-green-100 text-green-700',
+  banho_tosa:  'bg-pink-100 text-pink-700',
+  transporte:  'bg-orange-100 text-orange-700',
+  veterinario: 'bg-teal-100 text-teal-700',
+  outros:      'bg-gray-100 text-gray-600',
+  geral:       'bg-slate-100 text-slate-600',
 }
 
 // categorias mapeadas por área (para filtrar no formulário)
 export const CATEGORIAS_POR_AREA: Record<AreaNegocio, CategoriaReceita[]> = {
-  creche:     ['diaria_avulsa', 'pacote_semanal', 'pacote_mensal', 'outros'],
-  hotel:      ['hotel', 'outros'],
-  loja:       ['venda_produto', 'outros'],
-  banho_tosa: ['banho_tosa', 'outros'],
-  transporte: ['transporte', 'outros'],
-  outros:     ['festa', 'foto', 'outros'],
-  geral:      ['outros'],
+  creche:      ['diaria_avulsa', 'pacote_semanal', 'pacote_mensal', 'outros'],
+  hotel:       ['hotel', 'outros'],
+  loja:        ['venda_produto', 'outros'],
+  banho_tosa:  ['banho_tosa', 'outros'],
+  transporte:  ['transporte', 'outros'],
+  veterinario: ['veterinario', 'outros'],
+  outros:      ['festa', 'foto', 'outros'],
+  geral:       ['outros'],
 }
 
 // Taxa de cartão padrão PagBank (%)
