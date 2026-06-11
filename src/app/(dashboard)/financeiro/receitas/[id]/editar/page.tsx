@@ -32,6 +32,11 @@ export default function EditarReceitaPage() {
   const [descricao, setDescricao] = useState('')
   const [numDiarias, setNumDiarias] = useState<number | ''>('')
   const [erro, setErro] = useState('')
+  const [petBusca, setPetBusca] = useState('')
+  const [pets, setPets] = useState<{ id: string; nome: string; tutor_id: string | null }[]>([])
+  const [petId, setPetId] = useState('')
+  const [petNome, setPetNome] = useState('')
+  const [petTutorId, setPetTutorId] = useState<string | null>(null)
 
   const CATEGORIAS_CRECHE: string[] = ['diaria_avulsa', 'pacote_semanal', 'pacote_mensal']
   const mostrarDiarias = area === 'creche' && CATEGORIAS_CRECHE.includes(categoria)
@@ -40,7 +45,7 @@ export default function EditarReceitaPage() {
     const supabase = createClient()
     Promise.all([
       supabase.from('contas_financeiras').select('*').eq('ativo', true),
-      supabase.from('receitas').select('*').eq('id', id).single(),
+      supabase.from('receitas').select('*, pet:pets(id, nome, tutor_id)').eq('id', id).single(),
     ]).then(([contasRes, receitaRes]) => {
       if (contasRes.data) setContas(contasRes.data as ContaFinanceira[])
       const r = receitaRes.data
@@ -56,10 +61,27 @@ export default function EditarReceitaPage() {
         setDataVenc(r.data_vencimento ?? '')
         setDescricao(r.descricao ?? '')
         setNumDiarias(r.num_diarias ?? '')
+        if (r.pet) {
+          setPetId(r.pet.id)
+          setPetNome(r.pet.nome)
+          setPetTutorId(r.pet.tutor_id ?? null)
+        }
       }
       setLoading(false)
     })
   }, [id])
+
+  // Busca pets
+  useEffect(() => {
+    if (petBusca.length < 2) { setPets([]); return }
+    const t = setTimeout(async () => {
+      const supabase = createClient()
+      const { data } = await supabase.from('pets').select('id, nome, tutor_id')
+        .ilike('nome', `%${petBusca}%`).eq('ativo', true).limit(6)
+      if (data) setPets(data)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [petBusca])
 
   const conta = contas.find(c => c.id === contaId)
   const mostrarTaxa = (forma === 'debito' || forma === 'credito') && conta?.tipo === 'pagbank_pj'
@@ -80,6 +102,8 @@ export default function EditarReceitaPage() {
       valor_liquido: valorLiquido,
       descricao: descricao || null,
       num_diarias: mostrarDiarias && numDiarias !== '' ? numDiarias : null,
+      pet_id: petId || null,
+      ...(petId && petTutorId ? { tutor_id: petTutorId } : {}),
       status,
       data_vencimento: status === 'pendente' ? dataVenc : null,
     }).eq('id', id)
@@ -214,6 +238,35 @@ export default function EditarReceitaPage() {
             className="w-full py-3 px-4 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-base bg-white" />
         </div>
       )}
+
+      {/* Pet (opcional) */}
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-semibold text-gray-700">Pet (opcional)</label>
+        {petId ? (
+          <div className="flex items-center gap-2 py-3 px-4 rounded-2xl bg-purple-50 border-2 border-brand-purple">
+            <span className="text-sm font-semibold text-brand-purple flex-1">🐶 {petNome}</span>
+            <button type="button" onClick={() => { setPetId(''); setPetNome(''); setPetTutorId(null); setPetBusca('') }}
+              className="text-xs text-gray-400">remover</button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <input type="text" placeholder="Buscar pet..." value={petBusca}
+              onChange={e => setPetBusca(e.target.value)}
+              className="w-full py-3 px-4 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-base bg-white" />
+            {pets.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {pets.map(p => (
+                  <button key={p.id} type="button"
+                    onClick={() => { setPetId(p.id); setPetNome(p.nome); setPetTutorId(p.tutor_id ?? null); setPets([]) }}
+                    className="py-2 px-4 rounded-xl bg-white border border-gray-200 text-sm text-left hover:border-brand-purple">
+                    {p.nome}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="flex flex-col gap-1">
         <label className="text-sm font-semibold text-gray-700">Descrição (opcional)</label>

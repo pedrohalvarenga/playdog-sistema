@@ -101,7 +101,10 @@ export default async function ReceitasPage({
                   <p className="text-sm font-semibold text-gray-800 truncate">
                     {r.descricao || CATEGORIA_RECEITA_LABELS[r.categoria]}
                   </p>
-                  <p className="text-xs text-gray-400">{formatDate(r.data)} · {r.conta?.nome}</p>
+                  <p className="text-xs text-gray-400">
+                    {formatDate(r.data)} · {r.conta?.nome}
+                    {r.pet?.nome ? <> · <span className="text-brand-purple font-semibold">🐶 {r.pet.nome}</span></> : ''}
+                  </p>
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="font-bold text-green-600">+{formatCurrency(r.valor_liquido ?? r.valor)}</p>

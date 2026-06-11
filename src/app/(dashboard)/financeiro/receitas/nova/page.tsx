@@ -33,7 +33,7 @@ export default function NovaReceitaPage() {
   const [tutores, setTutores] = useState<{ id: string; nome: string }[]>([])
   const [tutorId, setTutorId] = useState('')
   const [petBusca, setPetBusca] = useState('')
-  const [pets, setPets] = useState<{ id: string; nome: string }[]>([])
+  const [pets, setPets] = useState<{ id: string; nome: string; tutor_id: string | null }[]>([])
   const [petId, setPetId] = useState('')
   const [numDiarias, setNumDiarias] = useState<number | ''>('')
   const [erro, setErro] = useState('')
@@ -84,7 +84,7 @@ export default function NovaReceitaPage() {
     if (petBusca.length < 2) { setPets([]); return }
     const t = setTimeout(async () => {
       const supabase = createClient()
-      const { data } = await supabase.from('pets').select('id, nome').ilike('nome', `%${petBusca}%`).limit(5)
+      const { data } = await supabase.from('pets').select('id, nome, tutor_id').ilike('nome', `%${petBusca}%`).eq('ativo', true).limit(6)
       if (data) setPets(data)
     }, 300)
     return () => clearTimeout(t)
@@ -312,7 +312,15 @@ export default function NovaReceitaPage() {
               <div className="flex flex-col gap-1">
                 {pets.map(p => (
                   <button key={p.id} type="button"
-                    onClick={() => { setPetId(p.id); setPetBusca(p.nome); setPets([]) }}
+                    onClick={async () => {
+                      setPetId(p.id); setPetBusca(p.nome); setPets([])
+                      // Preenche o tutor automaticamente a partir do pet
+                      if (!tutorId && p.tutor_id) {
+                        const supabase = createClient()
+                        const { data: t } = await supabase.from('tutores').select('id, nome').eq('id', p.tutor_id).single()
+                        if (t) { setTutorId(t.id); setTutorBusca(t.nome); setTutores([t]) }
+                      }
+                    }}
                     className="py-2 px-4 rounded-xl bg-white border border-gray-200 text-sm text-left hover:border-brand-purple">
                     {p.nome}
                   </button>

@@ -13,7 +13,9 @@ import type { ContaFinanceira } from '@/types/financeiro'
 import type { AreaNegocio, CategoriaReceita, CategoriaDespesa, FormaPagamento } from '@/types/financeiro'
 
 type Tipo = 'receita' | 'despesa'
-type Step = 'tipo' | 'valor' | 'area' | 'categoria' | 'diarias' | 'forma' | 'conta' | 'ok'
+type Step = 'tipo' | 'valor' | 'area' | 'categoria' | 'diarias' | 'forma' | 'conta' | 'pet' | 'ok'
+
+interface PetOption { id: string; nome: string; tutor_id: string | null; identificador?: string | null }
 
 const CATEGORIAS_RECEITA_AREA: Record<AreaNegocio, CategoriaReceita[]> = {
   creche:     ['diaria_avulsa', 'pacote_semanal', 'pacote_mensal'],
@@ -47,6 +49,9 @@ export default function LancamentoRapido() {
   const [contas, setContas] = useState<ContaFinanceira[]>([])
   const [numDiarias, setNumDiarias] = useState<number | ''>('')
   const [saving, setSaving] = useState(false)
+  const [petBusca, setPetBusca] = useState('')
+  const [petSugestoes, setPetSugestoes] = useState<PetOption[]>([])
+  const [buscandoPets, setBuscandoPets] = useState(false)
 
   const CATEGORIAS_CRECHE = ['diaria_avulsa', 'pacote_semanal', 'pacote_mensal']
 
@@ -62,7 +67,26 @@ export default function LancamentoRapido() {
   function reset() {
     setStep('tipo'); setTipo('receita'); setValorRaw('')
     setArea(null); setCategoria(null); setForma('pix'); setConta(null); setNumDiarias('')
+    setPetBusca(''); setPetSugestoes([])
   }
+
+  // Busca pets pelo nome (etapa pet)
+  useEffect(() => {
+    if (petBusca.trim().length < 2) { setPetSugestoes([]); return }
+    setBuscandoPets(true)
+    const t = setTimeout(async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('pets')
+        .select('id, nome, tutor_id, identificador')
+        .ilike('nome', `%${petBusca.trim()}%`)
+        .eq('ativo', true)
+        .limit(6)
+      setPetSugestoes((data as PetOption[]) ?? [])
+      setBuscandoPets(false)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [petBusca])
 
   function fechar() { setOpen(false); reset() }
 
@@ -78,12 +102,12 @@ export default function LancamentoRapido() {
     setValorRaw(prev => (prev + d).slice(-10))
   }
 
-  async function salvar() {
-    if (!area || !categoria || !conta) return
+  async function salvar(contaId: string | null = conta, pet: PetOption | null = null) {
+    if (!area || !categoria || !contaId) return
     setSaving(true)
     const supabase = createClient()
     const valor = parseCurrencyInput(valorRaw)
-    const contaSel = contas.find(c => c.id === conta)
+    const contaSel = contas.find(c => c.id === contaId)
     const taxa = (tipo === 'receita' && (forma === 'debito' || forma === 'credito') && contaSel?.tipo === 'pagbank_pj')
       ? TAXAS_PADRAO[forma] : undefined
     const valor_liquido = taxa ? calcValorLiquido(valor, taxa) : undefined
@@ -92,13 +116,15 @@ export default function LancamentoRapido() {
       await supabase.from('receitas').insert({
         data: new Date().toISOString().split('T')[0],
         valor, area, categoria, forma_pagamento: forma,
-        conta_id: conta, taxa_cartao: taxa, valor_liquido, status: 'pago',
+        conta_id: contaId, taxa_cartao: taxa, valor_liquido, status: 'pago',
         num_diarias: numDiarias !== '' ? numDiarias : null,
+        pet_id: pet?.id ?? null,
+        tutor_id: pet?.tutor_id ?? null,
       })
     } else {
       await supabase.from('despesas').insert({
         data: new Date().toISOString().split('T')[0],
-        valor, area, categoria, conta_id: conta, status: 'pago',
+        valor, area, categoria, conta_id: contaId, status: 'pago',
       })
     }
     setSaving(false)
@@ -312,7 +338,11 @@ export default function LancamentoRapido() {
                 {contasFiltradas.map(c => (
                   <button
                     key={c.id}
-                    onClick={() => { setConta(c.id); salvar() }}
+                    onClick={() => {
+                      setConta(c.id)
+                      if (tipo === 'receita') setStep('pet')
+                      else salvar(c.id)
+                    }}
                     className="py-3 px-4 rounded-2xl bg-gray-50 border-2 border-gray-200 text-gray-800 font-bold text-sm text-left hover:border-brand-purple hover:bg-purple-50 transition-colors active:scale-95"
                   >
                     {c.nome}
@@ -323,6 +353,45 @@ export default function LancamentoRapido() {
                     )}
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* STEP: pet (só receita) */}
+            {step === 'pet' && (
+              <div className="flex flex-col gap-3">
+                <p className="text-sm text-gray-500 font-medium">Vincular a um cachorro (opcional)</p>
+                <input
+                  type="text"
+                  placeholder="Buscar pelo nome do cão..."
+                  value={petBusca}
+                  onChange={e => setPetBusca(e.target.value)}
+                  autoFocus
+                  className="w-full py-3 px-4 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-base bg-white"
+                />
+                {buscandoPets && <p className="text-xs text-gray-400 text-center">Buscando...</p>}
+                {!buscandoPets && petBusca.trim().length >= 2 && petSugestoes.length === 0 && (
+                  <p className="text-xs text-gray-400 text-center">Nenhum cão encontrado.</p>
+                )}
+                <div className="flex flex-col gap-2 max-h-52 overflow-y-auto">
+                  {petSugestoes.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => salvar(conta, p)}
+                      className="py-3 px-4 rounded-2xl bg-gray-50 border-2 border-gray-200 text-gray-800 font-bold text-sm text-left hover:border-brand-purple hover:bg-purple-50 transition-colors active:scale-95"
+                    >
+                      {p.nome}
+                      {p.identificador && (
+                        <span className="text-xs text-gray-400 font-normal block">{p.identificador}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => salvar(conta, null)}
+                  className="w-full py-3 rounded-2xl bg-gray-100 text-gray-500 font-semibold text-sm"
+                >
+                  Salvar sem vincular pet
+                </button>
               </div>
             )}
 
@@ -351,10 +420,10 @@ export default function LancamentoRapido() {
             {/* Barra de progresso / step indicator */}
             {step !== 'ok' && step !== 'tipo' && (
               <div className="flex gap-1 justify-center mt-1">
-                {(['valor','area','categoria','diarias','forma','conta'] as Step[]).map((s, i) => (
+                {(['valor','area','categoria','diarias','forma','conta','pet'] as Step[]).map((s, i) => (
                   <div key={s} className={cn(
                     'h-1.5 rounded-full transition-all',
-                    step === s ? 'w-6 bg-brand-purple' : i < ['valor','area','categoria','diarias','forma','conta'].indexOf(step) ? 'w-3 bg-brand-purple/50' : 'w-3 bg-gray-200'
+                    step === s ? 'w-6 bg-brand-purple' : i < ['valor','area','categoria','diarias','forma','conta','pet'].indexOf(step) ? 'w-3 bg-brand-purple/50' : 'w-3 bg-gray-200'
                   )} />
                 ))}
               </div>
