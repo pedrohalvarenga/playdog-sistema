@@ -33,7 +33,7 @@ export default function EditarReceitaPage() {
   const [numDiarias, setNumDiarias] = useState<number | ''>('')
   const [erro, setErro] = useState('')
   const [petBusca, setPetBusca] = useState('')
-  const [pets, setPets] = useState<{ id: string; nome: string; tutor_id: string | null }[]>([])
+  const [pets, setPets] = useState<{ id: string; nome: string; tutor_id: string | null; identificador?: string | null }[]>([])
   const [petId, setPetId] = useState('')
   const [petNome, setPetNome] = useState('')
   const [petTutorId, setPetTutorId] = useState<string | null>(null)
@@ -76,7 +76,7 @@ export default function EditarReceitaPage() {
     if (petBusca.length < 2) { setPets([]); return }
     const t = setTimeout(async () => {
       const supabase = createClient()
-      const { data } = await supabase.from('pets').select('id, nome, tutor_id')
+      const { data } = await supabase.from('pets').select('id, nome, tutor_id, identificador')
         .ilike('nome', `%${petBusca}%`).eq('ativo', true).limit(6)
       if (data) setPets(data)
     }, 300)
@@ -259,7 +259,8 @@ export default function EditarReceitaPage() {
                   <button key={p.id} type="button"
                     onClick={() => { setPetId(p.id); setPetNome(p.nome); setPetTutorId(p.tutor_id ?? null); setPets([]) }}
                     className="py-2 px-4 rounded-xl bg-white border border-gray-200 text-sm text-left hover:border-brand-purple">
-                    {p.nome}
+                    <span className="font-semibold">{p.nome}</span>
+                    {p.identificador && <span className="text-xs text-gray-400 block">{p.identificador}</span>}
                   </button>
                 ))}
               </div>
