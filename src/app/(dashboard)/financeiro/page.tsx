@@ -167,6 +167,7 @@ export default async function FinanceiroPage() {
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Lançamentos</p>
         <div className="grid grid-cols-2 gap-2">
           {[
+            { href: '/financeiro/caixa', label: 'Caixa do Dia', icon: Banknote, cor: 'bg-emerald-50 text-emerald-700' },
             { href: '/financeiro/receitas', label: 'Receitas', icon: TrendingUp, cor: 'bg-green-50 text-green-700' },
             ...(isAdmin ? [
               { href: '/financeiro/despesas', label: 'Despesas', icon: TrendingDown, cor: 'bg-red-50 text-red-700' },
