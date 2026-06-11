@@ -140,12 +140,6 @@ export default function NovoPetPage() {
   }
 
   const porteBtns: Porte[] = ['P', 'M', 'G']
-  const planos: { value: PlanoTipo; label: string }[] = [
-    { value: 'diaria_avulsa', label: 'Diária Avulsa' },
-    { value: 'pacote_semanal', label: 'Pacote Semanal' },
-    { value: 'pacote_mensal', label: 'Pacote Mensal' },
-    { value: 'hotel', label: 'Hotel' },
-  ]
 
   return (
     <div className="py-6">
@@ -298,20 +292,6 @@ export default function NovoPetPage() {
               Adaptação: cliente em prospecção — visitou mas ainda não contratou. Usado para ações de marketing.
             </p>
           )}
-        </section>
-
-        {/* Plano contratado */}
-        <section className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col gap-3">
-          <h2 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Plano contratado</h2>
-          <div className="grid grid-cols-2 gap-2">
-            {planos.map(p => (
-              <button key={p.value} type="button" onClick={() => setPlano(p.value)}
-                className={`py-3 px-2 rounded-2xl text-sm font-semibold transition-all ${plano === p.value ? 'bg-brand-orange text-white' : 'bg-gray-100 text-gray-500'}`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
         </section>
 
         {/* Vacinas */}
