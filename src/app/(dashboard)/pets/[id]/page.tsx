@@ -229,6 +229,16 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
             </div>
           ))}
         </div>
+        {p.cartao_vacinas_url && (
+          <a
+            href={p.cartao_vacinas_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-purple-50 text-brand-purple text-sm font-semibold"
+          >
+            <Syringe size={14} /> Ver cartão de vacinas anexado
+          </a>
+        )}
       </Card>
 
       {/* Ocorrências */}

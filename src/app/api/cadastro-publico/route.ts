@@ -48,6 +48,7 @@ export async function POST(request: Request) {
       vacina_gripe: pet.vacina_gripe || null,
       vacina_giardia: pet.vacina_giardia || null,
       foto_url: pet.foto_url || null,
+      cartao_vacinas_url: pet.cartao_vacinas_url || null,
       ativo: true,
     }))
   )

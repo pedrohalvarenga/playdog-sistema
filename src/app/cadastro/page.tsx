@@ -19,16 +19,17 @@ interface PetCadastro {
   vacina_antirabica: string
   vacina_gripe: string
   fotoFile: File | null
+  cartaoFile: File | null
 }
 
 export default function CadastroPublicoPage() {
   const [etapa, setEtapa] = useState<'tutor' | 'pet' | 'vacinas' | 'sucesso'>('tutor')
   const [loading, setLoading] = useState(false)
-  const [analisandoVacinas, setAnalisandoVacinas] = useState(false)
   const fotoRef = useRef<HTMLInputElement>(null)
   const vacinaRef = useRef<HTMLInputElement>(null)
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
   const [fotoFile, setFotoFile] = useState<File | null>(null)
+  const [cartaoFile, setCartaoFile] = useState<File | null>(null)
 
   // Tutor
   const [nome, setNome] = useState('')
@@ -53,7 +54,6 @@ export default function CadastroPublicoPage() {
   const [vacinaV8, setVacinaV8] = useState('')
   const [vacinaRaiva, setVacinaRaiva] = useState('')
   const [vacinaGripe, setVacinaGripe] = useState('')
-  const [msgVacina, setMsgVacina] = useState('')
 
   const planos: { value: PlanoTipo; label: string; desc: string }[] = [
     { value: 'diaria_avulsa', label: 'Diária Avulsa', desc: 'Sem mensalidade, paga por dia' },
@@ -68,14 +68,15 @@ export default function CadastroPublicoPage() {
       castrado, restricoes, medicacao, plano,
       vacina_v8_v10: vacinaV8, vacina_antirabica: vacinaRaiva, vacina_gripe: vacinaGripe,
       fotoFile,
+      cartaoFile,
     }
   }
 
   function limparFormularioPet() {
     setNomePet(''); setRaca(''); setPorte('M'); setNascimento('')
     setCastrado(false); setRestrioes(''); setMedicacao(''); setPlano('diaria_avulsa')
-    setVacinaV8(''); setVacinaRaiva(''); setVacinaGripe(''); setMsgVacina('')
-    setFotoFile(null); setFotoPreview(null)
+    setVacinaV8(''); setVacinaRaiva(''); setVacinaGripe('')
+    setFotoFile(null); setFotoPreview(null); setCartaoFile(null)
   }
 
   function adicionarOutroCao() {
@@ -83,24 +84,6 @@ export default function CadastroPublicoPage() {
     limparFormularioPet()
     setEtapa('pet')
     window.scrollTo({ top: 0 })
-  }
-
-  async function analisarCartaoVacinas(file: File) {
-    setAnalisandoVacinas(true)
-    setMsgVacina('Analisando o cartão com IA...')
-    const fd = new FormData()
-    fd.append('arquivo', file)
-    try {
-      const res = await fetch('/api/analisar-vacinas', { method: 'POST', body: fd })
-      const dados = await res.json()
-      if (dados.vacina_v8_v10) setVacinaV8(dados.vacina_v8_v10)
-      if (dados.vacina_antirabica) setVacinaRaiva(dados.vacina_antirabica)
-      if (dados.vacina_gripe) setVacinaGripe(dados.vacina_gripe)
-      setMsgVacina('Campos preenchidos automaticamente! Confira e ajuste se necessário.')
-    } catch {
-      setMsgVacina('Não consegui ler o cartão. Preencha manualmente.')
-    }
-    setAnalisandoVacinas(false)
   }
 
   async function uploadFoto(file: File | null): Promise<string | null> {
@@ -121,12 +104,13 @@ export default function CadastroPublicoPage() {
 
     const todosPets = [...petsSalvos, montarPetAtual()]
 
-    // Upload das fotos (uma por pet, se houver)
+    // Upload das fotos e cartões de vacina (um por pet, se houver)
     const petsComFoto = []
     for (const p of todosPets) {
       const fotoUrl = await uploadFoto(p.fotoFile)
-      const { fotoFile: _, ...dados } = p
-      petsComFoto.push({ ...dados, foto_url: fotoUrl })
+      const cartaoUrl = await uploadFoto(p.cartaoFile)
+      const { fotoFile: _, cartaoFile: __, ...dados } = p
+      petsComFoto.push({ ...dados, foto_url: fotoUrl, cartao_vacinas_url: cartaoUrl })
     }
 
     const res = await fetch('/api/cadastro-publico', {
@@ -326,36 +310,33 @@ export default function CadastroPublicoPage() {
             <h2 className="text-xl font-bold text-gray-900 mt-2">
               Cartão de vacinas{nomePet ? ` — ${nomePet}` : ''}
             </h2>
-            <p className="text-sm text-gray-500">Tire uma foto do cartão de vacinas e a IA preenche os campos automaticamente.</p>
+            <p className="text-sm text-gray-500">Anexe uma foto ou PDF do cartão de vacinas. Nossa equipe confere as datas para você.</p>
 
             {/* Upload cartão */}
             <section className="bg-white rounded-3xl p-4 shadow-sm flex flex-col gap-3">
               <input ref={vacinaRef} type="file" accept="image/*,application/pdf" className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) analisarCartaoVacinas(f) }} />
-              <button
-                type="button"
-                onClick={() => vacinaRef.current?.click()}
-                disabled={analisandoVacinas}
-                className="w-full py-4 rounded-2xl border-2 border-dashed border-brand-purple bg-purple-50 flex items-center justify-center gap-3 text-brand-purple font-semibold disabled:opacity-50"
-              >
-                {analisandoVacinas ? (
-                  <><Loader2 size={20} className="animate-spin" /> Analisando...</>
-                ) : (
-                  <><Camera size={20} /> Foto do cartão de vacinas</>
-                )}
-              </button>
-              {msgVacina && (
-                <p className={`text-xs text-center font-medium ${msgVacina.includes('Campos') ? 'text-green-600' : 'text-gray-500'}`}>
-                  {msgVacina}
-                </p>
+                onChange={e => { const f = e.target.files?.[0]; if (f) setCartaoFile(f) }} />
+              {cartaoFile ? (
+                <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-2xl px-4 py-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <CheckCircle size={18} className="text-green-500 flex-shrink-0" />
+                    <span className="text-sm text-green-700 truncate">{cartaoFile.name}</span>
+                  </div>
+                  <button type="button" onClick={() => { setCartaoFile(null); if (vacinaRef.current) vacinaRef.current.value = '' }}
+                    className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center flex-shrink-0 ml-2">
+                    <X size={12} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => vacinaRef.current?.click()}
+                  className="w-full py-4 rounded-2xl border-2 border-dashed border-brand-purple bg-purple-50 flex items-center justify-center gap-3 text-brand-purple font-semibold"
+                >
+                  <Camera size={20} /> Anexar cartão de vacinas
+                </button>
               )}
-            </section>
-
-            <section className="bg-white rounded-3xl p-4 shadow-sm flex flex-col gap-4">
-              <h3 className="font-bold text-gray-700 text-sm uppercase tracking-wide">Confirme as datas (última dose)</h3>
-              <Field label="V8 / V10 (polivalente)" value={vacinaV8} onChange={setVacinaV8} type="date" />
-              <Field label="Antirrábica" value={vacinaRaiva} onChange={setVacinaRaiva} type="date" />
-              <Field label="Gripe (tosse dos canis)" value={vacinaGripe} onChange={setVacinaGripe} type="date" />
+              <p className="text-xs text-gray-400 text-center">Se não tiver o cartão em mãos agora, pode enviar depois pelo WhatsApp.</p>
             </section>
 
             {/* Tem mais um cão? */}
