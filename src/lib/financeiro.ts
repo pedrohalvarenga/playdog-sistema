@@ -88,8 +88,8 @@ export const CATEGORIAS_POR_AREA: Record<AreaNegocio, CategoriaReceita[]> = {
 
 // Taxa de cartão padrão PagBank (%)
 export const TAXAS_PADRAO: Record<string, number> = {
-  debito:  1.99,
-  credito: 3.49,
+  debito:  2.34,
+  credito: 4.99,
 }
 
 export function formatCurrency(value: number): string {
