@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '@/lib/supabase/server'
 
-const EMAIL_DEV = 'pedroalvarengamkt@gmail.com'
+const EMAILS_AUDITORIA = ['pedroalvarengamkt@gmail.com', 'ac.staico@gmail.com']
 
 const CAMPOS_LABELS: Record<string, string> = {
   data: 'Data', valor: 'Valor', area: 'Área', categoria: 'Categoria',
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
   const resend = new Resend(process.env.RESEND_API_KEY)
   const { error } = await resend.emails.send({
     from: process.env.RESEND_FROM ?? 'Play Dog <noreply@playdog.com.br>',
-    to: [EMAIL_DEV],
+    to: EMAILS_AUDITORIA,
     subject: `[Auditoria] ${titulo} por ${perfil?.nome ?? user.email} — ${fmtValor('valor', registro.valor)}`,
     html,
   })
