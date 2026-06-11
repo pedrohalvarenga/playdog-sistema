@@ -171,6 +171,7 @@ export default async function FinanceiroPage() {
             { href: '/financeiro/receitas', label: 'Receitas', icon: TrendingUp, cor: 'bg-green-50 text-green-700' },
             ...(isAdmin ? [
               { href: '/financeiro/despesas', label: 'Despesas', icon: TrendingDown, cor: 'bg-red-50 text-red-700' },
+              { href: '/financeiro/recorrentes', label: 'Recorrentes & Salários', icon: Clock, cor: 'bg-indigo-50 text-indigo-700' },
               { href: '/financeiro/parcelamentos', label: 'Dívidas', icon: Wallet, cor: 'bg-blue-50 text-blue-700' },
               { href: '/financeiro/conciliacao', label: 'Conciliação', icon: CreditCard, cor: 'bg-orange-50 text-orange-700' },
             ] : []),
