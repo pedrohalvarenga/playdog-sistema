@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '@/lib/supabase/server'
 
-const EMAILS_AUDITORIA = ['pedroalvarengamkt@gmail.com', 'ac.staico@gmail.com']
+// Resend gratuito com onboarding@resend.dev só envia para o e-mail da conta.
+// Para incluir mais destinatários, verifique um domínio em resend.com/domains.
+const EMAILS_AUDITORIA = ['pedroalvarengamkt@gmail.com']
 
 const CAMPOS_LABELS: Record<string, string> = {
   data: 'Data', valor: 'Valor', area: 'Área', categoria: 'Categoria',
@@ -101,9 +103,14 @@ export async function POST(request: Request) {
     html,
   })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[auditoria-financeira] Falha no envio do e-mail:', error.message)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 })
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('[auditoria-financeira] Erro inesperado:', msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
