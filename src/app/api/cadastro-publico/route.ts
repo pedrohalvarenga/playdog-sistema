@@ -17,10 +17,23 @@ export async function POST(request: Request) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
+  // O cadastro público roda sem usuário logado, então o empresa_id
+  // (multi-empresa) precisa ser resolvido aqui explicitamente.
+  const { data: empresa, error: errEmpresa } = await adminClient
+    .from('empresas')
+    .select('id')
+    .eq('slug', 'playdog')
+    .single()
+
+  if (errEmpresa || !empresa) {
+    return NextResponse.json({ error: 'Empresa não configurada' }, { status: 500 })
+  }
+
   // Cria o tutor
   const { data: novoTutor, error: errTutor } = await adminClient
     .from('tutores')
     .insert({
+      empresa_id: empresa.id,
       nome: tutor.nome,
       telefone: tutor.telefone,
       cpf: tutor.cpf || null,
@@ -34,6 +47,7 @@ export async function POST(request: Request) {
   // Cria todos os pets
   const { error: errPet } = await adminClient.from('pets').insert(
     pets.map((pet: any) => ({
+      empresa_id: empresa.id,
       tutor_id: novoTutor.id,
       nome: pet.nome,
       raca: pet.raca || null,
