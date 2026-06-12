@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getEmpresaId } from '@/lib/empresa'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -23,7 +24,9 @@ export default function NovoTutorPage() {
     e.preventDefault()
     setLoading(true)
     const supabase = createClient()
+    const empresaId = await getEmpresaId(supabase)
     const { error } = await supabase.from('tutores').insert({
+      empresa_id: empresaId,
       nome,
       telefone,
       email: email || null,
