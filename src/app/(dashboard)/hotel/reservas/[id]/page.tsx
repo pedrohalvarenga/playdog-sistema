@@ -43,14 +43,17 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
 
   useEffect(() => { carregar() }, [carregar])
 
-  // Preenche valor sugerido no modal de checkout
+  // Preenche valor sugerido no modal de checkout: pacote fechado, ou noites × diária se não houver
   useEffect(() => {
     if (!h || !showCheckout) return
     const noites = calcNoites(
       h.checkin_real ?? h.checkin_previsto,
       h.checkout_previsto
     )
-    setValorTotal((noites * h.valor_diaria).toFixed(2).replace('.', ','))
+    const sugerido = h.valor_pacote != null && h.valor_pacote > 0
+      ? h.valor_pacote
+      : noites * h.valor_diaria
+    setValorTotal(sugerido.toFixed(2).replace('.', ','))
   }, [h, showCheckout])
 
   async function fazerCheckin() {
@@ -127,7 +130,10 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
     h.checkin_real ?? h.checkin_previsto,
     h.checkout_real ?? h.checkout_previsto
   )
-  const valorEstimado = noites * h.valor_diaria
+  const valorEstimado = h.valor_pacote != null && h.valor_pacote > 0
+    ? h.valor_pacote
+    : noites * h.valor_diaria
+  const diariaEquivalente = noites > 0 ? valorEstimado / noites : h.valor_diaria
 
   return (
     <div className="py-6 flex flex-col gap-4">
@@ -197,18 +203,18 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
       <Card>
         <div className="grid grid-cols-3 gap-3 text-center">
           <div>
-            <p className="text-xs text-gray-400">Diária</p>
-            <p className="font-bold text-gray-900">{formatCurrencyHotel(h.valor_diaria)}</p>
+            <p className="text-xs text-gray-400">{h.valor_total != null ? 'Total pago' : 'Pacote'}</p>
+            <p className={`font-bold ${h.valor_total != null ? 'text-brand-purple' : 'text-gray-900'}`}>
+              {formatCurrencyHotel(h.valor_total ?? valorEstimado)}
+            </p>
           </div>
           <div>
             <p className="text-xs text-gray-400">Noites</p>
             <p className="font-bold text-gray-900">{noites}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400">{h.valor_total != null ? 'Total pago' : 'Estimado'}</p>
-            <p className={`font-bold ${h.valor_total != null ? 'text-brand-purple' : 'text-gray-900'}`}>
-              {formatCurrencyHotel(h.valor_total ?? valorEstimado)}
-            </p>
+            <p className="text-xs text-gray-400">Diária equivalente</p>
+            <p className="font-bold text-gray-900">{formatCurrencyHotel(diariaEquivalente)}</p>
           </div>
         </div>
         {h.valor_extras != null && h.valor_extras > 0 && (
@@ -281,7 +287,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
 
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
-                Valor total (R$) — {noites} noite{noites !== 1 ? 's' : ''} × R$ {h.valor_diaria.toFixed(2).replace('.', ',')}
+                Valor da hospedagem (R$) — pacote de {noites} noite{noites !== 1 ? 's' : ''}
               </label>
               <input
                 type="number"

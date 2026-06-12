@@ -10,6 +10,7 @@ export interface Hospedagem {
   checkin_real?: string
   checkout_real?: string
   valor_diaria: number
+  valor_pacote?: number
   valor_total?: number
   valor_extras?: number
   extras_descricao?: string

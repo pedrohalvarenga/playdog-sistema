@@ -135,8 +135,8 @@ export default function ReservasPage() {
                       )}
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-bold text-gray-800">R$ {h.valor_diaria.toFixed(2).replace('.', ',')}</p>
-                      <p className="text-[10px] text-gray-400">/noite</p>
+                      <p className="text-sm font-bold text-gray-800">R$ {(h.valor_pacote ?? h.valor_diaria).toFixed(2).replace('.', ',')}</p>
+                      <p className="text-[10px] text-gray-400">pacote</p>
                     </div>
                   </div>
                 </Card>

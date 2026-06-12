@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS public.hospedagens (
   checkout_previsto    TIMESTAMPTZ NOT NULL,
   checkin_real         TIMESTAMPTZ,
   checkout_real        TIMESTAMPTZ,
-  valor_diaria         NUMERIC(10,2) NOT NULL DEFAULT 0,
+  valor_diaria         NUMERIC(10,2) NOT NULL DEFAULT 0,  -- diária equivalente (informativo)
+  valor_pacote         NUMERIC(10,2),                     -- valor fechado do pacote (controle principal)
   valor_total          NUMERIC(10,2),
   valor_extras         NUMERIC(10,2) DEFAULT 0,
   extras_descricao     TEXT,

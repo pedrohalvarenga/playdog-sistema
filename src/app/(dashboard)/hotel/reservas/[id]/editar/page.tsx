@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
-import { formatDate, formatTime } from '@/lib/utils'
+import { calcNoites } from '@/lib/hotel'
 import type { Hospedagem } from '@/types/hotel'
 
 function toLocalDatetimeValue(iso: string) {
@@ -25,8 +25,11 @@ export default function EditarReservaPage({ params }: { params: Promise<{ id: st
 
   const [checkinPrevisto, setCheckinPrevisto] = useState('')
   const [checkoutPrevisto, setCheckoutPrevisto] = useState('')
-  const [valorDiaria, setValorDiaria] = useState('')
+  const [valorPacote, setValorPacote] = useState('')
   const [observacoes, setObservacoes] = useState('')
+
+  const noites = checkinPrevisto && checkoutPrevisto ? calcNoites(checkinPrevisto, checkoutPrevisto) : 0
+  const valorPacoteNum = parseFloat(valorPacote.replace(',', '.')) || 0
 
   useEffect(() => {
     const supabase = createClient()
@@ -41,7 +44,10 @@ export default function EditarReservaPage({ params }: { params: Promise<{ id: st
           setH(hosp)
           setCheckinPrevisto(toLocalDatetimeValue(hosp.checkin_previsto))
           setCheckoutPrevisto(toLocalDatetimeValue(hosp.checkout_previsto))
-          setValorDiaria(hosp.valor_diaria.toFixed(2).replace('.', ','))
+          const pacote = hosp.valor_pacote != null && hosp.valor_pacote > 0
+            ? hosp.valor_pacote
+            : hosp.valor_diaria * Math.max(1, calcNoites(hosp.checkin_previsto, hosp.checkout_previsto))
+          setValorPacote(pacote.toFixed(2).replace('.', ','))
           setObservacoes(hosp.observacoes ?? '')
         }
         setLoading(false)
@@ -54,15 +60,17 @@ export default function EditarReservaPage({ params }: { params: Promise<{ id: st
       setErro('Check-out deve ser depois do check-in.')
       return
     }
-    const valor = parseFloat(valorDiaria.replace(',', '.'))
+    const valor = parseFloat(valorPacote.replace(',', '.'))
     if (isNaN(valor) || valor < 0) { setErro('Valor inválido.'); return }
 
     setSaving(true)
     const supabase = createClient()
+    const nNoites = calcNoites(checkinPrevisto, checkoutPrevisto)
     const { error } = await supabase.from('hospedagens').update({
       checkin_previsto: new Date(checkinPrevisto).toISOString(),
       checkout_previsto: new Date(checkoutPrevisto).toISOString(),
-      valor_diaria: valor,
+      valor_pacote: valor,
+      valor_diaria: nNoites > 0 ? Math.round((valor / nNoites) * 100) / 100 : 0,
       observacoes: observacoes || null,
     }).eq('id', id)
 
@@ -113,17 +121,22 @@ export default function EditarReservaPage({ params }: { params: Promise<{ id: st
 
       <div>
         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
-          Valor da diária (R$)
+          Valor total do pacote (R$)
         </label>
         <input
           type="number"
           inputMode="decimal"
           min="0"
           step="0.01"
-          value={valorDiaria}
-          onChange={e => setValorDiaria(e.target.value)}
+          value={valorPacote}
+          onChange={e => setValorPacote(e.target.value)}
           className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-sm bg-white"
         />
+        {noites > 0 && valorPacoteNum > 0 && (
+          <p className="text-xs text-gray-400 mt-1">
+            {noites} noite{noites !== 1 ? 's' : ''} — equivale a R$ {(valorPacoteNum / noites).toFixed(2).replace('.', ',')} por diária
+          </p>
+        )}
       </div>
 
       <div>

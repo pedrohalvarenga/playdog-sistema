@@ -6,6 +6,7 @@ import { ArrowLeft, Search, X } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
+import { calcNoites } from '@/lib/hotel'
 import type { Pet } from '@/types'
 
 type PetComTutor = Pet & { tutor: { nome: string } }
@@ -34,8 +35,12 @@ export default function NovaReservaPage() {
 
   const [checkinPrevisto, setCheckinPrevisto] = useState(toLocalDatetimeValue(agora))
   const [checkoutPrevisto, setCheckoutPrevisto] = useState(toLocalDatetimeValue(saida))
-  const [valorDiaria, setValorDiaria] = useState('')
+  const [valorPacote, setValorPacote] = useState('')
   const [observacoes, setObservacoes] = useState('')
+
+  const noites = checkinPrevisto && checkoutPrevisto ? calcNoites(checkinPrevisto, checkoutPrevisto) : 0
+  const valorPacoteNum = parseFloat(valorPacote.replace(',', '.')) || 0
+  const diariaEquivalente = noites > 0 && valorPacoteNum > 0 ? valorPacoteNum / noites : 0
 
   // Busca de pets com debounce
   useEffect(() => {
@@ -70,16 +75,18 @@ export default function NovaReservaPage() {
       setErro('Check-out deve ser depois do check-in.')
       return
     }
-    const valor = parseFloat(valorDiaria.replace(',', '.'))
-    if (isNaN(valor) || valor < 0) { setErro('Valor da diária inválido.'); return }
+    const valor = parseFloat(valorPacote.replace(',', '.'))
+    if (isNaN(valor) || valor < 0) { setErro('Valor do pacote inválido.'); return }
 
     setSaving(true)
     const supabase = createClient()
+    const nNoites = calcNoites(checkinPrevisto, checkoutPrevisto)
     const { error } = await supabase.from('hospedagens').insert({
       pet_id: petSelecionado.id,
       checkin_previsto: new Date(checkinPrevisto).toISOString(),
       checkout_previsto: new Date(checkoutPrevisto).toISOString(),
-      valor_diaria: valor,
+      valor_pacote: valor,
+      valor_diaria: nNoites > 0 ? Math.round((valor / nNoites) * 100) / 100 : 0,
       observacoes: observacoes || null,
       status: 'reservada',
     })
@@ -186,7 +193,7 @@ export default function NovaReservaPage() {
       {/* Valor */}
       <div>
         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
-          Valor da diária (R$) *
+          Valor total do pacote (R$) *
         </label>
         <input
           type="number"
@@ -194,10 +201,15 @@ export default function NovaReservaPage() {
           min="0"
           step="0.01"
           placeholder="0,00"
-          value={valorDiaria}
-          onChange={e => setValorDiaria(e.target.value)}
+          value={valorPacote}
+          onChange={e => setValorPacote(e.target.value)}
           className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-sm bg-white"
         />
+        {noites > 0 && valorPacoteNum > 0 && (
+          <p className="text-xs text-gray-400 mt-1">
+            {noites} noite{noites !== 1 ? 's' : ''} — equivale a R$ {diariaEquivalente.toFixed(2).replace('.', ',')} por diária
+          </p>
+        )}
       </div>
 
       {/* Observações */}
