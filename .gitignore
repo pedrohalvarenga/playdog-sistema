@@ -31,3 +31,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# playwright (verificação diária)
+/test-results/
+/playwright-report/
+/tests/.auth/
+smoke-results.json

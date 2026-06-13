@@ -1,0 +1,59 @@
+name: Verificação diária Play Dog
+
+# Roda todo dia às 06:00 de Juiz de Fora (09:00 UTC).
+# Também pode ser disparado manualmente na aba Actions ("Run workflow").
+on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Instalar navegador do Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Rodar verificação (smoke)
+        id: smoke
+        continue-on-error: true
+        env:
+          SMOKE_BASE_URL: ${{ secrets.SMOKE_BASE_URL }}
+          SMOKE_USER: ${{ secrets.SMOKE_USER }}
+          SMOKE_PASS: ${{ secrets.SMOKE_PASS }}
+        run: npx playwright test
+
+      - name: Enviar e-mail de resumo
+        if: always()
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM: ${{ secrets.RESEND_FROM || 'Play Dog <onboarding@resend.dev>' }}
+          SMOKE_EMAIL_TO: ${{ secrets.SMOKE_EMAIL_TO || 'pedroalvarengamkt@gmail.com' }}
+          # 'true' = e-mail todo dia (✅ ou ⚠️). Troque para 'false' p/ avisar só quando der problema.
+          SMOKE_ALWAYS: 'true'
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/notificar-smoke.mjs
+
+      - name: Guardar relatório (em caso de falha)
+        if: steps.smoke.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            smoke-results.json
+          retention-days: 14
+
+      - name: Marcar build como falho se houve problema
+        if: steps.smoke.outcome == 'failure'
+        run: exit 1
