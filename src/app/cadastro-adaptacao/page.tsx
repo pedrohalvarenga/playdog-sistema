@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react'
 import { Dog, Camera, X, CheckCircle, Loader2, CalendarHeart, Plus } from 'lucide-react'
 import type { Porte } from '@/types'
+import { hojeLocal } from '@/lib/datas'
 
 const PORTE_LABELS: Record<Porte, string> = { P: 'Pequeno', M: 'Médio', G: 'Grande' }
 
@@ -320,7 +321,7 @@ export default function CadastroAdaptacaoPage() {
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-semibold text-gray-700">Dia da adaptação *</label>
                 <input type="date" value={dataAdaptacao} onChange={e => setDataAdaptacao(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={hojeLocal()}
                   className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-base bg-white" />
               </div>
               <div className="grid grid-cols-2 gap-3">

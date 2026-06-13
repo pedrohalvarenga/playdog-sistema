@@ -11,6 +11,7 @@ import {
 } from '@/lib/banho_tosa'
 import type { AgendamentoBanhoTosa, StatusAgendamento } from '@/types/banho_tosa'
 import { useProfile } from '@/hooks/useProfile'
+import { hojeLocal } from '@/lib/datas'
 
 type Visao = 'hoje' | 'semana'
 
@@ -112,7 +113,7 @@ export default function BanhoTosaPage() {
 
     if (vServico > 0) {
       const { data: r1 } = await supabase.from('receitas').insert({
-        data: new Date().toISOString().split('T')[0],
+        data: hojeLocal(),
         valor: vServico,
         area: 'banho_tosa',
         categoria: 'banho_tosa',
@@ -127,7 +128,7 @@ export default function BanhoTosaPage() {
 
     if (modalPag.taxi_dog && vTaxi > 0) {
       const { data: r2 } = await supabase.from('receitas').insert({
-        data: new Date().toISOString().split('T')[0],
+        data: hojeLocal(),
         valor: vTaxi,
         area: 'transporte',
         categoria: 'transporte',

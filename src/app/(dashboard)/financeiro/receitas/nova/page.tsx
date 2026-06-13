@@ -12,13 +12,14 @@ import {
   TAXAS_PADRAO, calcValorLiquido, formatCurrency, CATEGORIAS_POR_AREA,
 } from '@/lib/financeiro'
 import type { ContaFinanceira, AreaNegocio, CategoriaReceita, FormaPagamento } from '@/types/financeiro'
+import { hojeLocal } from '@/lib/datas'
 
 export default function NovaReceitaPage() {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [contas, setContas] = useState<ContaFinanceira[]>([])
 
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeLocal()
   const [data, setData] = useState(hoje)
   const [valor, setValor] = useState(0)
   const [area, setArea] = useState<AreaNegocio>('creche')

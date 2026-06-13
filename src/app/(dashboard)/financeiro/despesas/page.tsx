@@ -9,6 +9,7 @@ import { formatCurrency } from '@/lib/financeiro'
 import { AREA_LABELS, CATEGORIA_DESPESA_LABELS, AREA_CORES, isInvestimento } from '@/lib/financeiro'
 import type { Profile } from '@/types'
 import type { Despesa } from '@/types/financeiro'
+import { diaLocal } from '@/lib/datas'
 
 export default async function DespesasPage({
   searchParams,
@@ -26,7 +27,7 @@ export default async function DespesasPage({
   const mesAtual = mes ?? `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
   const [ano, mesNum] = mesAtual.split('-')
   const inicio = `${mesAtual}-01`
-  const fim = new Date(Number(ano), Number(mesNum), 0).toISOString().split('T')[0]
+  const fim = diaLocal(new Date(Number(ano), Number(mesNum), 0))
 
   const { data: despesas } = await supabase
     .from('despesas')

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { diaLocal } from '@/lib/datas'
 
 export async function POST(request: Request) {
   const { mes, ano } = await request.json()
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
   if (profile?.role !== 'admin') return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const inicio = `${ano}-${String(mes).padStart(2, '0')}-01`
-  const fim = new Date(ano, mes, 0).toISOString().split('T')[0]
+  const fim = diaLocal(new Date(ano, mes, 0))
 
   // Tutores com e-mail e que tiveram movimentação no período
   const { data: tutoresComEmail } = await supabase

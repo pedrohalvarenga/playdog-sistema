@@ -7,6 +7,7 @@ import { formatDate } from '@/lib/utils'
 import { formatCurrency } from '@/lib/financeiro'
 import { AREA_LABELS, CATEGORIA_RECEITA_LABELS, AREA_CORES } from '@/lib/financeiro'
 import type { Receita } from '@/types/financeiro'
+import { diaLocal } from '@/lib/datas'
 
 export default async function ReceitasPage({
   searchParams,
@@ -19,7 +20,7 @@ export default async function ReceitasPage({
   const mesAtual = mes ?? `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
   const [ano, mesNum] = mesAtual.split('-')
   const inicio = `${mesAtual}-01`
-  const fim = new Date(Number(ano), Number(mesNum), 0).toISOString().split('T')[0]
+  const fim = diaLocal(new Date(Number(ano), Number(mesNum), 0))
 
   const { data: receitas } = await supabase
     .from('receitas')

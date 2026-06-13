@@ -10,6 +10,7 @@ import CurrencyInput from '@/components/financeiro/CurrencyInput'
 import { formatCurrency, AREA_LABELS, CATEGORIA_DESPESA_LABELS, AREA_CORES } from '@/lib/financeiro'
 import { formatDate } from '@/lib/utils'
 import type { ContaFinanceira, Despesa } from '@/types/financeiro'
+import { hojeLocal } from '@/lib/datas'
 
 interface Funcionario {
   id: string
@@ -79,7 +80,7 @@ export default function RecorrentesPage() {
     const restante = Math.max(0, f.salario - pagoNoMes(f.id))
     setPagandoFunc(f)
     setValorPag(sugestao ?? restante)
-    setDataPag(new Date().toISOString().split('T')[0])
+    setDataPag(hojeLocal())
     setContaPag(contas[0]?.id ?? '')
     setDescPag('')
   }

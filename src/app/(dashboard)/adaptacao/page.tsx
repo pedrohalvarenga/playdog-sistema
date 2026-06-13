@@ -8,6 +8,7 @@ import { useProfile } from '@/hooks/useProfile'
 import type { Adaptacao, StatusAdaptacao } from '@/types/adaptacao'
 import { STATUS_ADAPTACAO_LABELS, STATUS_ADAPTACAO_CORES } from '@/types/adaptacao'
 import type { Pet } from '@/types'
+import { diaLocal, hojeLocal } from '@/lib/datas'
 
 type PetComTutor = Pet & { tutor: { nome: string } }
 
@@ -113,7 +114,7 @@ export default function AdaptacaoPage() {
   }
 
   const podeEditar = profile?.role === 'admin' || profile?.role === 'recepcao'
-  const hoje = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split('T')[0]
+  const hoje = hojeLocal()
 
   return (
     <div className="py-6 flex flex-col gap-4">

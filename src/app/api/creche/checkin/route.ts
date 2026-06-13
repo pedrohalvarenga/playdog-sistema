@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { hojeLocal } from '@/lib/datas'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeLocal()
 
   // Registra a presença
   const { data: presenca, error: errPresenca } = await supabase

@@ -7,6 +7,7 @@ import ProjecaoChart from '@/components/financeiro/ProjecaoChart'
 import { formatCurrency } from '@/lib/financeiro'
 import type { Profile } from '@/types'
 import type { SaldoConta, ProjecaoMes } from '@/types/financeiro'
+import { diaLocal } from '@/lib/datas'
 
 export default async function ProjecaoCaixaPage() {
   const supabase = await createClient()
@@ -64,8 +65,8 @@ export default async function ProjecaoCaixaPage() {
 
   // Parcelas futuras ainda não pagas nos próximos 12 meses
   const em12 = new Date(anoHoje, mesHoje + 12, 1)
-  const hojeStr = hoje.toISOString().split('T')[0]
-  const em12Str = em12.toISOString().split('T')[0]
+  const hojeStr = diaLocal(hoje)
+  const em12Str = diaLocal(em12)
 
   const { data: parcelasFuturas } = await supabase
     .from('despesas')

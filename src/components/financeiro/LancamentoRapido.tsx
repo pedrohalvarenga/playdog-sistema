@@ -11,6 +11,7 @@ import {
 } from '@/lib/financeiro'
 import type { ContaFinanceira } from '@/types/financeiro'
 import type { AreaNegocio, CategoriaReceita, CategoriaDespesa, FormaPagamento } from '@/types/financeiro'
+import { hojeLocal } from '@/lib/datas'
 
 type Tipo = 'receita' | 'despesa'
 type Step = 'tipo' | 'valor' | 'area' | 'categoria' | 'diarias' | 'forma' | 'conta' | 'pet' | 'ok'
@@ -116,7 +117,7 @@ export default function LancamentoRapido() {
 
     if (tipo === 'receita') {
       await supabase.from('receitas').insert({
-        data: new Date().toISOString().split('T')[0],
+        data: hojeLocal(),
         valor, area, categoria, forma_pagamento: forma,
         conta_id: contaId, taxa_cartao: taxa, valor_liquido, status: 'pago',
         num_diarias: numDiarias !== '' ? numDiarias : null,
@@ -125,7 +126,7 @@ export default function LancamentoRapido() {
       })
     } else {
       await supabase.from('despesas').insert({
-        data: new Date().toISOString().split('T')[0],
+        data: hojeLocal(),
         valor, area, categoria, conta_id: contaId, status: 'pago',
       })
     }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { hojeLocal } from '@/lib/datas'
 
 // Registra abastecimento: foto do cupom no storage + despesa automática
 // (area transporte, categoria combustível) + linha em abastecimentos.
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
   }
 
   // Despesa automática na área transporte
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeLocal()
   const dataAbastecimento = dataParam || hoje
   const { data: despesa, error: errDesp } = await admin.from('despesas').insert({
     data: dataAbastecimento,

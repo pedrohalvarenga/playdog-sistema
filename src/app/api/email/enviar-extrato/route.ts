@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { diaLocal } from '@/lib/datas'
 
 const MESES = [
   '', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   const inicio = `${ano}-${String(mes).padStart(2, '0')}-01`
-  const fim = new Date(ano, mes, 0).toISOString().split('T')[0]
+  const fim = diaLocal(new Date(ano, mes, 0))
 
   const [{ data: tutor }, { data: pets }] = await Promise.all([
     supabase.from('tutores').select('*').eq('id', tutor_id).single(),

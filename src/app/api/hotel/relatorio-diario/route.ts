@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
+import { hojeLocal, diaLocal } from '@/lib/datas'
 
 export async function POST(req: Request) {
   const resend = new Resend(process.env.RESEND_API_KEY)
   try {
     const { data: dataParam } = await req.json().catch(() => ({}))
-    const data: string = dataParam ?? new Date().toISOString().split('T')[0]
+    const data: string = dataParam ?? hojeLocal()
 
     const isCron = req.headers.get('x-cron-secret') === process.env.CRON_SECRET
     const supabase = await createClient()
@@ -50,16 +51,16 @@ export async function POST(req: Request) {
     const lista = hospList ?? []
 
     const entradas = lista.filter((h: { checkin_real?: string; checkin_previsto: string }) => {
-      const ci = new Date(h.checkin_real ?? h.checkin_previsto).toISOString().split('T')[0]
+      const ci = diaLocal(new Date(h.checkin_real ?? h.checkin_previsto))
       return ci === data
     })
     const saidas = lista.filter((h: { checkout_real?: string; checkout_previsto: string }) => {
-      const co = new Date(h.checkout_real ?? h.checkout_previsto).toISOString().split('T')[0]
+      const co = diaLocal(new Date(h.checkout_real ?? h.checkout_previsto))
       return co === data
     })
     const hospedados = lista.filter((h: { checkin_previsto: string; checkout_previsto: string }) => {
-      const ci = new Date(h.checkin_previsto).toISOString().split('T')[0]
-      const co = new Date(h.checkout_previsto).toISOString().split('T')[0]
+      const ci = diaLocal(new Date(h.checkin_previsto))
+      const co = diaLocal(new Date(h.checkout_previsto))
       return ci <= data && co > data
     })
 

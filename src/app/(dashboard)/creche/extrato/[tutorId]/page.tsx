@@ -7,6 +7,7 @@ import { ArrowLeft, Printer, Send, Dog, Calendar, ShoppingBag } from 'lucide-rea
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 import type { Tutor, Pet, Presenca, ComprasDiarias } from '@/types'
+import { diaLocal } from '@/lib/datas'
 
 type PresencaComPet = Presenca & { pet: Pet }
 type CompraComPet = ComprasDiarias & { pet: Pet }
@@ -51,7 +52,7 @@ export default function ExtratoPage() {
       setLoading(true)
       const supabase = createClient()
       const inicio = `${ano}-${String(mes).padStart(2, '0')}-01`
-      const fim = new Date(ano, mes, 0).toISOString().split('T')[0]
+      const fim = diaLocal(new Date(ano, mes, 0))
 
       const [{ data: tutorData }, { data: pets }] = await Promise.all([
         supabase.from('tutores').select('*').eq('id', tutorId).single(),

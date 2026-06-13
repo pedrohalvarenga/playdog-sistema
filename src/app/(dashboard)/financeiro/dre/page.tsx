@@ -6,6 +6,7 @@ import Card from '@/components/ui/Card'
 import { formatCurrency, AREA_LABELS, AREA_CORES } from '@/lib/financeiro'
 import type { Profile } from '@/types'
 import type { AreaNegocio, ResultadoArea } from '@/types/financeiro'
+import { diaLocal } from '@/lib/datas'
 
 const AREAS_OPERACIONAIS: AreaNegocio[] = ['creche', 'hotel', 'loja', 'banho_tosa', 'transporte', 'veterinario', 'outros']
 
@@ -25,7 +26,7 @@ export default async function DREPage({
   const mesAtual = mes ?? `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
   const [ano, mesNum] = mesAtual.split('-').map(Number)
   const inicio = `${mesAtual}-01`
-  const fim = new Date(ano, mesNum, 0).toISOString().split('T')[0]
+  const fim = diaLocal(new Date(ano, mesNum, 0))
   const nomeMes = new Date(ano, mesNum - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 
   const mesAnterior = new Date(ano, mesNum - 2, 1)

@@ -1,4 +1,5 @@
 import type { StatusHospedagem, OcupacaoNivel } from '@/types/hotel'
+import { diaLocal } from '@/lib/datas'
 
 export const STATUS_HOTEL_LABELS: Record<StatusHospedagem, string> = {
   reservada:  'Reservada',
@@ -29,10 +30,9 @@ export function calcNivel(hospedados: number, capacidade: number): OcupacaoNivel
 }
 
 export function calcNoites(checkin: string, checkout: string): number {
-  const a = new Date(checkin)
-  const b = new Date(checkout)
-  a.setHours(0, 0, 0, 0)
-  b.setHours(0, 0, 0, 0)
+  // Conta as noites pelos dias no fuso de Juiz de Fora
+  const a = new Date(diaLocal(new Date(checkin)) + 'T12:00:00Z')
+  const b = new Date(diaLocal(new Date(checkout)) + 'T12:00:00Z')
   return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86400000))
 }
 
@@ -41,10 +41,8 @@ export function formatCurrencyHotel(value: number): string {
 }
 
 export function dormindoNaNoite(checkinPrevisto: string, checkoutPrevisto: string, noite: string): boolean {
-  const ci = new Date(checkinPrevisto)
-  const co = new Date(checkoutPrevisto)
-  const n = new Date(noite + 'T12:00:00')
-  ci.setHours(0, 0, 0, 0)
-  co.setHours(0, 0, 0, 0)
-  return ci <= n && co > n
+  // Compara os dias no fuso de Juiz de Fora (strings YYYY-MM-DD comparam em ordem)
+  const ci = diaLocal(new Date(checkinPrevisto))
+  const co = diaLocal(new Date(checkoutPrevisto))
+  return ci <= noite && co > noite
 }

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, TrendingUp, AlertCircle, CheckCircle, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import Card from '@/components/ui/Card'
+import { diaLocal } from '@/lib/datas'
 
 const MESES = [
   '', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -47,7 +48,7 @@ export default function ResumoFinanceiroPage() {
       setLoading(true)
       const supabase = createClient()
       const inicio = `${ano}-${String(mes).padStart(2, '0')}-01`
-      const fim = new Date(ano, mes, 0).toISOString().split('T')[0]
+      const fim = diaLocal(new Date(ano, mes, 0))
 
       const [{ data: compras }, { data: presencas }, { data: pets }, { data: precos }] = await Promise.all([
         supabase.from('compras_diarias').select('quantidade, valor_pago, forma_pagamento').gte('data', inicio).lte('data', fim),

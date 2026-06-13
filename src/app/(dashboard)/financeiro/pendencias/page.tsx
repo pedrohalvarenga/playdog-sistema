@@ -9,6 +9,7 @@ import { AREA_LABELS, AREA_CORES, CATEGORIA_RECEITA_LABELS, CATEGORIA_DESPESA_LA
 import PendenciaActions from '@/components/financeiro/PendenciaActions'
 import type { Profile } from '@/types'
 import type { Receita, Despesa } from '@/types/financeiro'
+import { hojeLocal, diaLocal } from '@/lib/datas'
 
 export default async function PendenciasPage() {
   const supabase = await createClient()
@@ -19,9 +20,9 @@ export default async function PendenciasPage() {
   if (!profile) redirect('/login')
 
   const isAdmin = profile.role === 'admin'
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeLocal()
   const emSete = new Date(); emSete.setDate(emSete.getDate() + 7)
-  const emSeteStr = emSete.toISOString().split('T')[0]
+  const emSeteStr = diaLocal(emSete)
 
   const [{ data: rVencidas }, { data: rUrgentes }, { data: rFuturas }] = await Promise.all([
     supabase.from('receitas').select('*, conta:contas_financeiras(nome), tutor:tutores(nome)')

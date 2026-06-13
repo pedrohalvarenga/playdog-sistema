@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { formatDate, formatTime } from '@/lib/utils'
 import { STATUS_HOTEL_CORES, STATUS_HOTEL_LABELS } from '@/lib/hotel'
 import type { Hospedagem, EscalaPlantao } from '@/types/hotel'
+import { hojeLocal, diaLocal } from '@/lib/datas'
 
 export default function HotelPage() {
   const [hospedados, setHospedados] = useState<Hospedagem[]>([])
@@ -16,13 +17,13 @@ export default function HotelPage() {
   const [escala, setEscala] = useState<EscalaPlantao | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeLocal()
 
   const carregar = useCallback(async () => {
     const supabase = createClient()
     const amanha = new Date()
     amanha.setDate(amanha.getDate() + 1)
-    const amanhaDStr = amanha.toISOString().split('T')[0]
+    const amanhaDStr = diaLocal(amanha)
 
     const [{ data: hosp }, { data: esc }] = await Promise.all([
       supabase
@@ -44,13 +45,13 @@ export default function HotelPage() {
 
     // Entradas previstas/realizadas hoje
     const entradas = lista.filter(h => {
-      const dt = new Date(h.checkin_previsto).toISOString().split('T')[0]
+      const dt = diaLocal(new Date(h.checkin_previsto))
       return dt === hoje
     })
 
     // Saídas previstas hoje
     const saidas = lista.filter(h => {
-      const dt = new Date(h.checkout_previsto).toISOString().split('T')[0]
+      const dt = diaLocal(new Date(h.checkout_previsto))
       return dt === hoje || dt === amanhaDStr
     })
 

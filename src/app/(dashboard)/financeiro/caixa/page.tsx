@@ -6,6 +6,7 @@ import Card from '@/components/ui/Card'
 import { formatCurrency, AREA_LABELS, CATEGORIA_RECEITA_LABELS, CATEGORIA_DESPESA_LABELS, FORMA_PAGAMENTO_LABELS, AREA_CORES } from '@/lib/financeiro'
 import type { Profile } from '@/types'
 import type { Receita, Despesa, FormaPagamento } from '@/types/financeiro'
+import { diaLocal, hojeLocal } from '@/lib/datas'
 
 export default async function CaixaDiarioPage({
   searchParams,
@@ -22,7 +23,7 @@ export default async function CaixaDiarioPage({
   const isAdmin = profile?.role === 'admin'
 
   // Dia selecionado (padrão: hoje no horário de Brasília)
-  const hojeStr = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split('T')[0]
+  const hojeStr = hojeLocal()
   const diaSel = dia && /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : hojeStr
 
   const [{ data: receitas }, { data: despesas }] = await Promise.all([
@@ -56,7 +57,7 @@ export default async function CaixaDiarioPage({
   const d = new Date(diaSel + 'T12:00:00')
   const diaAnterior = new Date(d); diaAnterior.setDate(d.getDate() - 1)
   const diaSeguinte = new Date(d); diaSeguinte.setDate(d.getDate() + 1)
-  const fmt = (x: Date) => x.toISOString().split('T')[0]
+  const fmt = (x: Date) => diaLocal(x)
   const nomeDia = d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })
   const ehHoje = diaSel === hojeStr
 

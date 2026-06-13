@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ChevronLeft, ChevronRight, Moon, CheckCircle } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import type { Plantonista, EscalaPlantao } from '@/types/hotel'
+import { hojeLocal, diaLocal } from '@/lib/datas'
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
@@ -30,13 +31,13 @@ export default function PagamentosPage() {
   // Modal marcar como pago
   const [modalPlan, setModalPlan] = useState<PagamentoPlantonista | null>(null)
   const [formaPag, setFormaPag] = useState('pix')
-  const [dataPag, setDataPag] = useState(() => new Date().toISOString().split('T')[0])
+  const [dataPag, setDataPag] = useState(() => hojeLocal())
 
   const carregar = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
-    const inicio = new Date(mes.ano, mes.mes, 1).toISOString().split('T')[0]
-    const fim = new Date(mes.ano, mes.mes + 1, 0).toISOString().split('T')[0]
+    const inicio = diaLocal(new Date(mes.ano, mes.mes, 1))
+    const fim = diaLocal(new Date(mes.ano, mes.mes + 1, 0))
 
     const [{ data: plan }, { data: esc }] = await Promise.all([
       supabase.from('plantonistas').select('*').eq('ativo', true).order('nome'),
@@ -173,7 +174,7 @@ export default function PagamentosPage() {
                     </span>
                   ) : (
                     <button
-                      onClick={() => { setModalPlan(item); setFormaPag('pix'); setDataPag(new Date().toISOString().split('T')[0]) }}
+                      onClick={() => { setModalPlan(item); setFormaPag('pix'); setDataPag(hojeLocal()) }}
                       className="text-[10px] bg-brand-purple text-white px-2 py-0.5 rounded-full font-semibold"
                     >
                       Marcar pago

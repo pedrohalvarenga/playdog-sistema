@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button'
 import { formatDate, formatDateTime, formatTime } from '@/lib/utils'
 import { STATUS_HOTEL_CORES, STATUS_HOTEL_LABELS, calcNoites, formatCurrencyHotel } from '@/lib/hotel'
 import type { Hospedagem } from '@/types/hotel'
+import { hojeLocal } from '@/lib/datas'
 
 export default function ReservaDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -100,7 +101,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
     const extras = parseFloat(valorExtras.replace(',', '.')) || 0
     const valorFinal = total + extras
     const agora = new Date().toISOString()
-    const hoje = agora.split('T')[0]
+    const hoje = hojeLocal()
     const periodo = `${formatDate(h.checkin_previsto, 'dd/MM')} → ${formatDate(h.checkout_previsto, 'dd/MM')}`
 
     // Hospedagens a finalizar: esta + irmãos do grupo ainda ativos

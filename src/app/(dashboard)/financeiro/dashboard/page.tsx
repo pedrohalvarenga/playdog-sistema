@@ -7,6 +7,7 @@ import DashboardCharts from '@/components/financeiro/DashboardCharts'
 import { formatCurrency, AREA_LABELS, AREA_CORES } from '@/lib/financeiro'
 import type { Profile } from '@/types'
 import type { SaldoConta } from '@/types/financeiro'
+import { diaLocal } from '@/lib/datas'
 
 const COR_AREA: Record<string, string> = {
   creche: '#a855f7', hotel: '#3b82f6', loja: '#22c55e',
@@ -31,7 +32,7 @@ export default async function FinanceiroDashboardPage() {
 
   // Totais do mês atual
   const inicioMes = `${anoHoje}-${String(mesHoje).padStart(2, '0')}-01`
-  const fimMes = new Date(anoHoje, mesHoje, 0).toISOString().split('T')[0]
+  const fimMes = diaLocal(new Date(anoHoje, mesHoje, 0))
 
   const [{ data: recMes }, { data: despMes }] = await Promise.all([
     supabase.from('receitas').select('valor, valor_liquido, area').gte('data', inicioMes).lte('data', fimMes).eq('status', 'pago'),
@@ -84,7 +85,7 @@ export default async function FinanceiroDashboardPage() {
     .sort((a, b) => b.valor - a.valor)
 
   // Inadimplência: receitas pendentes vencidas por tutor
-  const hojeStr = hoje.toISOString().split('T')[0]
+  const hojeStr = diaLocal(hoje)
   const { data: inadimplentes } = await supabase
     .from('receitas')
     .select('valor, data_vencimento, tutor:tutores(nome)')
@@ -95,7 +96,7 @@ export default async function FinanceiroDashboardPage() {
 
   // Pacotes vencendo em 15 dias
   const em15 = new Date(); em15.setDate(em15.getDate() + 15)
-  const em15Str = em15.toISOString().split('T')[0]
+  const em15Str = diaLocal(em15)
   const { data: pacotes } = await supabase
     .from('receitas')
     .select('valor, data_vencimento, descricao, tutor:tutores(nome)')

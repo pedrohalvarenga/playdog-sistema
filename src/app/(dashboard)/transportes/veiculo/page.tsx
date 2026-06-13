@@ -11,6 +11,7 @@ import { formatDate } from '@/lib/utils'
 import { formatKm } from '@/lib/transporte'
 import type { Rota, Abastecimento, ManutencaoVeiculo } from '@/types/transporte'
 import { useProfile } from '@/hooks/useProfile'
+import { hojeLocal } from '@/lib/datas'
 
 function mesAtual() {
   const d = new Date()
@@ -31,7 +32,7 @@ export default function VeiculoPage() {
 
   // Modal manutenção
   const [modalManut, setModalManut] = useState(false)
-  const [mData, setMData] = useState(new Date().toISOString().split('T')[0])
+  const [mData, setMData] = useState(hojeLocal())
   const [mDesc, setMDesc] = useState('')
   const [mValor, setMValor] = useState('')
   const [mKm, setMKm] = useState('')

@@ -8,6 +8,7 @@ import Input from '@/components/ui/Input'
 import { ArrowLeft, Dog } from 'lucide-react'
 import Link from 'next/link'
 import type { Pet, Tutor, FormaPagamentoCreche } from '@/types'
+import { hojeLocal } from '@/lib/datas'
 
 const FORMAS: { value: FormaPagamentoCreche; label: string }[] = [
   { value: 'pix_pagbank', label: 'Pix PagBank' },
@@ -31,7 +32,7 @@ export default function ComprarDiariasPage() {
   const [quantidade, setQuantidade] = useState('10')
   const [valorPago, setValorPago] = useState('')
   const [formaPagamento, setFormaPagamento] = useState<FormaPagamentoCreche>('pix_pagbank')
-  const [data, setData] = useState(() => new Date().toISOString().split('T')[0])
+  const [data, setData] = useState(() => hojeLocal())
   const [observacoes, setObservacoes] = useState('')
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { hojeLocal } from '@/lib/datas'
 
 // Cron semanal (segunda-feira): gera o lançamento pendente do pagamento
 // do motorista na área transporte. Valor editável em config_transporte
@@ -21,7 +22,7 @@ export async function GET(req: Request) {
   const valor = parseFloat(config?.valor ?? '350')
   if (isNaN(valor) || valor <= 0) return NextResponse.json({ geradas: 0, motivo: 'valor inválido' })
 
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeLocal()
   const descricao = `Pagamento motorista — semana de ${hoje.split('-').reverse().join('/')}`
 
   // Evita duplicata se o cron rodar duas vezes no mesmo dia

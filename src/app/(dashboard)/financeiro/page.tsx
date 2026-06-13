@@ -11,6 +11,7 @@ import { formatDate } from '@/lib/utils'
 import { formatCurrency } from '@/lib/financeiro'
 import type { Profile } from '@/types'
 import type { SaldoConta, Receita, Despesa } from '@/types/financeiro'
+import { diaLocal } from '@/lib/datas'
 
 function ContaCard({ conta }: { conta: SaldoConta }) {
   const icones: Record<string, React.ElementType> = {
@@ -77,8 +78,8 @@ export default async function FinanceiroPage() {
 
   // Pendências urgentes (vencidas ou a vencer em 7 dias)
   const emSete = new Date(); emSete.setDate(emSete.getDate() + 7)
-  const emSeteStr = emSete.toISOString().split('T')[0]
-  const hojeStr = hoje.toISOString().split('T')[0]
+  const emSeteStr = diaLocal(emSete)
+  const hojeStr = diaLocal(hoje)
 
   const [{ data: receitasPend }, { data: despesasPend }] = await Promise.all([
     supabase.from('receitas')

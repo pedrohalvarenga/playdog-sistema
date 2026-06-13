@@ -8,6 +8,7 @@ import { formatCurrency } from '@/lib/financeiro'
 import { CATEGORIA_RECEITA_LABELS, AREA_LABELS } from '@/lib/financeiro'
 import type { CategoriaReceita, AreaNegocio } from '@/types/financeiro'
 import { formatDate } from '@/lib/utils'
+import { diaLocal } from '@/lib/datas'
 
 type Aba = 'pet' | 'tutor'
 
@@ -51,7 +52,7 @@ export default function FaturamentoPorPage() {
     setAberto(null)
     const supabase = createClient()
     const inicio = `${ano}-${String(mes + 1).padStart(2, '0')}-01`
-    const fim = new Date(ano, mes + 1, 0).toISOString().split('T')[0]
+    const fim = diaLocal(new Date(ano, mes + 1, 0))
 
     const { data } = await supabase
       .from('receitas')

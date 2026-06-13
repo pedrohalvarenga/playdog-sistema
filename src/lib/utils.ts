@@ -2,13 +2,17 @@ import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { paraJF } from '@/lib/datas'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
 export function formatDate(date: string | Date, fmt = 'dd/MM/yyyy') {
-  const d = typeof date === 'string' ? parseISO(date) : date
+  // Timestamps absolutos (com horário/fuso) são exibidos no horário de Juiz de Fora;
+  // datas puras (YYYY-MM-DD) são formatadas como estão.
+  const ehTimestamp = date instanceof Date || (date.includes('T') && /(Z|[+-]\d{2}:?\d{2})$/.test(date))
+  const d = ehTimestamp ? paraJF(date) : parseISO(date as string)
   return format(d, fmt, { locale: ptBR })
 }
 

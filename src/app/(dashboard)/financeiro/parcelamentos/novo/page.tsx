@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button'
 import CurrencyInput from '@/components/financeiro/CurrencyInput'
 import { AREA_LABELS, formatCurrency, gerarDatasParcelas } from '@/lib/financeiro'
 import type { ContaFinanceira, AreaNegocio } from '@/types/financeiro'
+import { diaLocal } from '@/lib/datas'
 
 export default function NovoParcelamentoPage() {
   const router = useRouter()
@@ -21,7 +22,7 @@ export default function NovoParcelamentoPage() {
   const [taxaJuros, setTaxaJuros] = useState('')
   const [dataPrimeira, setDataPrimeira] = useState(() => {
     const d = new Date(); d.setMonth(d.getMonth() + 1, 1)
-    return d.toISOString().split('T')[0]
+    return diaLocal(d)
   })
   const [contaId, setContaId] = useState('')
   const [area, setArea] = useState<AreaNegocio>('geral')

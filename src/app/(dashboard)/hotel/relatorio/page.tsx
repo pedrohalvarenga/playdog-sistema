@@ -7,9 +7,10 @@ import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import type { Hospedagem, EscalaPlantao } from '@/types/hotel'
+import { hojeLocal, diaLocal } from '@/lib/datas'
 
 export default function RelatorioPage() {
-  const [data, setData] = useState(() => new Date().toISOString().split('T')[0])
+  const [data, setData] = useState(() => hojeLocal())
   const [entradas, setEntradas] = useState<Hospedagem[]>([])
   const [saidas, setSaidas] = useState<Hospedagem[]>([])
   const [hospedados, setHospedados] = useState<Hospedagem[]>([])
@@ -37,19 +38,19 @@ export default function RelatorioPage() {
       const lista = (hosp as Hospedagem[]) ?? []
       const amanha = new Date(data)
       amanha.setDate(amanha.getDate() + 1)
-      const amanhaDStr = amanha.toISOString().split('T')[0]
+      const amanhaDStr = diaLocal(amanha)
 
       const ent = lista.filter(h => {
-        const ci = new Date(h.checkin_real ?? h.checkin_previsto).toISOString().split('T')[0]
+        const ci = diaLocal(new Date(h.checkin_real ?? h.checkin_previsto))
         return ci === data
       })
       const sai = lista.filter(h => {
-        const co = new Date(h.checkout_real ?? h.checkout_previsto).toISOString().split('T')[0]
+        const co = diaLocal(new Date(h.checkout_real ?? h.checkout_previsto))
         return co === data
       })
       const hosp2 = lista.filter(h => {
-        const ci = new Date(h.checkin_previsto).toISOString().split('T')[0]
-        const co = new Date(h.checkout_previsto).toISOString().split('T')[0]
+        const ci = diaLocal(new Date(h.checkin_previsto))
+        const co = diaLocal(new Date(h.checkout_previsto))
         return ci <= data && co > data
       })
 

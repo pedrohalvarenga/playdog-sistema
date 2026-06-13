@@ -7,6 +7,7 @@ import Link from 'next/link'
 import Card from '@/components/ui/Card'
 import { formatDate } from '@/lib/utils'
 import type { Plantonista, EscalaPlantao, Hospedagem } from '@/types/hotel'
+import { hojeLocal, diaLocal } from '@/lib/datas'
 
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
@@ -22,13 +23,13 @@ export default function PlantaoPage() {
   const [loading, setLoading] = useState(true)
   const [escalando, setEscalando] = useState<string | null>(null)
 
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeLocal()
 
   const carregar = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
-    const inicio = new Date(mes.ano, mes.mes, 1).toISOString().split('T')[0]
-    const fim = new Date(mes.ano, mes.mes + 1, 0).toISOString().split('T')[0]
+    const inicio = diaLocal(new Date(mes.ano, mes.mes, 1))
+    const fim = diaLocal(new Date(mes.ano, mes.mes + 1, 0))
 
     const [{ data: plan }, { data: esc }, { data: hosp }] = await Promise.all([
       supabase.from('plantonistas').select('*').eq('ativo', true).order('nome'),
@@ -53,8 +54,8 @@ export default function PlantaoPage() {
 
   function hospedadosNaNoite(data: string): number {
     return hospedagens.filter(h => {
-      const ci = new Date(h.checkin_previsto).toISOString().split('T')[0]
-      const co = new Date(h.checkout_previsto).toISOString().split('T')[0]
+      const ci = diaLocal(new Date(h.checkin_previsto))
+      const co = diaLocal(new Date(h.checkout_previsto))
       return ci <= data && co > data
     }).length
   }

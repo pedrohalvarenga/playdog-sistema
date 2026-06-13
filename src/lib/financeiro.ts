@@ -1,4 +1,5 @@
 import type { AreaNegocio, CategoriaReceita, CategoriaDespesa, FormaPagamento, StatusFinanceiro, TipoConta } from '@/types/financeiro'
+import { diaLocal, hojeLocal } from '@/lib/datas'
 
 export const AREA_LABELS: Record<AreaNegocio, string> = {
   creche:      'Creche',
@@ -114,10 +115,9 @@ export function statusPendencia(status: StatusFinanceiro, dataVencimento?: strin
   if (status === 'pago') return 'pago'
   if (status === 'cancelado') return 'cancelado'
   if (!dataVencimento) return 'normal'
-  const hoje = new Date()
-  hoje.setHours(0, 0, 0, 0)
-  const venc = new Date(dataVencimento + 'T00:00:00')
-  const diffDias = Math.ceil((venc.getTime() - hoje.getTime()) / 86_400_000)
+  const hoje = new Date(hojeLocal() + 'T12:00:00Z')
+  const venc = new Date(dataVencimento + 'T12:00:00Z')
+  const diffDias = Math.round((venc.getTime() - hoje.getTime()) / 86_400_000)
   if (diffDias < 0) return 'vencido'
   if (diffDias <= 7) return 'urgente'
   return 'normal'
@@ -129,7 +129,7 @@ export function gerarDatasParcelas(dataPrimeira: string, numParcelas: number): s
   const [ano, mes, dia] = dataPrimeira.split('-').map(Number)
   for (let i = 0; i < numParcelas; i++) {
     const d = new Date(ano, mes - 1 + i, dia)
-    datas.push(d.toISOString().split('T')[0])
+    datas.push(diaLocal(d))
   }
   return datas
 }

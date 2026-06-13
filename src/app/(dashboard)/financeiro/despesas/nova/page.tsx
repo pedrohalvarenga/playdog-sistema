@@ -11,6 +11,7 @@ import {
   AREA_LABELS, CATEGORIA_DESPESA_LABELS, isInvestimento,
 } from '@/lib/financeiro'
 import type { ContaFinanceira, AreaNegocio, CategoriaDespesa } from '@/types/financeiro'
+import { hojeLocal } from '@/lib/datas'
 
 const CATEGORIAS_DESPESA: CategoriaDespesa[] = [
   'racao_petiscos','limpeza','produtos_banho_tosa','salarios','comissoes',
@@ -22,7 +23,7 @@ export default function NovaDespesaPage() {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [contas, setContas] = useState<ContaFinanceira[]>([])
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeLocal()
   const [data, setData] = useState(hoje)
   const [valor, setValor] = useState(0)
   const [area, setArea] = useState<AreaNegocio>('geral')

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '@/lib/supabase/server'
+import { hojeLocal, horaLocal } from '@/lib/datas'
 
 // Resend gratuito com onboarding@resend.dev só envia para o e-mail da conta.
 // Para incluir mais destinatários, verifique um domínio em resend.com/domains.
@@ -67,8 +68,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'payload incompleto' }, { status: 400 })
   }
 
-  const agora = new Date(Date.now() - 3 * 60 * 60 * 1000)
-  const quando = `${agora.toISOString().split('T')[0].split('-').reverse().join('/')} às ${agora.toISOString().slice(11, 16)} (Brasília)`
+  const quando = `${hojeLocal().split('-').reverse().join('/')} às ${horaLocal()} (Brasília)`
   const titulo = `${tipo === 'receita' ? 'Receita' : 'Despesa'} ${acao === 'editada' ? 'EDITADA' : 'EXCLUÍDA'}`
   const cor = acao === 'excluida' ? '#dc2626' : '#ea580c'
 

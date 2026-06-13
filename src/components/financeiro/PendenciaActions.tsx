@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { hojeLocal } from '@/lib/datas'
 
 interface PendenciaActionsProps {
   id: string
@@ -20,7 +21,7 @@ export default function PendenciaActions({ id, tipo }: PendenciaActionsProps) {
     const tabela = tipo === 'receita' ? 'receitas' : 'despesas'
     await supabase.from(tabela).update({
       status: 'pago',
-      data: new Date().toISOString().split('T')[0],
+      data: hojeLocal(),
     }).eq('id', id)
     setLoading(false)
     router.refresh()

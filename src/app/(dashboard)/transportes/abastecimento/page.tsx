@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Camera, Check, Fuel, X, Sparkles, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { hojeLocal } from '@/lib/datas'
 
 export default function AbastecimentoPage() {
   const router = useRouter()
@@ -11,7 +12,7 @@ export default function AbastecimentoPage() {
   const [litros, setLitros] = useState('')
   const [valor, setValor] = useState('')
   const [valorLitro, setValorLitro] = useState('')
-  const [data, setData] = useState(new Date().toISOString().split('T')[0])
+  const [data, setData] = useState(hojeLocal())
   const [foto, setFoto] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)

@@ -14,6 +14,7 @@ import {
 } from '@/lib/banho_tosa'
 import { useProfile } from '@/hooks/useProfile'
 import type { AgendamentoBanhoTosa, StatusAgendamento } from '@/types/banho_tosa'
+import { hojeLocal } from '@/lib/datas'
 
 export default function AgendamentoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -83,7 +84,7 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
 
     if (vServico > 0) {
       const { data: r1 } = await supabase.from('receitas').insert({
-        data: new Date().toISOString().split('T')[0],
+        data: hojeLocal(),
         valor: vServico,
         area: 'banho_tosa',
         categoria: 'banho_tosa',
@@ -98,7 +99,7 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
 
     if (ag.taxi_dog && vTaxi > 0) {
       const { data: r2 } = await supabase.from('receitas').insert({
-        data: new Date().toISOString().split('T')[0],
+        data: hojeLocal(),
         valor: vTaxi,
         area: 'transporte',
         categoria: 'transporte',

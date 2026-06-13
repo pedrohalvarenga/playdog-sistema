@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Moon, AlertTriangle } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { OCUPACAO_CORES, calcNivel, dormindoNaNoite, STATUS_HOTEL_CORES } from '@/lib/hotel'
 import type { Hospedagem, EscalaPlantao, DiaCalendario, OcupacaoNivel } from '@/types/hotel'
+import { hojeLocal, diaLocal } from '@/lib/datas'
 
 type Visao = 'mensal' | 'semanal'
 
@@ -39,8 +40,8 @@ export default function AgendaPage() {
       supabase
         .from('escala_plantao')
         .select('*, plantonista:plantonistas(nome)')
-        .gte('data', new Date(mes.ano, mes.mes - 1, 1).toISOString().split('T')[0])
-        .lte('data', new Date(mes.ano, mes.mes + 2, 0).toISOString().split('T')[0]),
+        .gte('data', diaLocal(new Date(mes.ano, mes.mes - 1, 1)))
+        .lte('data', diaLocal(new Date(mes.ano, mes.mes + 2, 0))),
       supabase
         .from('config_hotel')
         .select('valor')
@@ -59,7 +60,7 @@ export default function AgendaPage() {
   // Constrói o array de dias do mês
   const diasDoMes = buildDiasMes(mes.ano, mes.mes, hospedagens, escalas, capacidade)
 
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeLocal()
 
   function prevMes() { setMes(m => m.mes === 0 ? { ano: m.ano - 1, mes: 11 } : { ano: m.ano, mes: m.mes - 1 }) }
   function nextMes() { setMes(m => m.mes === 11 ? { ano: m.ano + 1, mes: 0 } : { ano: m.ano, mes: m.mes + 1 }) }
@@ -340,7 +341,7 @@ function buildDiasSemana(
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(base)
     d.setDate(d.getDate() + i)
-    const data = d.toISOString().split('T')[0]
+    const data = diaLocal(d)
     return buildDia(data, hospedagens, escalas, capacidade)
   })
 }
@@ -355,10 +356,10 @@ function buildDia(
     dormindoNaNoite(h.checkin_previsto, h.checkout_previsto, data)
   )
   const entradas = hospedagens.filter(h =>
-    new Date(h.checkin_previsto).toISOString().split('T')[0] === data
+    diaLocal(new Date(h.checkin_previsto)) === data
   )
   const saidas = hospedagens.filter(h =>
-    new Date(h.checkout_previsto).toISOString().split('T')[0] === data
+    diaLocal(new Date(h.checkout_previsto)) === data
   )
   const escala = escalas.find(e => e.data === data)
   const nivel = calcNivel(hospNaNoite.length, capacidade)

@@ -7,10 +7,11 @@ import { STATUS_ROTA_LABELS, STATUS_ROTA_CORES } from '@/lib/transporte'
 import type { Rota, Transporte } from '@/types/transporte'
 import type { Profile } from '@/types'
 import Link from 'next/link'
+import { hojeLocal } from '@/lib/datas'
 
 async function getStats() {
   const supabase = await createClient()
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeLocal()
 
   const [presencasHoje, totalPets, totalTutores, hospedadosHoje, banhoHoje] = await Promise.all([
     supabase.from('presencas').select('id', { count: 'exact' }).eq('data', hoje).is('checkout_at', null),
@@ -32,7 +33,7 @@ async function getStats() {
 
 async function getRotasHoje() {
   const supabase = await createClient()
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeLocal()
   const { data: rotas } = await supabase.from('rotas').select('*').eq('data', hoje).order('tipo')
   if (!rotas || rotas.length === 0) return []
 

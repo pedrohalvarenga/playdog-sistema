@@ -7,6 +7,7 @@ import { formatCurrency, AREA_LABELS, AREA_CORES } from '@/lib/financeiro'
 import { salvarOrcamento } from './actions'
 import type { Profile } from '@/types'
 import type { AreaNegocio, OrcamentoPeriodo, Orcamento } from '@/types/financeiro'
+import { diaLocal } from '@/lib/datas'
 
 const AREAS_OP: AreaNegocio[] = ['creche', 'hotel', 'loja', 'banho_tosa', 'transporte', 'veterinario', 'outros']
 const PERIODO_LABELS: Record<OrcamentoPeriodo, string> = {
@@ -46,7 +47,7 @@ export default async function OrcamentoPage({
   function intervalo(): { inicio: string; fim: string } {
     if (periodo === 'mensal') {
       const inicio = `${ano}-${String(mes).padStart(2, '0')}-01`
-      const fim = new Date(ano, mes, 0).toISOString().split('T')[0]
+      const fim = diaLocal(new Date(ano, mes, 0))
       return { inicio, fim }
     }
     if (periodo === 'trimestral') {
@@ -54,7 +55,7 @@ export default async function OrcamentoPage({
       const mesIni = (trim - 1) * 3 + 1
       return {
         inicio: `${ano}-${String(mesIni).padStart(2, '0')}-01`,
-        fim: new Date(ano, mesIni + 2, 0).toISOString().split('T')[0],
+        fim: diaLocal(new Date(ano, mesIni + 2, 0)),
       }
     }
     if (periodo === 'semestral') {
@@ -62,7 +63,7 @@ export default async function OrcamentoPage({
       const mesIni = (sem - 1) * 6 + 1
       return {
         inicio: `${ano}-${String(mesIni).padStart(2, '0')}-01`,
-        fim: new Date(ano, mesIni + 5, 0).toISOString().split('T')[0],
+        fim: diaLocal(new Date(ano, mesIni + 5, 0)),
       }
     }
     return { inicio: `${ano}-01-01`, fim: `${ano}-12-31` }

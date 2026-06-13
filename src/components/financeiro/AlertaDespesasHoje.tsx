@@ -6,6 +6,7 @@ import { AlertCircle, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/financeiro'
 import { formatDate } from '@/lib/utils'
+import { diaLocal, hojeLocal } from '@/lib/datas'
 
 interface DespesaPend {
   id: string
@@ -20,7 +21,7 @@ export default function AlertaDespesasHoje() {
   const [aberto, setAberto] = useState(false)
 
   useEffect(() => {
-    const hoje = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const hoje = hojeLocal()
     const chave = `alerta-despesas-${hoje}`
     if (sessionStorage.getItem(chave)) return
 
@@ -44,7 +45,7 @@ export default function AlertaDespesasHoje() {
   if (!aberto || despesas.length === 0) return null
 
   const total = despesas.reduce((s, d) => s + d.valor, 0)
-  const hoje = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split('T')[0]
+  const hoje = hojeLocal()
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" onClick={() => setAberto(false)}>

@@ -9,6 +9,7 @@ import { Dog, Clock, CheckCircle, Search, AlertCircle, Settings, CreditCard, Ale
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Pet, Presenca } from '@/types'
+import { hojeLocal } from '@/lib/datas'
 
 type PetComTutor = Pet & { tutor: { nome: string } }
 type PresencaComPet = Presenca & { pet: PetComTutor }
@@ -20,7 +21,7 @@ export default function CrechePage() {
   const [busca, setBusca] = useState('')
   const [loading, setLoading] = useState(true)
   const [fazendoCheckin, setFazendoCheckin] = useState<string | null>(null)
-  const [hoje] = useState(() => new Date().toISOString().split('T')[0])
+  const [hoje] = useState(() => hojeLocal())
 
   const carregar = useCallback(async () => {
     const supabase = createClient()

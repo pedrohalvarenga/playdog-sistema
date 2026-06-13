@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { hojeLocal } from '@/lib/datas'
 
 // Cron job: GET /api/cron/hotel-relatorio
 // Configure no Vercel Cron: "0 11 * * *" (8h BRT = 11h UTC)
@@ -8,7 +9,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const data = new Date().toISOString().split('T')[0]
+  const data = hojeLocal()
 
   const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/hotel/relatorio-diario`, {
     method: 'POST',

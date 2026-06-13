@@ -10,6 +10,7 @@ import { Search, Dog, ArrowLeft, CheckCircle } from 'lucide-react'
 import { PORTE_LABELS, PLANO_LABELS } from '@/lib/utils'
 import Link from 'next/link'
 import type { Pet } from '@/types'
+import { hojeLocal } from '@/lib/datas'
 
 type PetComTutor = Pet & { tutor: { nome: string } }
 
@@ -19,7 +20,7 @@ export default function CheckinPage() {
   const [pets, setPets] = useState<PetComTutor[]>([])
   const [loading, setLoading] = useState(false)
   const [fazendoCheckin, setFazendoCheckin] = useState<string | null>(null)
-  const [hoje] = useState(() => new Date().toISOString().split('T')[0])
+  const [hoje] = useState(() => hojeLocal())
   const [jaNaCreche, setJaNaCreche] = useState<Set<string>>(new Set())
 
   useEffect(() => {
