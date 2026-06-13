@@ -258,7 +258,7 @@ export default function CrechePage() {
                   onClick={() => setMostrarTodos(true)}
                   className="w-full mt-2 py-2.5 rounded-2xl border-2 border-dashed border-gray-200 text-xs font-semibold text-gray-400 hover:border-brand-purple hover:text-brand-purple transition-colors"
                 >
-                  + {ocultosForaCreche} cão{ocultosForaCreche !== 1 ? 'es' : ''} de hotel/banho oculto{ocultosForaCreche !== 1 ? 's' : ''} — ver todos
+                  + {ocultosForaCreche} {ocultosForaCreche !== 1 ? 'cães' : 'cão'} de hotel/banho oculto{ocultosForaCreche !== 1 ? 's' : ''} — ver todos
                 </button>
               )}
             </div>
