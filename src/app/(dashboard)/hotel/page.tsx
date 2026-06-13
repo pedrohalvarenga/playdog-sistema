@@ -21,9 +21,6 @@ export default function HotelPage() {
 
   const carregar = useCallback(async () => {
     const supabase = createClient()
-    const amanha = new Date()
-    amanha.setDate(amanha.getDate() + 1)
-    const amanhaDStr = diaLocal(amanha)
 
     const [{ data: hosp }, { data: esc }] = await Promise.all([
       supabase
@@ -43,16 +40,16 @@ export default function HotelPage() {
     // Hospedados agora (status=hospedado ou reservada com check-in real)
     const agora = lista.filter(h => h.status === 'hospedado')
 
-    // Entradas previstas/realizadas hoje
+    // Entradas previstas hoje — só quem ainda não chegou (reservada)
     const entradas = lista.filter(h => {
       const dt = diaLocal(new Date(h.checkin_previsto))
-      return dt === hoje
+      return dt === hoje && h.status === 'reservada'
     })
 
-    // Saídas previstas hoje
+    // Saídas previstas hoje — check-out de hoje, ainda hospedado
     const saidas = lista.filter(h => {
       const dt = diaLocal(new Date(h.checkout_previsto))
-      return dt === hoje || dt === amanhaDStr
+      return dt === hoje && h.status === 'hospedado'
     })
 
     setHospedados(agora)
