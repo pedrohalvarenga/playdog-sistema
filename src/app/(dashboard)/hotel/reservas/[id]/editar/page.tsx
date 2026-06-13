@@ -47,7 +47,7 @@ export default function EditarReservaPage({ params }: { params: Promise<{ id: st
           const pacote = hosp.valor_pacote != null && hosp.valor_pacote > 0
             ? hosp.valor_pacote
             : hosp.valor_diaria * Math.max(1, calcNoites(hosp.checkin_previsto, hosp.checkout_previsto))
-          setValorPacote(pacote.toFixed(2).replace('.', ','))
+          setValorPacote(pacote.toFixed(2))
           setObservacoes(hosp.observacoes ?? '')
         }
         setLoading(false)

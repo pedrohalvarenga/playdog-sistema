@@ -93,8 +93,8 @@ export default function BanhoTosaPage() {
 
   function abrirModalPag(ag: AgendamentoBanhoTosa) {
     setModalPag(ag)
-    setValorServico(ag.valor_servico != null ? ag.valor_servico.toFixed(2).replace('.', ',') : '')
-    setValorTaxi(ag.valor_taxi != null ? ag.valor_taxi.toFixed(2).replace('.', ',') : '')
+    setValorServico(ag.valor_servico != null ? ag.valor_servico.toFixed(2) : '')
+    setValorTaxi(ag.valor_taxi != null ? ag.valor_taxi.toFixed(2) : '')
     setFormaPag('pix')
     setStatusPag('pago')
   }

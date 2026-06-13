@@ -55,8 +55,8 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
 
   useEffect(() => {
     if (!ag || !showPag) return
-    setValorServico(ag.valor_servico != null ? ag.valor_servico.toFixed(2).replace('.', ',') : '')
-    setValorTaxi(ag.valor_taxi != null ? ag.valor_taxi.toFixed(2).replace('.', ',') : '')
+    setValorServico(ag.valor_servico != null ? ag.valor_servico.toFixed(2) : '')
+    setValorTaxi(ag.valor_taxi != null ? ag.valor_taxi.toFixed(2) : '')
   }, [ag, showPag])
 
   async function avancar(novoStatus: StatusAgendamento) {

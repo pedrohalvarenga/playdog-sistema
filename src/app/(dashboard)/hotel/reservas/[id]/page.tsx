@@ -72,7 +72,8 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
     const pacoteGrupo = grupo
       .filter(g => g.status !== 'cancelada')
       .reduce((s, g) => s + (g.valor_pacote ?? 0), 0)
-    setValorTotal((pacoteProprio + pacoteGrupo).toFixed(2).replace('.', ','))
+    // Sem vírgula: input type="number" rejeita "200,00" e aparece vazio
+    setValorTotal((pacoteProprio + pacoteGrupo).toFixed(2))
   }, [h, grupo, showCheckout])
 
   async function fazerCheckin() {

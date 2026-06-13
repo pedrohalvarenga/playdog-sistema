@@ -30,7 +30,7 @@ export default function EditarPlantonistPage({ params }: { params: Promise<{ id:
           const p = data as Plantonista
           setNome(p.nome)
           setTelefone(p.telefone ?? '')
-          setValorNoite(p.valor_noite.toFixed(2).replace('.', ','))
+          setValorNoite(p.valor_noite.toFixed(2))
           setAtivo(p.ativo)
         }
         setLoading(false)
