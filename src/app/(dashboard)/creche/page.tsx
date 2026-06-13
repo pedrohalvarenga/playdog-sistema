@@ -21,6 +21,7 @@ export default function CrechePage() {
   const [busca, setBusca] = useState('')
   const [loading, setLoading] = useState(true)
   const [fazendoCheckin, setFazendoCheckin] = useState<string | null>(null)
+  const [mostrarTodos, setMostrarTodos] = useState(false)
   const [hoje] = useState(() => hojeLocal())
 
   const carregar = useCallback(async () => {
@@ -84,15 +85,32 @@ export default function CrechePage() {
   const presentes = presencasHoje.filter(p => !p.checkout_at)
   const saidas = presencasHoje.filter(p => p.checkout_at)
 
+  // Frequenta a creche = tem "creche" nas áreas de serviço
+  const frequentaCreche = (p: PetComTutor) =>
+    Array.isArray(p.areas_servico) && p.areas_servico.includes('creche')
+
   // Checklist: pets SEM check-in hoje
   const checklist = todosPets.filter(p => !idsComCheckin.has(p.id))
 
   const buscaLower = busca.toLowerCase()
-  const checklistFiltrado = checklist.filter(p =>
-    p.nome.toLowerCase().includes(buscaLower) ||
-    (p.identificador ?? '').toLowerCase().includes(buscaLower) ||
-    p.tutor.nome.toLowerCase().includes(buscaLower)
-  )
+  const temBusca = buscaLower.length > 0
+
+  // Sem busca: mostra só os da creche (a menos que "Ver todos" esteja ligado).
+  // Com busca: varre TODOS os cães, para nunca travar um check-in.
+  const checklistFiltrado = checklist.filter(p => {
+    const casaBusca = !temBusca ||
+      p.nome.toLowerCase().includes(buscaLower) ||
+      (p.identificador ?? '').toLowerCase().includes(buscaLower) ||
+      p.tutor.nome.toLowerCase().includes(buscaLower)
+    if (!casaBusca) return false
+    if (temBusca || mostrarTodos) return true
+    return frequentaCreche(p)
+  })
+
+  // Quantos cães de fora da creche estão escondidos (sem busca, modo "só creche")
+  const ocultosForaCreche = !temBusca && !mostrarTodos
+    ? checklist.filter(p => !frequentaCreche(p)).length
+    : 0
   const presentesFiltrados = presentes.filter(p =>
     p.pet.nome.toLowerCase().includes(buscaLower) ||
     (p.pet.identificador ?? '').toLowerCase().includes(buscaLower) ||
@@ -207,21 +225,42 @@ export default function CrechePage() {
           )}
 
           {/* Checklist — pets aguardando check-in */}
-          {checklistFiltrado.length > 0 && (
+          {(checklistFiltrado.length > 0 || ocultosForaCreche > 0) && (
             <div>
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                Checklist — {checklistFiltrado.length} aguardando
-              </h2>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Checklist — {checklistFiltrado.length} aguardando
+                </h2>
+                {!temBusca && (
+                  <button
+                    onClick={() => setMostrarTodos(v => !v)}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors ${
+                      mostrarTodos ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-500'
+                    }`}
+                  >
+                    {mostrarTodos ? 'Mostrar só creche' : 'Ver todos'}
+                  </button>
+                )}
+              </div>
               <div className="flex flex-col gap-2">
                 {checklistFiltrado.map(pet => (
                   <ChecklistItem
                     key={pet.id}
                     pet={pet}
+                    foraDaCreche={!frequentaCreche(pet)}
                     loading={fazendoCheckin === pet.id}
                     onCheckin={() => fazerCheckin(pet.id)}
                   />
                 ))}
               </div>
+              {ocultosForaCreche > 0 && (
+                <button
+                  onClick={() => setMostrarTodos(true)}
+                  className="w-full mt-2 py-2.5 rounded-2xl border-2 border-dashed border-gray-200 text-xs font-semibold text-gray-400 hover:border-brand-purple hover:text-brand-purple transition-colors"
+                >
+                  + {ocultosForaCreche} cão{ocultosForaCreche !== 1 ? 'es' : ''} de hotel/banho oculto{ocultosForaCreche !== 1 ? 's' : ''} — ver todos
+                </button>
+              )}
             </div>
           )}
 
@@ -277,10 +316,12 @@ function PetAvatar({ pet, size }: { pet: PetComTutor; size: 'sm' | 'md' }) {
 
 function ChecklistItem({
   pet,
+  foraDaCreche,
   loading,
   onCheckin,
 }: {
   pet: PetComTutor
+  foraDaCreche?: boolean
   loading: boolean
   onCheckin: () => void
 }) {
@@ -305,6 +346,11 @@ function ChecklistItem({
             {zerado && (
               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-600">
                 0 diárias
+              </span>
+            )}
+            {foraDaCreche && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-500">
+                não é da creche
               </span>
             )}
           </div>

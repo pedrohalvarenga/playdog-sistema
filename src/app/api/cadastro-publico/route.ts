@@ -57,6 +57,7 @@ export async function POST(request: Request) {
       restricoes: pet.restricoes || null,
       medicacao: pet.medicacao || null,
       plano: pet.plano || 'diaria_avulsa',
+      areas_servico: ['creche'], // cadastro pelo link público entra como cliente de creche
       vacina_v8_v10: pet.vacina_v8_v10 || null,
       vacina_antirabica: pet.vacina_antirabica || null,
       vacina_gripe: pet.vacina_gripe || null,

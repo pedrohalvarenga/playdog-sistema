@@ -29,18 +29,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: errPresenca.message }, { status: 400 })
   }
 
-  // Decrementa saldo (ignora erro se coluna ainda não existir)
+  // Decrementa saldo e garante que o pet fique marcado como "creche"
+  // (auto-classificação: fazer check-in confirma que o cão frequenta a creche)
   const { data: pet } = await supabase
     .from('pets')
-    .select('saldo_diarias')
+    .select('saldo_diarias, areas_servico')
     .eq('id', pet_id)
     .single()
 
-  if (pet && typeof pet.saldo_diarias === 'number') {
-    await supabase
-      .from('pets')
-      .update({ saldo_diarias: pet.saldo_diarias - 1 })
-      .eq('id', pet_id)
+  if (pet) {
+    const update: { saldo_diarias?: number; areas_servico?: string[] } = {}
+    if (typeof pet.saldo_diarias === 'number') {
+      update.saldo_diarias = pet.saldo_diarias - 1
+    }
+    const areas: string[] = Array.isArray(pet.areas_servico) ? pet.areas_servico : []
+    if (!areas.includes('creche')) {
+      update.areas_servico = [...areas, 'creche']
+    }
+    if (Object.keys(update).length > 0) {
+      await supabase.from('pets').update(update).eq('id', pet_id)
+    }
   }
 
   return NextResponse.json({ presenca_id: presenca.id })

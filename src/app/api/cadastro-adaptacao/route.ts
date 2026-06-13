@@ -57,6 +57,7 @@ export async function POST(request: Request) {
         castrado: pet.castrado || false,
         restricoes: pet.restricoes || null,
         plano: 'diaria_avulsa',
+        areas_servico: ['adaptacao'], // cão em prospecção; vira "creche" no 1º check-in
         foto_url: pet.foto_url || null,
         cartao_vacinas_url: pet.cartao_vacinas_url || null,
         ativo: true,
