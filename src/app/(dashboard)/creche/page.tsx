@@ -64,13 +64,19 @@ export default function CrechePage() {
     await carregar()
   }
 
+  const [fazendoCheckout, setFazendoCheckout] = useState<string | null>(null)
+
   async function fazerCheckout(presencaId: string) {
+    if (fazendoCheckout) return
+    setFazendoCheckout(presencaId)
     const supabase = createClient()
-    await supabase
+    const { error } = await supabase
       .from('presencas')
       .update({ checkout_at: new Date().toISOString() })
       .eq('id', presencaId)
+    if (error) alert(`Erro ao registrar saída: ${error.message}`)
     await carregar()
+    setFazendoCheckout(null)
   }
 
   // Pets com check-in hoje (sem checkout = presentes; com checkout = saíram)
@@ -180,7 +186,8 @@ export default function CrechePage() {
                       <div className="flex flex-col gap-1 items-end flex-shrink-0">
                         <button
                           onClick={() => fazerCheckout(p.id)}
-                          className="w-14 h-14 rounded-2xl bg-green-100 flex flex-col items-center justify-center text-green-700 active:bg-green-200 transition-colors"
+                          disabled={fazendoCheckout !== null}
+                          className="w-14 h-14 rounded-2xl bg-green-100 flex flex-col items-center justify-center text-green-700 active:bg-green-200 transition-colors disabled:opacity-50"
                         >
                           <CheckCircle size={22} />
                           <span className="text-[9px] font-semibold mt-0.5">SAÍDA</span>

@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
   const resultados: { tutor: string; email: string; status: 'ok' | 'erro'; erro?: string }[] = []
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
   for (const tutor of tutoresComEmail) {
     // Verifica se teve movimentação no período

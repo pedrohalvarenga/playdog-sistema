@@ -11,7 +11,8 @@ export async function GET(req: Request) {
 
   const data = hojeLocal()
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/hotel/relatorio-diario`, {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+  const res = await fetch(`${baseUrl}/api/hotel/relatorio-diario`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-cron-secret': process.env.CRON_SECRET ?? '' },
     body: JSON.stringify({ data }),

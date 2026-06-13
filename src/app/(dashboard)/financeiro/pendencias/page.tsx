@@ -30,7 +30,7 @@ export default async function PendenciasPage() {
     supabase.from('receitas').select('*, conta:contas_financeiras(nome), tutor:tutores(nome)')
       .eq('status', 'pendente').gte('data_vencimento', hoje).lte('data_vencimento', emSeteStr).order('data_vencimento'),
     supabase.from('receitas').select('*, conta:contas_financeiras(nome), tutor:tutores(nome)')
-      .eq('status', 'pendente').gt('data_vencimento', emSeteStr).order('data_vencimento').limit(20),
+      .eq('status', 'pendente').gt('data_vencimento', emSeteStr).order('data_vencimento').limit(100),
   ])
 
   const [{ data: dVencidas }, { data: dUrgentes }, { data: dFuturas }] = isAdmin
@@ -40,7 +40,7 @@ export default async function PendenciasPage() {
         supabase.from('despesas').select('*, conta:contas_financeiras(nome)')
           .eq('status', 'pendente').gte('data_vencimento', hoje).lte('data_vencimento', emSeteStr).order('data_vencimento'),
         supabase.from('despesas').select('*, conta:contas_financeiras(nome)')
-          .eq('status', 'pendente').gt('data_vencimento', emSeteStr).order('data_vencimento').limit(20),
+          .eq('status', 'pendente').gt('data_vencimento', emSeteStr).order('data_vencimento').limit(100),
       ])
     : [{ data: [] }, { data: [] }, { data: [] }]
 

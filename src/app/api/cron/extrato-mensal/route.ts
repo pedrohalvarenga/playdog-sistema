@@ -1,8 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { hojeLocal } from '@/lib/datas'
 
 // Chamado automaticamente pelo Vercel Cron todo dia 1º às 8h
-export async function GET() {
+export async function GET(req: Request) {
+  const authHeader = req.headers.get('authorization')
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const supabase = await createClient()
 
   // Verifica se envio automático está habilitado
@@ -15,12 +21,13 @@ export async function GET() {
   if (!habilitado) return NextResponse.json({ skipped: 'envio automático desabilitado' })
 
   const diaEnvio = Number(config?.find(c => c.chave === 'dia_envio_extrato')?.valor ?? '1')
-  const hoje = new Date()
-  if (hoje.getDate() !== diaEnvio) return NextResponse.json({ skipped: `hoje não é dia ${diaEnvio}` })
+  // Dia/mês no fuso de Juiz de Fora (o servidor roda em UTC)
+  const [anoHoje, mesHoje, diaHoje] = hojeLocal().split('-').map(Number)
+  if (diaHoje !== diaEnvio) return NextResponse.json({ skipped: `hoje não é dia ${diaEnvio}` })
 
   // Calcula mês anterior
-  const mesRef = hoje.getMonth() === 0 ? 12 : hoje.getMonth()
-  const anoRef = hoje.getMonth() === 0 ? hoje.getFullYear() - 1 : hoje.getFullYear()
+  const mesRef = mesHoje === 1 ? 12 : mesHoje - 1
+  const anoRef = mesHoje === 1 ? anoHoje - 1 : anoHoje
 
   // Busca todos os tutores com e-mail
   const { data: tutores } = await supabase
@@ -37,7 +44,8 @@ export async function GET() {
   let erros = 0
 
   for (const tutor of tutores) {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/email/enviar-extrato`, {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+    const res = await fetch(`${baseUrl}/api/email/enviar-extrato`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tutor_id: tutor.id, mes: mesRef, ano: anoRef }),

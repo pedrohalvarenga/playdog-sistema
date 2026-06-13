@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { createClient } from '@/lib/supabase/server'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(request: Request) {
+  // Só usuários logados podem usar a análise (consome créditos da API)
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+
   const formData = await request.formData()
   const file = formData.get('arquivo') as File | null
   if (!file) return NextResponse.json({ error: 'Nenhum arquivo enviado' }, { status: 400 })

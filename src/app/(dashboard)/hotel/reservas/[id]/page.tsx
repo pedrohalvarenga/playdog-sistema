@@ -83,12 +83,11 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
       checkin_real: new Date().toISOString(),
     }
     // Em grupo: check-in de todos os irmãos reservados juntos
-    if (h?.grupo_id) {
-      await supabase.from('hospedagens').update(payload)
-        .eq('grupo_id', h.grupo_id).eq('status', 'reservada')
-    } else {
-      await supabase.from('hospedagens').update(payload).eq('id', id)
-    }
+    const q = h?.grupo_id
+      ? supabase.from('hospedagens').update(payload).eq('grupo_id', h.grupo_id).eq('status', 'reservada')
+      : supabase.from('hospedagens').update(payload).eq('id', id)
+    const { error } = await q
+    if (error) alert(`Erro ao fazer check-in: ${error.message}`)
     await carregar()
     setAgindo(false)
   }
@@ -115,7 +114,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
     for (let i = 0; i < membros.length; i++) {
       const m = membros[i]
       const valorPet = i === n - 1 ? ultimaCota : cota
-      await supabase.from('hospedagens').update({
+      const { error: errHosp } = await supabase.from('hospedagens').update({
         status: 'finalizada',
         checkout_real: agora,
         valor_total: valorPet,
@@ -123,10 +122,17 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
         extras_descricao: i === 0 ? (extrasDesc || null) : null,
       }).eq('id', m.id)
 
+      if (errHosp) {
+        alert(`Erro ao finalizar a hospedagem de ${(m.pet as NonNullable<Hospedagem['pet']>)?.nome}: ${errHosp.message}. Confira as reservas do grupo antes de tentar de novo.`)
+        setSavingCheckout(false)
+        await carregar()
+        return
+      }
+
       // Uma receita por pet — rateio automático da entrada única
       if (valorPet > 0) {
         const pet = m.pet as NonNullable<Hospedagem['pet']>
-        await supabase.from('receitas').insert({
+        const { error: errRec } = await supabase.from('receitas').insert({
           data: hoje,
           valor: valorPet,
           area: 'hotel',
@@ -137,6 +143,9 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
           tutor_id: pet?.tutor_id,
           pet_id: pet?.id,
         })
+        if (errRec) {
+          alert(`Hospedagem finalizada, mas houve erro ao lançar a receita de ${pet?.nome}: ${errRec.message}. Lance manualmente no financeiro.`)
+        }
       }
     }
 
@@ -149,10 +158,22 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
     if (!motivoCancel.trim()) return
     setAgindo(true)
     const supabase = createClient()
-    await supabase.from('hospedagens').update({
+    const payload = {
       status: 'cancelada',
       motivo_cancelamento: motivoCancel.trim(),
-    }).eq('id', id)
+    }
+    // Em grupo: pergunta se cancela todos os irmãos ou só este
+    const membrosAtivos = grupo.filter(g => g.status === 'reservada' || g.status === 'hospedado')
+    let q
+    if (h?.grupo_id && membrosAtivos.length > 0 &&
+        window.confirm(`Esta reserva faz parte de um grupo com mais ${membrosAtivos.length} cão(es). Cancelar o grupo todo?\n\nOK = cancela todos · Cancelar = só este cão`)) {
+      q = supabase.from('hospedagens').update(payload)
+        .eq('grupo_id', h.grupo_id).in('status', ['reservada', 'hospedado'])
+    } else {
+      q = supabase.from('hospedagens').update(payload).eq('id', id)
+    }
+    const { error } = await q
+    if (error) alert(`Erro ao cancelar: ${error.message}`)
     setShowCancel(false)
     setAgindo(false)
     await carregar()

@@ -98,22 +98,24 @@ export default function ConciliacaoPage() {
     })
 
     if (receitasInsert.length > 0) {
-      await supabase.from('receitas').insert(
+      const { error } = await supabase.from('receitas').insert(
         receitasInsert.map(r => ({
           data: r.data, valor: r.valor, area: r.area,
           categoria: 'outros' as const, forma_pagamento: 'pix' as const,
           conta_id: r.conta_id, descricao: r.descricao, status: 'pago' as const,
         }))
       )
+      if (error) { alert(`Erro ao importar receitas: ${error.message}`); setImportando(false); return }
     }
     if (despesasInsert.length > 0) {
-      await supabase.from('despesas').insert(
+      const { error } = await supabase.from('despesas').insert(
         despesasInsert.map(d => ({
           data: d.data, valor: d.valor, area: d.area,
           categoria: 'outros' as const,
           conta_id: d.conta_id, descricao: d.descricao, status: 'pago' as const,
         }))
       )
+      if (error) { alert(`Erro ao importar despesas: ${error.message}`); setImportando(false); return }
     }
 
     setImportando(false)

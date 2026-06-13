@@ -41,6 +41,7 @@ export default function CobrancaPage() {
       // Agrupa por tutor
       const mapa = new Map<string, Devedor>()
       for (const pet of pets as PetNegativo[]) {
+        if (!pet.tutor) continue // pet sem tutor vinculado não entra na cobrança
         const tutorId = pet.tutor_id
         if (!mapa.has(tutorId)) {
           mapa.set(tutorId, { tutor: pet.tutor, pets: [], totalDiarias: 0, valorEstimado: 0 })

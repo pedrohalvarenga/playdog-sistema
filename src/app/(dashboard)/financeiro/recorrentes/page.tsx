@@ -129,7 +129,8 @@ export default function RecorrentesPage() {
   async function desativarFuncionario(f: Funcionario) {
     if (!confirm(`Desativar ${f.nome}? O histórico de pagamentos será mantido.`)) return
     const supabase = createClient()
-    await supabase.from('funcionarios').update({ ativo: false }).eq('id', f.id)
+    const { error } = await supabase.from('funcionarios').update({ ativo: false }).eq('id', f.id)
+    if (error) { alert(`Erro ao desativar: ${error.message}`); return }
     setEditFunc(null)
     carregar()
   }

@@ -225,7 +225,7 @@ export default function NovaReceitaPage() {
               <input
                 type="number" step="0.01" min="0" max="100"
                 value={taxaCartao}
-                onChange={e => setTaxaCartao(parseFloat(e.target.value) || '')}
+                onChange={e => setTaxaCartao(e.target.value === '' ? '' : parseFloat(e.target.value))}
                 className="w-full py-2 px-3 rounded-xl border border-orange-300 focus:border-orange-500 outline-none text-sm bg-white"
               />
             </div>

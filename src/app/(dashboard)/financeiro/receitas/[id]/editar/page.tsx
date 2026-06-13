@@ -214,7 +214,7 @@ export default function EditarReceitaPage() {
             <div className="flex-1">
               <label className="text-xs text-orange-700 mb-1 block">Taxa (%)</label>
               <input type="number" step="0.01" min="0" max="100" value={taxaCartao}
-                onChange={e => setTaxaCartao(parseFloat(e.target.value) || '')}
+                onChange={e => setTaxaCartao(e.target.value === '' ? '' : parseFloat(e.target.value))}
                 className="w-full py-2 px-3 rounded-xl border border-orange-300 outline-none text-sm bg-white" />
             </div>
             <div className="flex-1">
