@@ -16,6 +16,7 @@ export interface Hospedagem {
   extras_descricao?: string
   observacoes?: string
   status: StatusHospedagem
+  grupo_id?: string | null
   motivo_cancelamento?: string
   receita_id?: string
   registrado_por?: string

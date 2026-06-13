@@ -28,6 +28,10 @@ export default function NovaReservaPage() {
   const [buscando, setBuscando] = useState(false)
   const buscaRef = useRef<HTMLInputElement>(null)
 
+  // Irmãos (outros cães do mesmo tutor)
+  const [irmaos, setIrmaos] = useState<PetComTutor[]>([])
+  const [irmaosSelecionados, setIrmaosSelecionados] = useState<string[]>([])
+
   // Form fields
   const agora = new Date()
   const saida = new Date(agora)
@@ -61,10 +65,26 @@ export default function NovaReservaPage() {
     return () => clearTimeout(t)
   }, [petBusca])
 
-  function selecionarPet(pet: PetComTutor) {
+  async function selecionarPet(pet: PetComTutor) {
     setPetSelecionado(pet)
     setPetBusca('')
     setPetSugestoes([])
+    setIrmaosSelecionados([])
+    // Busca outros cães do mesmo tutor ("irmãos")
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('pets')
+      .select('*, tutor:tutores(nome)')
+      .eq('tutor_id', pet.tutor_id)
+      .eq('ativo', true)
+      .neq('id', pet.id)
+    setIrmaos((data as PetComTutor[]) ?? [])
+  }
+
+  function toggleIrmao(id: string) {
+    setIrmaosSelecionados(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
   }
 
   async function salvar() {
@@ -81,15 +101,30 @@ export default function NovaReservaPage() {
     setSaving(true)
     const supabase = createClient()
     const nNoites = calcNoites(checkinPrevisto, checkoutPrevisto)
-    const { error } = await supabase.from('hospedagens').insert({
-      pet_id: petSelecionado.id,
-      checkin_previsto: new Date(checkinPrevisto).toISOString(),
-      checkout_previsto: new Date(checkoutPrevisto).toISOString(),
-      valor_pacote: valor,
-      valor_diaria: nNoites > 0 ? Math.round((valor / nNoites) * 100) / 100 : 0,
-      observacoes: observacoes || null,
-      status: 'reservada',
-    })
+
+    // Todos os pets da reserva: o selecionado + irmãos marcados
+    const petsReserva = [petSelecionado.id, ...irmaosSelecionados]
+    const grupoId = petsReserva.length > 1 ? crypto.randomUUID() : null
+
+    // Rateio do valor total entre os pets (último leva o resto dos centavos)
+    const cota = Math.floor((valor / petsReserva.length) * 100) / 100
+    const ultimaCota = Math.round((valor - cota * (petsReserva.length - 1)) * 100) / 100
+
+    const { error } = await supabase.from('hospedagens').insert(
+      petsReserva.map((petId, i) => {
+        const valorPet = i === petsReserva.length - 1 ? ultimaCota : cota
+        return {
+          pet_id: petId,
+          checkin_previsto: new Date(checkinPrevisto).toISOString(),
+          checkout_previsto: new Date(checkoutPrevisto).toISOString(),
+          valor_pacote: valorPet,
+          valor_diaria: nNoites > 0 ? Math.round((valorPet / nNoites) * 100) / 100 : 0,
+          observacoes: observacoes || null,
+          status: 'reservada',
+          grupo_id: grupoId,
+        }
+      })
+    )
 
     if (error) {
       setErro(error.message)
@@ -164,6 +199,46 @@ export default function NovaReservaPage() {
         )}
       </div>
 
+      {/* Irmãos do mesmo tutor */}
+      {petSelecionado && irmaos.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex flex-col gap-3">
+          <p className="text-sm font-bold text-gray-900">
+            {petSelecionado.tutor.nome.split(' ')[0]} tem {irmaos.length === 1 ? 'outro cão' : 'outros cães'}.
+            {' '}{irmaos.length === 1 ? 'Ele também ficará hospedado?' : 'Eles também ficarão hospedados?'}
+          </p>
+          <div className="flex flex-col gap-2">
+            {irmaos.map(irmao => {
+              const marcado = irmaosSelecionados.includes(irmao.id)
+              return (
+                <button
+                  key={irmao.id}
+                  type="button"
+                  onClick={() => toggleIrmao(irmao.id)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 text-left transition-colors ${
+                    marcado ? 'border-brand-orange bg-white' : 'border-transparent bg-white/60'
+                  }`}
+                >
+                  <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${
+                    marcado ? 'bg-brand-orange border-brand-orange text-white' : 'border-gray-300 bg-white'
+                  }`}>
+                    {marcado && <span className="text-xs font-bold">✓</span>}
+                  </span>
+                  <div>
+                    <p className="font-semibold text-gray-900 text-sm">{irmao.nome}</p>
+                    {irmao.identificador && <p className="text-xs text-gray-400">{irmao.identificador}</p>}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+          {irmaosSelecionados.length > 0 && (
+            <p className="text-xs text-orange-700">
+              Reserva em grupo: o valor total será dividido automaticamente entre os {irmaosSelecionados.length + 1} cães.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Datas */}
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -208,6 +283,9 @@ export default function NovaReservaPage() {
         {noites > 0 && valorPacoteNum > 0 && (
           <p className="text-xs text-gray-400 mt-1">
             {noites} noite{noites !== 1 ? 's' : ''} — equivale a R$ {diariaEquivalente.toFixed(2).replace('.', ',')} por diária
+            {irmaosSelecionados.length > 0 && (
+              <> · rateio: R$ {(valorPacoteNum / (irmaosSelecionados.length + 1)).toFixed(2).replace('.', ',')} por cão</>
+            )}
           </p>
         )}
       </div>

@@ -30,6 +30,9 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
   const [showCancel, setShowCancel] = useState(false)
   const [motivoCancel, setMotivoCancel] = useState('')
 
+  // Outras hospedagens do mesmo grupo (irmãos hospedados juntos)
+  const [grupo, setGrupo] = useState<Hospedagem[]>([])
+
   const carregar = useCallback(async () => {
     const supabase = createClient()
     const { data } = await supabase
@@ -38,6 +41,17 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
       .eq('id', id)
       .single()
     setH(data as Hospedagem)
+    const hosp = data as Hospedagem
+    if (hosp?.grupo_id) {
+      const { data: doGrupo } = await supabase
+        .from('hospedagens')
+        .select('*, pet:pets(*, tutor:tutores(nome, telefone, whatsapp))')
+        .eq('grupo_id', hosp.grupo_id)
+        .neq('id', id)
+      setGrupo((doGrupo as Hospedagem[]) ?? [])
+    } else {
+      setGrupo([])
+    }
     setLoading(false)
   }, [id])
 
@@ -50,53 +64,79 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
       h.checkin_real ?? h.checkin_previsto,
       h.checkout_previsto
     )
-    const sugerido = h.valor_pacote != null && h.valor_pacote > 0
+    // Em grupo, sugere o total do grupo (a receita será rateada entre os pets)
+    const pacoteProprio = h.valor_pacote != null && h.valor_pacote > 0
       ? h.valor_pacote
       : noites * h.valor_diaria
-    setValorTotal(sugerido.toFixed(2).replace('.', ','))
-  }, [h, showCheckout])
+    const pacoteGrupo = grupo
+      .filter(g => g.status !== 'cancelada')
+      .reduce((s, g) => s + (g.valor_pacote ?? 0), 0)
+    setValorTotal((pacoteProprio + pacoteGrupo).toFixed(2).replace('.', ','))
+  }, [h, grupo, showCheckout])
 
   async function fazerCheckin() {
     setAgindo(true)
     const supabase = createClient()
-    await supabase.from('hospedagens').update({
+    const payload = {
       status: 'hospedado',
       checkin_real: new Date().toISOString(),
-    }).eq('id', id)
+    }
+    // Em grupo: check-in de todos os irmãos reservados juntos
+    if (h?.grupo_id) {
+      await supabase.from('hospedagens').update(payload)
+        .eq('grupo_id', h.grupo_id).eq('status', 'reservada')
+    } else {
+      await supabase.from('hospedagens').update(payload).eq('id', id)
+    }
     await carregar()
     setAgindo(false)
   }
 
   async function confirmarCheckout() {
+    if (!h) return
     setSavingCheckout(true)
     const supabase = createClient()
     const total = parseFloat(valorTotal.replace(',', '.')) || 0
     const extras = parseFloat(valorExtras.replace(',', '.')) || 0
     const valorFinal = total + extras
+    const agora = new Date().toISOString()
+    const hoje = agora.split('T')[0]
+    const periodo = `${formatDate(h.checkin_previsto, 'dd/MM')} → ${formatDate(h.checkout_previsto, 'dd/MM')}`
 
-    // Registra hospedagem como finalizada
-    await supabase.from('hospedagens').update({
-      status: 'finalizada',
-      checkout_real: new Date().toISOString(),
-      valor_total: valorFinal,
-      valor_extras: extras,
-      extras_descricao: extrasDesc || null,
-    }).eq('id', id)
+    // Hospedagens a finalizar: esta + irmãos do grupo ainda ativos
+    const membros: Hospedagem[] = [h, ...grupo.filter(g => g.status === 'hospedado' || g.status === 'reservada')]
 
-    // Cria receita no financeiro
-    if (valorFinal > 0 && h) {
-      const pet = h.pet as NonNullable<Hospedagem['pet']>
-      await supabase.from('receitas').insert({
-        data: new Date().toISOString().split('T')[0],
-        valor: valorFinal,
-        area: 'hotel',
-        categoria: 'hotel',
-        forma_pagamento: formaPag,
-        status: 'pago',
-        descricao: `Hotel — ${pet?.nome} (${formatDate(h.checkin_previsto, 'dd/MM')} → ${formatDate(h.checkout_previsto, 'dd/MM')})`,
-        tutor_id: pet?.tutor_id,
-        pet_id: pet?.id,
-      })
+    // Rateio do valor final entre os pets (último leva o resto dos centavos)
+    const n = membros.length
+    const cota = Math.floor((valorFinal / n) * 100) / 100
+    const ultimaCota = Math.round((valorFinal - cota * (n - 1)) * 100) / 100
+
+    for (let i = 0; i < membros.length; i++) {
+      const m = membros[i]
+      const valorPet = i === n - 1 ? ultimaCota : cota
+      await supabase.from('hospedagens').update({
+        status: 'finalizada',
+        checkout_real: agora,
+        valor_total: valorPet,
+        valor_extras: i === 0 ? extras : 0,
+        extras_descricao: i === 0 ? (extrasDesc || null) : null,
+      }).eq('id', m.id)
+
+      // Uma receita por pet — rateio automático da entrada única
+      if (valorPet > 0) {
+        const pet = m.pet as NonNullable<Hospedagem['pet']>
+        await supabase.from('receitas').insert({
+          data: hoje,
+          valor: valorPet,
+          area: 'hotel',
+          categoria: 'hotel',
+          forma_pagamento: formaPag,
+          status: 'pago',
+          descricao: `Hotel — ${pet?.nome} (${periodo})${n > 1 ? ` · rateio ${i + 1}/${n}` : ''}`,
+          tutor_id: pet?.tutor_id,
+          pet_id: pet?.id,
+        })
+      }
     }
 
     setSavingCheckout(false)
@@ -172,6 +212,26 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       </Card>
+
+      {/* Grupo: irmãos hospedados juntos */}
+      {grupo.length > 0 && (
+        <Card className="border-l-4 border-brand-orange">
+          <p className="text-xs text-gray-400 mb-2">Hospedagem em grupo — mesmo tutor</p>
+          <div className="flex flex-col gap-2">
+            {grupo.map(g => (
+              <Link key={g.id} href={`/hotel/reservas/${g.id}`} className="flex items-center justify-between bg-orange-50 rounded-xl px-3 py-2">
+                <span className="text-sm font-semibold text-gray-800">🐾 {(g.pet as NonNullable<Hospedagem['pet']>)?.nome}</span>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_HOTEL_CORES[g.status]}`}>
+                  {STATUS_HOTEL_LABELS[g.status]}
+                </span>
+              </Link>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-2">
+            Check-in, check-out e pagamento valem para o grupo todo, com rateio automático por cão.
+          </p>
+        </Card>
+      )}
 
       {/* Datas */}
       <Card>
@@ -284,6 +344,17 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
           <div className="bg-white rounded-t-3xl w-full max-w-lg mx-auto p-6 flex flex-col gap-4">
             <h2 className="text-xl font-bold text-gray-900">Finalizar Check-out</h2>
+
+            {grupo.length > 0 && (
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3">
+                <p className="text-sm text-orange-800 font-semibold">
+                  Check-out em grupo ({grupo.filter(g => g.status === 'hospedado' || g.status === 'reservada').length + 1} cães)
+                </p>
+                <p className="text-xs text-orange-700 mt-0.5">
+                  Informe o valor total — ele será dividido automaticamente entre os cães, com uma receita para cada um.
+                </p>
+              </div>
+            )}
 
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
