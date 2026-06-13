@@ -1,10 +1,21 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Dog, Camera, X, CheckCircle, Loader2, CalendarHeart } from 'lucide-react'
+import { Dog, Camera, X, CheckCircle, Loader2, CalendarHeart, Plus } from 'lucide-react'
 import type { Porte } from '@/types'
 
 const PORTE_LABELS: Record<Porte, string> = { P: 'Pequeno', M: 'Médio', G: 'Grande' }
+
+interface PetAdaptacao {
+  nome: string
+  raca: string
+  porte: Porte
+  data_nascimento: string
+  castrado: boolean
+  restricoes: string
+  fotoFile: File | null
+  cartaoFile: File | null
+}
 
 export default function CadastroAdaptacaoPage() {
   const [etapa, setEtapa] = useState<'tutor' | 'pet' | 'agendamento' | 'sucesso'>('tutor')
@@ -21,7 +32,10 @@ export default function CadastroAdaptacaoPage() {
   const [cpf, setCpf] = useState('')
   const [endereco, setEndereco] = useState('')
 
-  // Pet
+  // Pets já concluídos (quando o tutor tem mais de um cão)
+  const [petsSalvos, setPetsSalvos] = useState<PetAdaptacao[]>([])
+
+  // Pet em edição
   const [nomePet, setNomePet] = useState('')
   const [raca, setRaca] = useState('')
   const [porte, setPorte] = useState<Porte>('M')
@@ -33,6 +47,26 @@ export default function CadastroAdaptacaoPage() {
   const [dataAdaptacao, setDataAdaptacao] = useState('')
   const [horaEntrada, setHoraEntrada] = useState('')
   const [horaSaida, setHoraSaida] = useState('')
+
+  function montarPetAtual(): PetAdaptacao {
+    return {
+      nome: nomePet, raca, porte, data_nascimento: nascimento,
+      castrado, restricoes, fotoFile, cartaoFile,
+    }
+  }
+
+  function limparFormularioPet() {
+    setNomePet(''); setRaca(''); setPorte('M'); setNascimento('')
+    setCastrado(false); setRestricoes('')
+    setFotoFile(null); setFotoPreview(null); setCartaoFile(null)
+  }
+
+  function adicionarOutroCao() {
+    setPetsSalvos(prev => [...prev, montarPetAtual()])
+    limparFormularioPet()
+    setEtapa('pet')
+    window.scrollTo({ top: 0 })
+  }
 
   async function uploadFoto(file: File | null): Promise<string | null> {
     if (!file) return null
@@ -51,25 +85,30 @@ export default function CadastroAdaptacaoPage() {
     if (!dataAdaptacao || !horaEntrada) { alert('Informe o dia e horário de entrada da adaptação'); return }
     setLoading(true)
 
-    const fotoUrl = await uploadFoto(fotoFile)
-    const cartaoUrl = await uploadFoto(cartaoFile)
+    const todosPets = [...petsSalvos, montarPetAtual()]
+
+    // Upload das fotos e cartões de vacina (um por pet, se houver)
+    const petsComFoto = []
+    for (const p of todosPets) {
+      const fotoUrl = await uploadFoto(p.fotoFile)
+      const cartaoUrl = await uploadFoto(p.cartaoFile)
+      const { fotoFile: _, cartaoFile: __, ...dados } = p
+      petsComFoto.push({ ...dados, foto_url: fotoUrl, cartao_vacinas_url: cartaoUrl })
+    }
 
     const res = await fetch('/api/cadastro-adaptacao', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         tutor: { nome, telefone, cpf, endereco },
-        pet: {
-          nome: nomePet, raca, porte, data_nascimento: nascimento,
-          castrado, restricoes,
-          foto_url: fotoUrl, cartao_vacinas_url: cartaoUrl,
-        },
+        pets: petsComFoto,
         adaptacao: { data: dataAdaptacao, hora_entrada: horaEntrada, hora_saida: horaSaida || null },
       }),
     })
 
     setLoading(false)
     if (res.ok) {
+      setPetsSalvos(todosPets)
       setEtapa('sucesso')
     } else {
       alert('Ocorreu um erro. Tente novamente.')
@@ -78,6 +117,10 @@ export default function CadastroAdaptacaoPage() {
 
   if (etapa === 'sucesso') {
     const [y, m, d] = dataAdaptacao.split('-')
+    const nomesPets = petsSalvos.map(p => p.nome).filter(Boolean)
+    const listaNomes = nomesPets.length > 1
+      ? nomesPets.slice(0, -1).join(', ') + ' e ' + nomesPets[nomesPets.length - 1]
+      : nomesPets[0] ?? nomePet
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-orange-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-xl">
@@ -87,7 +130,7 @@ export default function CadastroAdaptacaoPage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Adaptação agendada!</h1>
           <p className="text-gray-500 mb-1">Olá, <strong>{nome}</strong>!</p>
           <p className="text-gray-500">
-            A adaptação de <strong>{nomePet}</strong> está marcada para{' '}
+            A adaptação de <strong>{listaNomes}</strong> está marcada para{' '}
             <strong>{d}/{m}/{y}</strong> às <strong>{horaEntrada}</strong>.
           </p>
           <div className="mt-6 p-4 bg-purple-50 rounded-2xl">
@@ -127,6 +170,18 @@ export default function CadastroAdaptacaoPage() {
 
       <div className="p-4 max-w-lg mx-auto">
 
+        {/* Pets já adicionados */}
+        {petsSalvos.length > 0 && etapa !== 'tutor' && (
+          <div className="bg-green-50 border border-green-200 rounded-2xl px-4 py-3 mb-4 flex items-center gap-2">
+            <CheckCircle size={18} className="text-green-500 flex-shrink-0" />
+            <p className="text-sm text-green-700">
+              {petsSalvos.length === 1
+                ? <><strong>{petsSalvos[0].nome}</strong> já foi adicionado(a).</>
+                : <><strong>{petsSalvos.map(p => p.nome).join(', ')}</strong> já foram adicionados.</>}
+            </p>
+          </div>
+        )}
+
         {/* ETAPA 1 — TUTOR */}
         {etapa === 'tutor' && (
           <div className="flex flex-col gap-4">
@@ -151,7 +206,9 @@ export default function CadastroAdaptacaoPage() {
         {/* ETAPA 2 — PET */}
         {etapa === 'pet' && (
           <div className="flex flex-col gap-4">
-            <h2 className="text-xl font-bold text-gray-900 mt-2">Dados do pet</h2>
+            <h2 className="text-xl font-bold text-gray-900 mt-2">
+              {petsSalvos.length > 0 ? `Dados do ${petsSalvos.length + 1}º cão` : 'Dados do pet'}
+            </h2>
 
             {/* Foto */}
             <section className="bg-white rounded-3xl p-4 shadow-sm flex flex-col items-center gap-3">
@@ -234,9 +291,11 @@ export default function CadastroAdaptacaoPage() {
             </section>
 
             <div className="flex gap-3">
-              <button onClick={() => { setEtapa('tutor'); window.scrollTo({ top: 0 }) }} className="flex-1 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl">
-                ← Voltar
-              </button>
+              {petsSalvos.length === 0 && (
+                <button onClick={() => { setEtapa('tutor'); window.scrollTo({ top: 0 }) }} className="flex-1 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl">
+                  ← Voltar
+                </button>
+              )}
               <button
                 onClick={() => { if (!nomePet) { alert('Informe o nome do pet'); return } setEtapa('agendamento'); window.scrollTo({ top: 0 }) }}
                 className="flex-1 py-4 bg-brand-purple text-white font-bold rounded-2xl"
@@ -286,6 +345,16 @@ export default function CadastroAdaptacaoPage() {
               </p>
             </div>
 
+            {/* Tem mais um cão? */}
+            <button
+              type="button"
+              onClick={() => { if (!nomePet) { alert('Informe o nome do pet'); return } adicionarOutroCao() }}
+              disabled={loading}
+              className="w-full py-4 rounded-2xl border-2 border-dashed border-brand-purple bg-purple-50 flex items-center justify-center gap-2 text-brand-purple font-bold disabled:opacity-50"
+            >
+              <Plus size={20} /> Tenho outro cão — ele também virá na adaptação
+            </button>
+
             <div className="flex gap-3">
               <button onClick={() => { setEtapa('pet'); window.scrollTo({ top: 0 }) }} className="flex-1 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl">
                 ← Voltar
@@ -298,6 +367,11 @@ export default function CadastroAdaptacaoPage() {
                 {loading ? <><Loader2 size={18} className="animate-spin" /> Enviando...</> : 'Agendar adaptação'}
               </button>
             </div>
+            {petsSalvos.length > 0 && (
+              <p className="text-xs text-gray-400 text-center -mt-1">
+                Ao agendar, {petsSalvos.length + 1} cães serão cadastrados para o mesmo dia e horário.
+              </p>
+            )}
             <div className="pb-8" />
           </div>
         )}

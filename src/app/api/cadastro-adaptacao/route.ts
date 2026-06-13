@@ -3,9 +3,11 @@ import { createClient } from '@supabase/supabase-js'
 
 export async function POST(request: Request) {
   const body = await request.json()
-  const { tutor, pet, adaptacao } = body
+  const { tutor, adaptacao } = body
+  // Aceita tanto { pet } (um cão) quanto { pets: [...] } (vários cães)
+  const pets = Array.isArray(body.pets) ? body.pets : body.pet ? [body.pet] : []
 
-  if (!tutor?.nome || !tutor?.telefone || !pet?.nome || !adaptacao?.data || !adaptacao?.hora_entrada) {
+  if (!tutor?.nome || !tutor?.telefone || pets.length === 0 || pets.some((p: { nome?: string }) => !p?.nome) || !adaptacao?.data || !adaptacao?.hora_entrada) {
     return NextResponse.json({ error: 'Dados obrigatórios ausentes' }, { status: 400 })
   }
 
@@ -41,39 +43,42 @@ export async function POST(request: Request) {
 
   if (errTutor) return NextResponse.json({ error: errTutor.message }, { status: 400 })
 
-  // Cria o pet
-  const { data: novoPet, error: errPet } = await adminClient
+  // Cria todos os pets
+  const { data: novosPets, error: errPet } = await adminClient
     .from('pets')
-    .insert({
-      empresa_id: empresa.id,
-      tutor_id: novoTutor.id,
-      nome: pet.nome,
-      raca: pet.raca || null,
-      porte: pet.porte || 'M',
-      data_nascimento: pet.data_nascimento || null,
-      castrado: pet.castrado || false,
-      restricoes: pet.restricoes || null,
-      plano: 'diaria_avulsa',
-      foto_url: pet.foto_url || null,
-      cartao_vacinas_url: pet.cartao_vacinas_url || null,
-      ativo: true,
-    })
+    .insert(
+      pets.map((pet: Record<string, unknown>) => ({
+        empresa_id: empresa.id,
+        tutor_id: novoTutor.id,
+        nome: pet.nome,
+        raca: pet.raca || null,
+        porte: pet.porte || 'M',
+        data_nascimento: pet.data_nascimento || null,
+        castrado: pet.castrado || false,
+        restricoes: pet.restricoes || null,
+        plano: 'diaria_avulsa',
+        foto_url: pet.foto_url || null,
+        cartao_vacinas_url: pet.cartao_vacinas_url || null,
+        ativo: true,
+      }))
+    )
     .select()
-    .single()
 
   if (errPet) return NextResponse.json({ error: errPet.message }, { status: 400 })
 
-  // Cria o agendamento de adaptação
-  const { error: errAdapt } = await adminClient.from('adaptacoes').insert({
-    empresa_id: empresa.id,
-    pet_id: novoPet.id,
-    data: adaptacao.data,
-    hora_entrada: adaptacao.hora_entrada,
-    hora_saida: adaptacao.hora_saida || null,
-    observacoes: pet.restricoes || null,
-    status: 'agendada',
-    origem: 'link',
-  })
+  // Cria um agendamento de adaptação por pet, no mesmo dia e horário
+  const { error: errAdapt } = await adminClient.from('adaptacoes').insert(
+    (novosPets ?? []).map(p => ({
+      empresa_id: empresa.id,
+      pet_id: p.id,
+      data: adaptacao.data,
+      hora_entrada: adaptacao.hora_entrada,
+      hora_saida: adaptacao.hora_saida || null,
+      observacoes: p.restricoes || null,
+      status: 'agendada',
+      origem: 'link',
+    }))
+  )
 
   if (errAdapt) return NextResponse.json({ error: errAdapt.message }, { status: 400 })
 
