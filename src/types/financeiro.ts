@@ -45,6 +45,7 @@ export interface Receita {
   descricao?: string
   status: StatusFinanceiro
   num_diarias?: number
+  executado_por?: string
   data_vencimento?: string
   registrado_por?: string
   created_at: string
@@ -70,6 +71,8 @@ export interface Despesa {
   dia_vencimento?: number
   parcelamento_id?: string
   num_parcela?: number
+  funcionario_id?: string
+  mes_referencia?: string
   registrado_por?: string
   created_at: string
   conta?: ContaFinanceira

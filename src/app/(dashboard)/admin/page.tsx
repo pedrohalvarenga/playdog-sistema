@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
-import { Users, UserPlus, ChevronRight, Link2, Copy, Check } from 'lucide-react'
+import { Users, UserPlus, ChevronRight, Link2, Copy, Check, Briefcase } from 'lucide-react'
 import { ROLE_LABELS } from '@/lib/utils'
 import type { Profile } from '@/types'
 
@@ -52,8 +52,21 @@ export default function AdminPage() {
           </div>
           <div>
             <p className="font-bold">Criar usuário</p>
-            <p className="text-sm opacity-80">Adicionar funcionário ao sistema</p>
+            <p className="text-sm opacity-80">Login de acesso ao sistema</p>
           </div>
+        </div>
+      </Link>
+
+      <Link href="/funcionarios">
+        <div className="flex items-center gap-4 bg-brand-orange rounded-3xl p-4 text-white">
+          <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
+            <Briefcase size={24} />
+          </div>
+          <div className="flex-1">
+            <p className="font-bold">Funcionários & Comissões</p>
+            <p className="text-sm opacity-80">Equipe, uniformes, acesso e comissões</p>
+          </div>
+          <ChevronRight size={20} className="opacity-70" />
         </div>
       </Link>
 

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   CalendarCheck, Building2, Scissors, Dog, Users, DollarSign,
-  Home, Settings, Car, Menu, X, PawPrint,
+  Home, Settings, Car, Menu, X, PawPrint, Briefcase,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -58,6 +58,15 @@ const moreItems: MoreItem[] = [
     roles: ['admin'],
     iconColor: 'text-gray-600',
     iconBg: 'bg-gray-100',
+  },
+  {
+    href: '/funcionarios',
+    label: 'Funcionários',
+    sublabel: 'Equipe, uniformes e comissões',
+    icon: Briefcase,
+    roles: ['admin'],
+    iconColor: 'text-brand-orange',
+    iconBg: 'bg-orange-50',
   },
   {
     href: '/adaptacao',

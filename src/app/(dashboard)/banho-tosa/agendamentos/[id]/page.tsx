@@ -7,6 +7,7 @@ import { ArrowLeft, Edit, Car, Clock, Check, X, History } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
+import SelectExecutadoPor from '@/components/funcionarios/SelectExecutadoPor'
 import { formatDate } from '@/lib/utils'
 import {
   STATUS_BT_LABELS, STATUS_BT_CORES,
@@ -30,6 +31,7 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
   const [valorTaxi, setValorTaxi] = useState('')
   const [formaPag, setFormaPag] = useState('pix')
   const [statusPag, setStatusPag] = useState<'pago' | 'pendente'>('pago')
+  const [execPor, setExecPor] = useState('')
   const [salvandoPag, setSalvandoPag] = useState(false)
 
   // Modal cancelamento
@@ -93,6 +95,7 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
         descricao: `Banho & Tosa — ${pet.nome}${pet.identificador ? ` (${pet.identificador})` : ''}: ${ag.descricao_servico}`,
         tutor_id: pet.tutor_id,
         pet_id: pet.id,
+        executado_por: execPor || null,
       }).select('id').single()
       if (r1) updates.receita_servico_id = r1.id
     }
@@ -347,6 +350,8 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
                 ))}
               </div>
             </div>
+
+            <SelectExecutadoPor value={execPor} onChange={setExecPor} label="Quem fez o banho/tosa (comissão)" />
 
             <div className="bg-teal-50 rounded-2xl p-4">
               <p className="text-xs text-gray-500 mb-2">Registros que serão criados:</p>

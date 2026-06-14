@@ -7,6 +7,7 @@ import { ArrowLeft, LogIn, LogOut, Edit, X, Check, Moon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
+import SelectExecutadoPor from '@/components/funcionarios/SelectExecutadoPor'
 import { formatDate, formatDateTime, formatTime } from '@/lib/utils'
 import { STATUS_HOTEL_CORES, STATUS_HOTEL_LABELS, calcNoites, formatCurrencyHotel } from '@/lib/hotel'
 import type { Hospedagem } from '@/types/hotel'
@@ -25,6 +26,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
   const [valorExtras, setValorExtras] = useState('')
   const [extrasDesc, setExtrasDesc] = useState('')
   const [formaPag, setFormaPag] = useState('pix')
+  const [execPor, setExecPor] = useState('')
   const [savingCheckout, setSavingCheckout] = useState(false)
 
   // Cancel modal
@@ -143,6 +145,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
           descricao: `Hotel — ${pet?.nome} (${periodo})${n > 1 ? ` · rateio ${i + 1}/${n}` : ''}`,
           tutor_id: pet?.tutor_id,
           pet_id: pet?.id,
+          executado_por: execPor || null,
         })
         if (errRec) {
           alert(`Hospedagem finalizada, mas houve erro ao lançar a receita de ${pet?.nome}: ${errRec.message}. Lance manualmente no financeiro.`)
@@ -436,6 +439,8 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
                 <option value="credito">Crédito</option>
               </select>
             </div>
+
+            <SelectExecutadoPor value={execPor} onChange={setExecPor} label="Quem atendeu (comissão)" />
 
             <div className="bg-purple-50 rounded-2xl p-4 text-center">
               <p className="text-xs text-gray-500">Total a cobrar</p>

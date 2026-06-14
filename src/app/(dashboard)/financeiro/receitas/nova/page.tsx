@@ -7,6 +7,7 @@ import { ArrowLeft, Info } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import CurrencyInput from '@/components/financeiro/CurrencyInput'
+import SelectExecutadoPor from '@/components/funcionarios/SelectExecutadoPor'
 import {
   AREA_LABELS, CATEGORIA_RECEITA_LABELS, FORMA_PAGAMENTO_LABELS,
   TAXAS_PADRAO, calcValorLiquido, formatCurrency, CATEGORIAS_POR_AREA,
@@ -37,6 +38,7 @@ export default function NovaReceitaPage() {
   const [pets, setPets] = useState<{ id: string; nome: string; tutor_id: string | null; identificador?: string | null }[]>([])
   const [petId, setPetId] = useState('')
   const [numDiarias, setNumDiarias] = useState<number | ''>('')
+  const [executadoPor, setExecutadoPor] = useState('')
   const [erro, setErro] = useState('')
 
   const CATEGORIAS_CRECHE: string[] = ['diaria_avulsa', 'pacote_semanal', 'pacote_mensal']
@@ -112,6 +114,7 @@ export default function NovaReceitaPage() {
       pet_id: petId || null,
       descricao: descricao || null,
       num_diarias: mostrarDiarias && numDiarias !== '' ? numDiarias : null,
+      executado_por: executadoPor || null,
       status,
       data_vencimento: status === 'pendente' ? dataVenc : null,
     })
@@ -335,6 +338,9 @@ export default function NovaReceitaPage() {
           </div>
         )}
       </div>
+
+      {/* Quem executou (comissão) */}
+      <SelectExecutadoPor value={executadoPor} onChange={setExecutadoPor} />
 
       {/* Descrição */}
       <div className="flex flex-col gap-1">

@@ -12,6 +12,7 @@ import {
 import type { AgendamentoBanhoTosa, StatusAgendamento } from '@/types/banho_tosa'
 import { useProfile } from '@/hooks/useProfile'
 import { hojeLocal } from '@/lib/datas'
+import SelectExecutadoPor from '@/components/funcionarios/SelectExecutadoPor'
 
 type Visao = 'hoje' | 'semana'
 
@@ -39,6 +40,7 @@ export default function BanhoTosaPage() {
   const [valorTaxi, setValorTaxi] = useState('')
   const [formaPag, setFormaPag] = useState('pix')
   const [statusPag, setStatusPag] = useState<'pago' | 'pendente'>('pago')
+  const [execPor, setExecPor] = useState('')
   const [salvandoPag, setSalvandoPag] = useState(false)
 
   // Estado do modal de cancelamento
@@ -97,6 +99,7 @@ export default function BanhoTosaPage() {
     setValorTaxi(ag.valor_taxi != null ? ag.valor_taxi.toFixed(2) : '')
     setFormaPag('pix')
     setStatusPag('pago')
+    setExecPor('')
   }
 
   async function confirmarEntrega() {
@@ -122,6 +125,7 @@ export default function BanhoTosaPage() {
         descricao: `Banho & Tosa — ${pet.nome}${pet.identificador ? ` (${pet.identificador})` : ''}: ${modalPag.descricao_servico}`,
         tutor_id: pet.tutor_id,
         pet_id: pet.id,
+        executado_por: execPor || null,
       }).select('id').single()
       if (r1) updates.receita_servico_id = r1.id
     }
@@ -439,6 +443,8 @@ export default function BanhoTosaPage() {
                 </button>
               </div>
             </div>
+
+            <SelectExecutadoPor value={execPor} onChange={setExecPor} label="Quem fez o banho/tosa (comissão)" />
 
             <div className="bg-teal-50 rounded-2xl p-4">
               <p className="text-xs text-gray-500 mb-1">Resumo</p>
