@@ -338,6 +338,12 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
             <LogIn size={24} />
             {agindo ? 'Registrando...' : 'Fazer Check-in agora'}
           </button>
+          <Link
+            href={`/hotel/reservas/${id}/editar`}
+            className="w-full py-3 rounded-2xl border-2 border-brand-purple/30 text-brand-purple font-semibold text-sm flex items-center justify-center gap-2"
+          >
+            <Edit size={18} /> Editar datas, horários e valor
+          </Link>
           <button
             onClick={() => setShowCancel(true)}
             className="w-full py-3 rounded-2xl border-2 border-red-200 text-red-500 font-semibold text-sm flex items-center justify-center gap-2"
@@ -356,6 +362,12 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
             <LogOut size={24} />
             Fazer Check-out agora
           </button>
+          <Link
+            href={`/hotel/reservas/${id}/editar`}
+            className="w-full py-3 rounded-2xl border-2 border-brand-purple/30 text-brand-purple font-semibold text-sm flex items-center justify-center gap-2"
+          >
+            <Edit size={18} /> Editar datas, horários e valor
+          </Link>
           <button
             onClick={() => setShowCancel(true)}
             className="w-full py-3 rounded-2xl border-2 border-red-200 text-red-500 font-semibold text-sm flex items-center justify-center gap-2"
