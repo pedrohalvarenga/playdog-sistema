@@ -14,7 +14,7 @@ export default defineConfig({
     ['json', { outputFile: 'smoke-results.json' }],
   ],
   use: {
-    baseURL: process.env.SMOKE_BASE_URL ?? 'https://playdog-sistema.vercel.app',
+    baseURL: process.env.SMOKE_BASE_URL || 'https://playdog-sistema.vercel.app',
     headless: true,
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',

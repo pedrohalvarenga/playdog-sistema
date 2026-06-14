@@ -10,7 +10,8 @@ async function globalSetup(config: FullConfig) {
   // Permite pular o login quando já existe um state.json válido (debug local)
   if (process.env.SMOKE_SKIP_LOGIN === '1') return
 
-  const baseURL = process.env.SMOKE_BASE_URL ?? 'https://playdog-sistema.vercel.app'
+  // || (não ??) porque secret ausente no CI vem como string vazia, não undefined
+  const baseURL = process.env.SMOKE_BASE_URL || 'https://playdog-sistema.vercel.app'
   const user = process.env.SMOKE_USER
   const pass = process.env.SMOKE_PASS
 
