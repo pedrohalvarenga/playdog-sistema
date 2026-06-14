@@ -39,8 +39,8 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM: ${{ secrets.RESEND_FROM || 'Play Dog <onboarding@resend.dev>' }}
           SMOKE_EMAIL_TO: ${{ secrets.SMOKE_EMAIL_TO || 'pedroalvarengamkt@gmail.com' }}
-          # 'true' = e-mail todo dia (✅ ou ⚠️). Troque para 'false' p/ avisar só quando der problema.
-          SMOKE_ALWAYS: 'true'
+          # 'false' = avisa só quando der problema. Troque para 'true' p/ e-mail todo dia (✅ ou ⚠️).
+          SMOKE_ALWAYS: 'false'
           GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node scripts/notificar-smoke.mjs
 
