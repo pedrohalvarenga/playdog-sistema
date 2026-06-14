@@ -19,6 +19,7 @@ export interface Hospedagem {
   grupo_id?: string | null
   motivo_cancelamento?: string
   receita_id?: string
+  status_pagamento?: 'pendente' | 'pago'
   registrado_por?: string
   alterado_por?: string
   created_at: string

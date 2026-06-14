@@ -3,7 +3,7 @@
 import { use, useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, LogIn, LogOut, Edit, X, Check, Moon } from 'lucide-react'
+import { ArrowLeft, LogIn, LogOut, Edit, X, Check, Moon, DollarSign } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -28,12 +28,21 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
   const [formaPag, setFormaPag] = useState('pix')
   const [execPor, setExecPor] = useState('')
   const [savingCheckout, setSavingCheckout] = useState(false)
+  // status do pagamento no checkout (se ainda pendente)
+  const [checkoutStatusPag, setCheckoutStatusPag] = useState<'pago' | 'pendente'>('pago')
+
+  // Modal registrar pagamento (disponível em qualquer status)
+  const [showPagamento, setShowPagamento] = useState(false)
+  const [pagFormaPag, setPagFormaPag] = useState('pix')
+  const [pagData, setPagData] = useState('')
+  const [pagValor, setPagValor] = useState('')
+  const [savingPag, setSavingPag] = useState(false)
 
   // Cancel modal
   const [showCancel, setShowCancel] = useState(false)
   const [motivoCancel, setMotivoCancel] = useState('')
 
-  // Outras hospedagens do mesmo grupo (irmãos hospedados juntos)
+  // Outras hospedagens do mesmo grupo
   const [grupo, setGrupo] = useState<Hospedagem[]>([])
 
   const carregar = useCallback(async () => {
@@ -60,32 +69,35 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
 
   useEffect(() => { carregar() }, [carregar])
 
-  // Preenche valor sugerido no modal de checkout: pacote fechado, ou noites × diária se não houver
+  // Preenche valor sugerido no modal de checkout
   useEffect(() => {
     if (!h || !showCheckout) return
     const noites = calcNoites(
       h.checkin_real ?? h.checkin_previsto,
       h.checkout_previsto
     )
-    // Em grupo, sugere o total do grupo (a receita será rateada entre os pets)
     const pacoteProprio = h.valor_pacote != null && h.valor_pacote > 0
       ? h.valor_pacote
       : noites * h.valor_diaria
     const pacoteGrupo = grupo
       .filter(g => g.status !== 'cancelada')
       .reduce((s, g) => s + (g.valor_pacote ?? 0), 0)
-    // Sem vírgula: input type="number" rejeita "200,00" e aparece vazio
     setValorTotal((pacoteProprio + pacoteGrupo).toFixed(2))
   }, [h, grupo, showCheckout])
+
+  // Preenche valor no modal de pagamento
+  useEffect(() => {
+    if (!h || !showPagamento) return
+    const noites = calcNoites(h.checkin_previsto, h.checkout_previsto)
+    const v = h.valor_total ?? h.valor_pacote ?? (noites * h.valor_diaria)
+    setPagValor(v.toFixed(2))
+    setPagData(hojeLocal())
+  }, [h, showPagamento])
 
   async function fazerCheckin() {
     setAgindo(true)
     const supabase = createClient()
-    const payload = {
-      status: 'hospedado',
-      checkin_real: new Date().toISOString(),
-    }
-    // Em grupo: check-in de todos os irmãos reservados juntos
+    const payload = { status: 'hospedado', checkin_real: new Date().toISOString() }
     const q = h?.grupo_id
       ? supabase.from('hospedagens').update(payload).eq('grupo_id', h.grupo_id).eq('status', 'reservada')
       : supabase.from('hospedagens').update(payload).eq('id', id)
@@ -93,6 +105,42 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
     if (error) alert(`Erro ao fazer check-in: ${error.message}`)
     await carregar()
     setAgindo(false)
+  }
+
+  async function registrarPagamento() {
+    if (!h) return
+    setSavingPag(true)
+    const supabase = createClient()
+    const valor = parseFloat(pagValor.replace(',', '.')) || 0
+    const pet = h.pet as NonNullable<Hospedagem['pet']>
+    const periodo = `${formatDate(h.checkin_previsto, 'dd/MM')} → ${formatDate(h.checkout_previsto, 'dd/MM')}`
+
+    const { data: recData, error: errRec } = await supabase.from('receitas').insert({
+      data: pagData || hojeLocal(),
+      valor,
+      area: 'hotel',
+      categoria: 'hotel',
+      forma_pagamento: pagFormaPag,
+      status: 'pago',
+      descricao: `Hotel — ${pet?.nome} (${periodo})`,
+      tutor_id: pet?.tutor_id,
+      pet_id: pet?.id,
+    }).select('id').single()
+
+    if (errRec) {
+      alert(`Erro ao lançar receita: ${errRec.message}`)
+      setSavingPag(false)
+      return
+    }
+
+    await supabase.from('hospedagens').update({
+      status_pagamento: 'pago',
+      receita_id: recData?.id ?? null,
+    }).eq('id', id)
+
+    setSavingPag(false)
+    setShowPagamento(false)
+    await carregar()
   }
 
   async function confirmarCheckout() {
@@ -106,10 +154,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
     const hoje = hojeLocal()
     const periodo = `${formatDate(h.checkin_previsto, 'dd/MM')} → ${formatDate(h.checkout_previsto, 'dd/MM')}`
 
-    // Hospedagens a finalizar: esta + irmãos do grupo ainda ativos
     const membros: Hospedagem[] = [h, ...grupo.filter(g => g.status === 'hospedado' || g.status === 'reservada')]
-
-    // Rateio do valor final entre os pets (último leva o resto dos centavos)
     const n = membros.length
     const cota = Math.floor((valorFinal / n) * 100) / 100
     const ultimaCota = Math.round((valorFinal - cota * (n - 1)) * 100) / 100
@@ -117,22 +162,30 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
     for (let i = 0; i < membros.length; i++) {
       const m = membros[i]
       const valorPet = i === n - 1 ? ultimaCota : cota
+
       const { error: errHosp } = await supabase.from('hospedagens').update({
         status: 'finalizada',
         checkout_real: agora,
         valor_total: valorPet,
         valor_extras: i === 0 ? extras : 0,
         extras_descricao: i === 0 ? (extrasDesc || null) : null,
+        status_pagamento: m.status_pagamento === 'pago' ? 'pago' : checkoutStatusPag,
       }).eq('id', m.id)
 
       if (errHosp) {
-        alert(`Erro ao finalizar a hospedagem de ${(m.pet as NonNullable<Hospedagem['pet']>)?.nome}: ${errHosp.message}. Confira as reservas do grupo antes de tentar de novo.`)
+        alert(`Erro ao finalizar a hospedagem de ${(m.pet as NonNullable<Hospedagem['pet']>)?.nome}: ${errHosp.message}.`)
         setSavingCheckout(false)
         await carregar()
         return
       }
 
-      // Uma receita por pet — rateio automático da entrada única
+      // Se já pago anteriormente: só atualiza o valor na receita existente
+      if (m.status_pagamento === 'pago' && m.receita_id) {
+        await supabase.from('receitas').update({ valor: valorPet }).eq('id', m.receita_id)
+        continue
+      }
+
+      // Se não pago: cria receita agora com o status escolhido no checkout
       if (valorPet > 0) {
         const pet = m.pet as NonNullable<Hospedagem['pet']>
         const { data: recData, error: errRec } = await supabase.from('receitas').insert({
@@ -141,14 +194,14 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
           area: 'hotel',
           categoria: 'hotel',
           forma_pagamento: formaPag,
-          status: 'pago',
+          status: checkoutStatusPag,
           descricao: `Hotel — ${pet?.nome} (${periodo})${n > 1 ? ` · rateio ${i + 1}/${n}` : ''}`,
           tutor_id: pet?.tutor_id,
           pet_id: pet?.id,
           executado_por: execPor || null,
         }).select('id').single()
         if (errRec) {
-          alert(`Hospedagem finalizada, mas houve erro ao lançar a receita de ${pet?.nome}: ${errRec.message}. Lance manualmente no financeiro.`)
+          alert(`Hospedagem finalizada, mas erro ao lançar receita de ${pet?.nome}: ${errRec.message}. Lance manualmente no financeiro.`)
         } else if (recData?.id) {
           await supabase.from('hospedagens').update({ receita_id: recData.id }).eq('id', m.id)
         }
@@ -164,11 +217,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
     if (!motivoCancel.trim()) return
     setAgindo(true)
     const supabase = createClient()
-    const payload = {
-      status: 'cancelada',
-      motivo_cancelamento: motivoCancel.trim(),
-    }
-    // Em grupo: pergunta se cancela todos os irmãos ou só este
+    const payload = { status: 'cancelada', motivo_cancelamento: motivoCancel.trim() }
     const membrosAtivos = grupo.filter(g => g.status === 'reservada' || g.status === 'hospedado')
     let q
     if (h?.grupo_id && membrosAtivos.length > 0 &&
@@ -202,6 +251,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
     ? h.valor_pacote
     : noites * h.valor_diaria
   const diariaEquivalente = noites > 0 ? valorEstimado / noites : h.valor_diaria
+  const jaPago = h.status_pagamento === 'pago'
 
   return (
     <div className="py-6 flex flex-col gap-4">
@@ -220,11 +270,16 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
         )}
       </div>
 
-      {/* Status badge */}
-      <div className="flex">
+      {/* Status badges */}
+      <div className="flex gap-2 flex-wrap">
         <span className={`px-3 py-1 rounded-full text-sm font-bold ${STATUS_HOTEL_CORES[h.status]}`}>
           {STATUS_HOTEL_LABELS[h.status]}
         </span>
+        {h.status !== 'cancelada' && (
+          <span className={`px-3 py-1 rounded-full text-sm font-bold ${jaPago ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+            {jaPago ? '✓ Pago' : '⏳ Pendente'}
+          </span>
+        )}
       </div>
 
       {/* Pet info */}
@@ -241,7 +296,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
         </div>
       </Card>
 
-      {/* Grupo: irmãos hospedados juntos */}
+      {/* Grupo */}
       {grupo.length > 0 && (
         <Card className="border-l-4 border-brand-orange">
           <p className="text-xs text-gray-400 mb-2">Hospedagem em grupo — mesmo tutor</p>
@@ -269,9 +324,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
             <p className="font-semibold text-gray-800">{formatDate(h.checkin_previsto, 'dd/MM/yyyy')}</p>
             <p className="text-sm text-gray-500">{formatTime(h.checkin_previsto)}</p>
             {h.checkin_real && (
-              <p className="text-xs text-green-600 mt-1 font-semibold">
-                ✓ Real: {formatDateTime(h.checkin_real)}
-              </p>
+              <p className="text-xs text-green-600 mt-1 font-semibold">✓ Real: {formatDateTime(h.checkin_real)}</p>
             )}
           </div>
           <div>
@@ -279,9 +332,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
             <p className="font-semibold text-gray-800">{formatDate(h.checkout_previsto, 'dd/MM/yyyy')}</p>
             <p className="text-sm text-gray-500">{formatTime(h.checkout_previsto)}</p>
             {h.checkout_real && (
-              <p className="text-xs text-green-600 mt-1 font-semibold">
-                ✓ Real: {formatDateTime(h.checkout_real)}
-              </p>
+              <p className="text-xs text-green-600 mt-1 font-semibold">✓ Real: {formatDateTime(h.checkout_real)}</p>
             )}
           </div>
         </div>
@@ -291,7 +342,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
       <Card>
         <div className="grid grid-cols-3 gap-3 text-center">
           <div>
-            <p className="text-xs text-gray-400">{h.valor_total != null ? 'Total pago' : 'Pacote'}</p>
+            <p className="text-xs text-gray-400">{h.valor_total != null ? 'Total' : 'Pacote'}</p>
             <p className={`font-bold ${h.valor_total != null ? 'text-brand-purple' : 'text-gray-900'}`}>
               {formatCurrencyHotel(h.valor_total ?? valorEstimado)}
             </p>
@@ -301,7 +352,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
             <p className="font-bold text-gray-900">{noites}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400">Diária equivalente</p>
+            <p className="text-xs text-gray-400">Diária equiv.</p>
             <p className="font-bold text-gray-900">{formatCurrencyHotel(diariaEquivalente)}</p>
           </div>
         </div>
@@ -312,6 +363,35 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
           </div>
         )}
       </Card>
+
+      {/* Card de pagamento — aparece em todos os status exceto cancelada */}
+      {h.status !== 'cancelada' && (
+        <Card className={jaPago ? 'border-l-4 border-green-400' : 'border-l-4 border-orange-400'}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${jaPago ? 'bg-green-100' : 'bg-orange-100'}`}>
+                <DollarSign size={20} className={jaPago ? 'text-green-600' : 'text-orange-600'} />
+              </div>
+              <div>
+                <p className={`font-bold text-sm ${jaPago ? 'text-green-700' : 'text-orange-700'}`}>
+                  {jaPago ? 'Pagamento recebido' : 'Pagamento pendente'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {formatCurrencyHotel(h.valor_total ?? valorEstimado)}
+                </p>
+              </div>
+            </div>
+            {!jaPago && (
+              <button
+                onClick={() => setShowPagamento(true)}
+                className="px-4 py-2 rounded-xl bg-brand-purple text-white text-sm font-semibold"
+              >
+                Receber
+              </button>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Observações */}
       {h.observacoes && (
@@ -390,6 +470,68 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
+      {/* Modal Registrar Pagamento */}
+      {showPagamento && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
+          <div className="bg-white rounded-t-3xl w-full max-w-lg mx-auto p-6 flex flex-col gap-4">
+            <h2 className="text-xl font-bold text-gray-900">Registrar pagamento</h2>
+            <p className="text-sm text-gray-500 -mt-2">{pet?.nome} · {pet?.tutor?.nome}</p>
+
+            <div className="bg-purple-50 rounded-2xl px-4 py-3 flex items-center justify-between">
+              <span className="text-sm text-gray-600">Valor a receber</span>
+              <span className="font-bold text-brand-purple">{formatCurrencyHotel(parseFloat(pagValor) || 0)}</span>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Valor (R$)</label>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={pagValor}
+                onChange={e => setPagValor(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-sm bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Forma de pagamento</label>
+              <select
+                value={pagFormaPag}
+                onChange={e => setPagFormaPag(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-sm bg-white"
+              >
+                <option value="pix">PIX</option>
+                <option value="dinheiro">Dinheiro</option>
+                <option value="debito">Débito</option>
+                <option value="credito">Crédito</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Data do recebimento</label>
+              <input
+                type="date"
+                value={pagData}
+                onChange={e => setPagData(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-sm bg-white"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setShowPagamento(false)}
+                className="py-3 rounded-2xl border-2 border-gray-200 text-gray-600 font-semibold"
+              >
+                Cancelar
+              </button>
+              <Button variant="primary" loading={savingPag} onClick={registrarPagamento}>
+                <Check size={18} /> Confirmar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal Checkout */}
       {showCheckout && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
@@ -402,8 +544,33 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
                   Check-out em grupo ({grupo.filter(g => g.status === 'hospedado' || g.status === 'reservada').length + 1} cães)
                 </p>
                 <p className="text-xs text-orange-700 mt-0.5">
-                  Informe o valor total — ele será dividido automaticamente entre os cães, com uma receita para cada um.
+                  Informe o valor total — será dividido automaticamente entre os cães.
                 </p>
+              </div>
+            )}
+
+            {jaPago ? (
+              <div className="bg-green-50 border border-green-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+                <Check size={20} className="text-green-600 flex-shrink-0" />
+                <p className="text-sm text-green-800 font-semibold">Pagamento já registrado — o caixa não será afetado novamente.</p>
+              </div>
+            ) : (
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Status do pagamento</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setCheckoutStatusPag('pago')}
+                    className={`py-3 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2 border-2 transition-colors ${checkoutStatusPag === 'pago' ? 'border-brand-purple bg-purple-50 text-brand-purple' : 'border-gray-200 text-gray-500'}`}
+                  >
+                    <Check size={16} /> Pago agora
+                  </button>
+                  <button
+                    onClick={() => setCheckoutStatusPag('pendente')}
+                    className={`py-3 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2 border-2 transition-colors ${checkoutStatusPag === 'pendente' ? 'border-orange-400 bg-orange-50 text-orange-600' : 'border-gray-200 text-gray-500'}`}
+                  >
+                    ⏳ Pendente
+                  </button>
+                </div>
               </div>
             )}
 
@@ -421,9 +588,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
-                Extras (R$)
-              </label>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Extras (R$)</label>
               <input
                 type="number"
                 inputMode="decimal"
@@ -436,9 +601,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
 
             {parseFloat(valorExtras.replace(',', '.')) > 0 && (
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
-                  Descrição dos extras
-                </label>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Descrição dos extras</label>
                 <input
                   type="text"
                   value={extrasDesc}
@@ -449,26 +612,26 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
               </div>
             )}
 
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
-                Forma de pagamento
-              </label>
-              <select
-                value={formaPag}
-                onChange={e => setFormaPag(e.target.value)}
-                className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-sm bg-white"
-              >
-                <option value="pix">PIX</option>
-                <option value="dinheiro">Dinheiro</option>
-                <option value="debito">Débito</option>
-                <option value="credito">Crédito</option>
-              </select>
-            </div>
+            {!jaPago && (
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Forma de pagamento</label>
+                <select
+                  value={formaPag}
+                  onChange={e => setFormaPag(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-sm bg-white"
+                >
+                  <option value="pix">PIX</option>
+                  <option value="dinheiro">Dinheiro</option>
+                  <option value="debito">Débito</option>
+                  <option value="credito">Crédito</option>
+                </select>
+              </div>
+            )}
 
             <SelectExecutadoPor value={execPor} onChange={setExecPor} label="Quem atendeu (comissão)" />
 
             <div className="bg-purple-50 rounded-2xl p-4 text-center">
-              <p className="text-xs text-gray-500">Total a cobrar</p>
+              <p className="text-xs text-gray-500">Total</p>
               <p className="text-2xl font-bold text-brand-purple">
                 {formatCurrencyHotel(
                   (parseFloat(valorTotal.replace(',', '.')) || 0) +
@@ -498,9 +661,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
           <div className="bg-white rounded-t-3xl w-full max-w-lg mx-auto p-6 flex flex-col gap-4">
             <h2 className="text-xl font-bold text-gray-900">Cancelar reserva</h2>
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
-                Motivo *
-              </label>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Motivo *</label>
               <textarea
                 rows={3}
                 value={motivoCancel}
