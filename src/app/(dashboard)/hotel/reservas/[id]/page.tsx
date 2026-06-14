@@ -3,7 +3,7 @@
 import { use, useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, LogIn, LogOut, Edit, X, Check, Moon, DollarSign } from 'lucide-react'
+import { ArrowLeft, LogIn, LogOut, Edit, X, Check, Moon, DollarSign, RotateCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -210,6 +210,24 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
 
     setSavingCheckout(false)
     setShowCheckout(false)
+    await carregar()
+  }
+
+  async function reabrirHospedagem() {
+    if (!window.confirm('Reabrir esta hospedagem? O checkout será desfeito e o pet voltará para "hospedado". Se houver receita lançada no financeiro, ela permanecerá e precisará ser removida manualmente.')) return
+    setAgindo(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('hospedagens').update({
+      status: 'hospedado',
+      checkout_real: null,
+      valor_total: null,
+      valor_extras: null,
+      extras_descricao: null,
+      status_pagamento: 'pendente',
+      receita_id: null,
+    }).eq('id', id)
+    if (error) alert(`Erro ao reabrir: ${error.message}`)
+    setAgindo(false)
     await carregar()
   }
 
@@ -467,6 +485,13 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
           >
             <Edit size={18} /> Editar datas, horários e valor
           </Link>
+          <button
+            onClick={reabrirHospedagem}
+            disabled={agindo}
+            className="w-full py-3 rounded-2xl border-2 border-gray-200 text-gray-500 font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <RotateCcw size={18} /> Reabrir hospedagem (desfazer checkout)
+          </button>
         </div>
       )}
 
