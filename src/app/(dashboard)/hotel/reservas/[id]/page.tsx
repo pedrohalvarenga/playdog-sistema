@@ -211,7 +211,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
         <div className="flex-1">
           <h1 className="text-xl font-bold text-gray-900">Reserva</h1>
         </div>
-        {h.status !== 'finalizada' && h.status !== 'cancelada' && (
+        {h.status !== 'cancelada' && (
           <Link href={`/hotel/reservas/${id}/editar`} className="p-2 rounded-xl text-gray-400">
             <Edit size={20} />
           </Link>
@@ -374,6 +374,17 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
           >
             <X size={18} /> Cancelar hospedagem
           </button>
+        </div>
+      )}
+
+      {h.status === 'finalizada' && (
+        <div className="flex flex-col gap-3 mt-2">
+          <Link
+            href={`/hotel/reservas/${id}/editar`}
+            className="w-full py-3 rounded-2xl border-2 border-brand-purple/30 text-brand-purple font-semibold text-sm flex items-center justify-center gap-2"
+          >
+            <Edit size={18} /> Editar datas, horários e valor
+          </Link>
         </div>
       )}
 
