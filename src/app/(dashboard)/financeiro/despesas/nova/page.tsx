@@ -29,8 +29,13 @@ export default function NovaDespesaPage() {
   const [area, setArea] = useState<AreaNegocio>('geral')
   const [categoria, setCategoria] = useState<CategoriaDespesa>('outros')
   const [contaId, setContaId] = useState('')
-  const [fornecedor, setFornecedor] = useState('')
   const [descricao, setDescricao] = useState('')
+  // Favorecido
+  const [favTipo, setFavTipo] = useState<'fornecedor' | 'funcionario' | 'outro'>('outro')
+  const [fornecedorId, setFornecedorId] = useState('')
+  const [funcionarioId, setFuncionarioId] = useState('')
+  const [fornecedores, setFornecedores] = useState<{ id: string; nome: string }[]>([])
+  const [funcionarios, setFuncionarios] = useState<{ id: string; nome: string }[]>([])
   const [tutorBusca, setTutorBusca] = useState('')
   const [tutores, setTutores] = useState<{ id: string; nome: string }[]>([])
   const [tutorId, setTutorId] = useState('')
@@ -48,6 +53,10 @@ export default function NovaDespesaPage() {
     supabase.from('contas_financeiras').select('*').eq('ativo', true).then(({ data }) => {
       if (data) { setContas(data as ContaFinanceira[]); setContaId(data[0]?.id ?? '') }
     })
+    supabase.from('fornecedores').select('id, nome').eq('ativo', true).order('nome')
+      .then(({ data }) => setFornecedores(data ?? []))
+    supabase.from('funcionarios').select('id, nome').eq('ativo', true).order('nome')
+      .then(({ data }) => setFuncionarios(data ?? []))
   }, [])
 
   useEffect(() => {
@@ -82,7 +91,8 @@ export default function NovaDespesaPage() {
       conta_id: contaId,
       tutor_id: tutorId || null,
       pet_id: petId || null,
-      fornecedor: fornecedor || null,
+      fornecedor_id: favTipo === 'fornecedor' ? (fornecedorId || null) : null,
+      funcionario_id: favTipo === 'funcionario' ? (funcionarioId || null) : null,
       descricao: descricao || null,
       status,
       data_vencimento: status === 'pendente' ? dataVenc : null,
@@ -218,10 +228,49 @@ export default function NovaDespesaPage() {
         )}
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-semibold text-gray-700">Fornecedor (opcional)</label>
-        <input type="text" placeholder="Ex: Petshop XYZ" value={fornecedor} onChange={e => setFornecedor(e.target.value)}
-          className="w-full py-3 px-4 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-base bg-white" />
+      {/* Favorecido (opcional) */}
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-gray-700">Favorecido (opcional)</label>
+        <div className="grid grid-cols-3 gap-2">
+          {([
+            { v: 'fornecedor', l: 'Fornecedor' },
+            { v: 'funcionario', l: 'Funcionário' },
+            { v: 'outro', l: 'Outro' },
+          ] as const).map(o => (
+            <button key={o.v} type="button" onClick={() => setFavTipo(o.v)}
+              className={`py-2.5 rounded-2xl text-sm font-semibold border-2 transition-colors ${
+                favTipo === o.v ? 'border-brand-purple bg-purple-50 text-brand-purple' : 'border-gray-200 bg-white text-gray-600'
+              }`}>
+              {o.l}
+            </button>
+          ))}
+        </div>
+
+        {favTipo === 'fornecedor' && (
+          fornecedores.length > 0 ? (
+            <select value={fornecedorId} onChange={e => setFornecedorId(e.target.value)}
+              className="w-full py-3 px-4 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-base bg-white">
+              <option value="">Selecione o fornecedor...</option>
+              {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+            </select>
+          ) : (
+            <p className="text-xs text-gray-400">
+              Nenhum fornecedor ativo. <Link href="/fornecedores/novo" className="text-brand-purple font-semibold">Cadastrar</Link>
+            </p>
+          )
+        )}
+
+        {favTipo === 'funcionario' && (
+          funcionarios.length > 0 ? (
+            <select value={funcionarioId} onChange={e => setFuncionarioId(e.target.value)}
+              className="w-full py-3 px-4 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-base bg-white">
+              <option value="">Selecione o funcionário...</option>
+              {funcionarios.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+            </select>
+          ) : (
+            <p className="text-xs text-gray-400">Nenhum funcionário ativo cadastrado.</p>
+          )
+        )}
       </div>
 
       <div className="flex flex-col gap-1">

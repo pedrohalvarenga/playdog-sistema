@@ -72,6 +72,7 @@ export interface Despesa {
   parcelamento_id?: string
   num_parcela?: number
   funcionario_id?: string
+  fornecedor_id?: string
   mes_referencia?: string
   registrado_por?: string
   created_at: string
