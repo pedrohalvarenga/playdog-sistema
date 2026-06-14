@@ -75,6 +75,12 @@ export default function EditarReservaPage({ params }: { params: Promise<{ id: st
     }).eq('id', id)
 
     if (error) { setErro(error.message); setSaving(false); return }
+
+    // Sincroniza o financeiro se a hospedagem já tiver uma receita vinculada
+    if (h?.receita_id) {
+      await supabase.from('receitas').update({ valor }).eq('id', h.receita_id)
+    }
+
     router.push(`/hotel/reservas/${id}`)
   }
 

@@ -135,7 +135,7 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
       // Uma receita por pet — rateio automático da entrada única
       if (valorPet > 0) {
         const pet = m.pet as NonNullable<Hospedagem['pet']>
-        const { error: errRec } = await supabase.from('receitas').insert({
+        const { data: recData, error: errRec } = await supabase.from('receitas').insert({
           data: hoje,
           valor: valorPet,
           area: 'hotel',
@@ -146,9 +146,11 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
           tutor_id: pet?.tutor_id,
           pet_id: pet?.id,
           executado_por: execPor || null,
-        })
+        }).select('id').single()
         if (errRec) {
           alert(`Hospedagem finalizada, mas houve erro ao lançar a receita de ${pet?.nome}: ${errRec.message}. Lance manualmente no financeiro.`)
+        } else if (recData?.id) {
+          await supabase.from('hospedagens').update({ receita_id: recData.id }).eq('id', m.id)
         }
       }
     }
