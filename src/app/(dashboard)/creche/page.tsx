@@ -31,6 +31,7 @@ export default function CrechePage() {
         .from('pets')
         .select('*, tutor:tutores(nome)')
         .eq('ativo', true)
+        .contains('areas_servico', ['creche'])
         .order('nome'),
       supabase
         .from('presencas')

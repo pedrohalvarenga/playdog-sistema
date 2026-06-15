@@ -24,16 +24,19 @@ export default async function PendenciasPage() {
   const emSete = new Date(); emSete.setDate(emSete.getDate() + 7)
   const emSeteStr = diaLocal(emSete)
 
-  const [{ data: rVencidas }, { data: rUrgentes }, { data: rFuturas }] = await Promise.all([
+  const [{ data: rVencidas }, { data: rUrgentes }, { data: rFuturas }, { data: rSemData }] = await Promise.all([
     supabase.from('receitas').select('*, conta:contas_financeiras(nome), tutor:tutores(nome)')
       .eq('status', 'pendente').lt('data_vencimento', hoje).order('data_vencimento'),
     supabase.from('receitas').select('*, conta:contas_financeiras(nome), tutor:tutores(nome)')
       .eq('status', 'pendente').gte('data_vencimento', hoje).lte('data_vencimento', emSeteStr).order('data_vencimento'),
     supabase.from('receitas').select('*, conta:contas_financeiras(nome), tutor:tutores(nome)')
       .eq('status', 'pendente').gt('data_vencimento', emSeteStr).order('data_vencimento').limit(100),
+    // Pendentes SEM data de vencimento (ex.: banho & tosa, hotel) — antes ficavam invisíveis
+    supabase.from('receitas').select('*, conta:contas_financeiras(nome), tutor:tutores(nome)')
+      .eq('status', 'pendente').is('data_vencimento', null).order('data', { ascending: false }).limit(100),
   ])
 
-  const [{ data: dVencidas }, { data: dUrgentes }, { data: dFuturas }] = isAdmin
+  const [{ data: dVencidas }, { data: dUrgentes }, { data: dFuturas }, { data: dSemData }] = isAdmin
     ? await Promise.all([
         supabase.from('despesas').select('*, conta:contas_financeiras(nome)')
           .eq('status', 'pendente').lt('data_vencimento', hoje).order('data_vencimento'),
@@ -41,8 +44,10 @@ export default async function PendenciasPage() {
           .eq('status', 'pendente').gte('data_vencimento', hoje).lte('data_vencimento', emSeteStr).order('data_vencimento'),
         supabase.from('despesas').select('*, conta:contas_financeiras(nome)')
           .eq('status', 'pendente').gt('data_vencimento', emSeteStr).order('data_vencimento').limit(100),
+        supabase.from('despesas').select('*, conta:contas_financeiras(nome)')
+          .eq('status', 'pendente').is('data_vencimento', null).order('data', { ascending: false }).limit(100),
       ])
-    : [{ data: [] }, { data: [] }, { data: [] }]
+    : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }]
 
   function GrupoItem({ item, tipo }: { item: Receita | Despesa; tipo: 'receita' | 'despesa' }) {
     const isR = tipo === 'receita'
@@ -63,7 +68,7 @@ export default async function PendenciasPage() {
             {item.descricao || (isR ? CATEGORIA_RECEITA_LABELS[r.categoria] : CATEGORIA_DESPESA_LABELS[d.categoria])}
           </p>
           <p className="text-xs text-gray-400">
-            Vence {item.data_vencimento ? formatDate(item.data_vencimento) : '—'}
+            {item.data_vencimento ? `Vence ${formatDate(item.data_vencimento)}` : `Lançado ${formatDate(item.data)}`}
             {isR && r.tutor?.nome ? ` · ${r.tutor.nome}` : ''}
             {!isR && d.fornecedor ? ` · ${d.fornecedor}` : ''}
           </p>
@@ -79,6 +84,13 @@ export default async function PendenciasPage() {
   }
 
   const grupos = [
+    {
+      titulo: '🟠 Sem vencimento definido',
+      items: [
+        ...(rSemData ?? []).map(i => ({ item: i as Receita, tipo: 'receita' as const })),
+        ...(dSemData ?? []).map(i => ({ item: i as Despesa, tipo: 'despesa' as const })),
+      ].sort((a, b) => (b.item.data ?? '').localeCompare(a.item.data ?? '')),
+    },
     {
       titulo: '🔴 Vencidos',
       items: [
