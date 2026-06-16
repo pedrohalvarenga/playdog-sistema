@@ -3,9 +3,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Check, KeyRound } from 'lucide-react'
+import { ArrowLeft, Check, KeyRound, RotateCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { ROLE_LABELS } from '@/lib/utils'
+import { menusPadraoRole } from '@/lib/menus'
+import MenuChecklist from '@/components/admin/MenuChecklist'
 import type { Profile, UserRole } from '@/types'
 
 const ROLES: UserRole[] = ['admin', 'recepcao', 'banho_tosa', 'motorista']
@@ -18,6 +20,7 @@ export default function EditarUsuarioPage() {
   const [loading, setLoading] = useState(true)
   const [nome, setNome] = useState('')
   const [role, setRole] = useState<UserRole>('recepcao')
+  const [menus, setMenus] = useState<string[]>([])
   const [ativo, setAtivo] = useState(true)
   const [senha, setSenha] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -36,6 +39,7 @@ export default function EditarUsuarioPage() {
     setUsuario(data)
     setNome(data.nome)
     setRole(data.role)
+    setMenus(data.menus && data.menus.length ? data.menus : menusPadraoRole(data.role))
     setAtivo(data.ativo)
     setLoading(false)
   }, [id, router])
@@ -47,11 +51,13 @@ export default function EditarUsuarioPage() {
     if (!nome.trim()) { setErro('Informe o nome.'); return }
     if (senha && senha.length < 6) { setErro('A nova senha precisa de pelo menos 6 caracteres.'); return }
 
+    if (menus.length === 0) { setErro('Marque pelo menos um menu de acesso.'); return }
+
     setSalvando(true)
     const res = await fetch('/api/admin/atualizar-usuario', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, nome, role, ativo, senha: senha || undefined }),
+      body: JSON.stringify({ id, nome, role, menus, ativo, senha: senha || undefined }),
     })
     const json = await res.json()
     setSalvando(false)
@@ -126,6 +132,20 @@ export default function EditarUsuarioPage() {
             Motorista vê só o transporte: rotas, nome, foto, endereço e telefone dos pets e tutores.
           </p>
         )}
+      </div>
+
+      {/* Checklist de menus */}
+      <div className="flex flex-col gap-2">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setMenus(menusPadraoRole(role))}
+            className="flex items-center gap-1 text-xs text-brand-purple font-semibold"
+          >
+            <RotateCcw size={12} /> Redefinir conforme o perfil
+          </button>
+        </div>
+        <MenuChecklist value={menus} onChange={setMenus} />
       </div>
 
       {/* Ativo / inativo */}

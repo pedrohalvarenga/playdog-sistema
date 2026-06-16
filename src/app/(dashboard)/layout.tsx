@@ -25,7 +25,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <main className="pt-14 pb-24 max-w-lg mx-auto px-4">
         {children}
       </main>
-      <BottomNav role={profile.role} />
+      <BottomNav role={profile.role} menus={profile.menus} />
       {profile.role === 'admin' && <AlertaDespesasHoje />}
     </div>
   )

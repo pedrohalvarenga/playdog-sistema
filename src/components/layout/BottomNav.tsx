@@ -2,119 +2,35 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import {
-  CalendarCheck, Building2, Scissors, Dog, Users, DollarSign,
-  Home, Settings, Car, Menu, X, PawPrint, Briefcase, Truck,
-} from 'lucide-react'
+import { Menu, X } from 'lucide-react'
+import { useState } from 'react'
 
 import { cn } from '@/lib/utils'
 import { type UserRole } from '@/types'
-import { useState } from 'react'
+import { menusVisiveis } from '@/lib/menus'
 
-// ── Barra de acesso rápido ──────────────────────────────────
-interface QuickItem {
-  href: string
-  label: string
-  icon: React.ElementType
-  roles: UserRole[]
-}
+// Quantos itens cabem na barra inferior de acesso rápido (o restante vai para "Mais").
+const MAX_RAPIDO = 6
 
-const quickItems: QuickItem[] = [
-  { href: '/creche',     label: 'Chamada',    icon: CalendarCheck, roles: ['admin', 'recepcao'] },
-  { href: '/hotel',      label: 'Hotel',      icon: Building2,     roles: ['admin', 'recepcao'] },
-  { href: '/banho-tosa',   label: 'Banho',      icon: Scissors, roles: ['admin', 'recepcao', 'banho_tosa'] },
-  { href: '/transportes',  label: 'Corridas',   icon: Car,      roles: ['motorista'] },
-  { href: '/pets',         label: 'Pets',       icon: Dog,      roles: ['admin', 'recepcao', 'banho_tosa'] },
-  { href: '/tutores',    label: 'Tutores',    icon: Users,         roles: ['admin', 'recepcao'] },
-  { href: '/financeiro', label: 'Financeiro', icon: DollarSign,    roles: ['admin', 'recepcao'] },
-]
-
-// ── Menu "Mais" ─────────────────────────────────────────────
-interface MoreItem {
-  href: string
-  label: string
-  sublabel: string
-  icon: React.ElementType
-  roles: UserRole[]
-  iconColor: string
-  iconBg: string
-}
-
-const moreItems: MoreItem[] = [
-  {
-    href: '/dashboard',
-    label: 'Início',
-    sublabel: 'Painel geral do sistema',
-    icon: Home,
-    roles: ['admin', 'recepcao', 'banho_tosa'],
-    iconColor: 'text-brand-purple',
-    iconBg: 'bg-purple-100',
-  },
-  {
-    href: '/admin',
-    label: 'Administração',
-    sublabel: 'Usuários e configurações',
-    icon: Settings,
-    roles: ['admin'],
-    iconColor: 'text-gray-600',
-    iconBg: 'bg-gray-100',
-  },
-  {
-    href: '/funcionarios',
-    label: 'Funcionários',
-    sublabel: 'Equipe, uniformes e comissões',
-    icon: Briefcase,
-    roles: ['admin'],
-    iconColor: 'text-brand-orange',
-    iconBg: 'bg-orange-50',
-  },
-  {
-    href: '/fornecedores',
-    label: 'Fornecedores',
-    sublabel: 'Contatos e parceiros',
-    icon: Truck,
-    roles: ['admin', 'recepcao'],
-    iconColor: 'text-brand-purple',
-    iconBg: 'bg-purple-100',
-  },
-  {
-    href: '/adaptacao',
-    label: 'Adaptação',
-    sublabel: 'Agendamentos do primeiro dia na Play Dog',
-    icon: PawPrint,
-    roles: ['admin', 'recepcao'],
-    iconColor: 'text-brand-teal',
-    iconBg: 'bg-teal-50',
-  },
-  {
-    href: '/transportes',
-    label: 'Transportes',
-    sublabel: 'Corridas de hoje e agenda do motorista',
-    icon: Car,
-    roles: ['admin', 'recepcao', 'motorista'],
-    iconColor: 'text-brand-orange',
-    iconBg: 'bg-orange-100',
-  },
-]
-
-export default function BottomNav({ role }: { role: UserRole }) {
+export default function BottomNav({ role, menus }: { role: UserRole; menus?: string[] | null }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
 
-  const visibleQuick = quickItems.filter(i => i.roles.includes(role))
-  const visibleMore  = moreItems.filter(i => i.roles.includes(role))
+  const visiveis = menusVisiveis(role, menus)
+  const rapidos = visiveis.slice(0, MAX_RAPIDO)
+  const mais = visiveis.slice(MAX_RAPIDO)
 
   return (
     <>
       {/* ── Barra inferior ─────────────────────────────────── */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-bottom z-40">
         <div className="flex items-stretch justify-around max-w-lg mx-auto">
-          {visibleQuick.map(item => {
+          {rapidos.map(item => {
             const Icon = item.icon
             const active = pathname === item.href || pathname.startsWith(item.href + '/')
             return (
               <Link
-                key={item.href}
+                key={item.key}
                 href={item.href}
                 className={cn(
                   'flex flex-col items-center justify-center gap-0.5 py-2.5 flex-1 min-w-0 transition-colors',
@@ -132,38 +48,33 @@ export default function BottomNav({ role }: { role: UserRole }) {
             )
           })}
 
-          {/* Botão Mais */}
-          <button
-            onClick={() => setOpen(true)}
-            className={cn(
-              'flex flex-col items-center justify-center gap-0.5 py-2.5 flex-1 min-w-0 transition-colors',
-              open ? 'text-brand-purple' : 'text-gray-400'
-            )}
-          >
-            <Menu size={21} strokeWidth={open ? 2.5 : 2} />
-            <span className="text-[9px] font-medium leading-none">Mais</span>
-          </button>
+          {/* Botão Mais — só aparece se houver itens extras */}
+          {mais.length > 0 && (
+            <button
+              onClick={() => setOpen(true)}
+              className={cn(
+                'flex flex-col items-center justify-center gap-0.5 py-2.5 flex-1 min-w-0 transition-colors',
+                open ? 'text-brand-purple' : 'text-gray-400'
+              )}
+            >
+              <Menu size={21} strokeWidth={open ? 2.5 : 2} />
+              <span className="text-[9px] font-medium leading-none">Mais</span>
+            </button>
+          )}
         </div>
       </nav>
 
       {/* ── Bottom sheet ───────────────────────────────────── */}
       {open && (
         <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/50 z-40"
-            onClick={() => setOpen(false)}
-          />
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setOpen(false)} />
 
-          {/* Painel */}
           <div className="fixed bottom-0 left-0 right-0 z-50 max-w-lg mx-auto">
             <div className="bg-white rounded-t-3xl shadow-2xl">
-              {/* Alça */}
               <div className="flex justify-center pt-3 pb-1">
                 <div className="w-10 h-1 rounded-full bg-gray-200" />
               </div>
 
-              {/* Cabeçalho */}
               <div className="flex items-center justify-between px-5 pt-1 pb-3">
                 <p className="font-bold text-gray-900">Mais opções</p>
                 <button
@@ -174,21 +85,18 @@ export default function BottomNav({ role }: { role: UserRole }) {
                 </button>
               </div>
 
-              {/* Itens */}
               <div className="px-4 pb-10 flex flex-col gap-2">
-                {visibleMore.map(item => {
+                {mais.map(item => {
                   const Icon = item.icon
                   const active = pathname === item.href || pathname.startsWith(item.href + '/')
                   return (
                     <Link
-                      key={item.href}
+                      key={item.key}
                       href={item.href}
                       onClick={() => setOpen(false)}
                       className={cn(
                         'flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-colors active:scale-[.98]',
-                        active
-                          ? 'bg-purple-50 border border-purple-100'
-                          : 'bg-gray-50 active:bg-gray-100'
+                        active ? 'bg-purple-50 border border-purple-100' : 'bg-gray-50 active:bg-gray-100'
                       )}
                     >
                       <div className={cn('w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0', item.iconBg)}>

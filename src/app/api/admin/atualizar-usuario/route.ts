@@ -14,10 +14,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
   }
 
-  const { id, nome, role, ativo, senha } = await request.json()
+  const { id, nome, role, menus, ativo, senha } = await request.json()
   if (!id || !nome?.trim() || !['admin', 'recepcao', 'banho_tosa', 'motorista'].includes(role)) {
     return NextResponse.json({ error: 'Dados inválidos.' }, { status: 400 })
   }
+  const menusLimpos = Array.isArray(menus) ? menus.filter((m: unknown) => typeof m === 'string') : undefined
 
   // Trava de segurança: admin não pode rebaixar ou desativar a si mesmo
   if (id === user.id && (role !== 'admin' || ativo === false)) {
@@ -30,8 +31,11 @@ export async function POST(request: Request) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
+  const updateProfile: Record<string, unknown> = { nome: nome.trim(), role, ativo: ativo !== false }
+  if (menusLimpos !== undefined) updateProfile.menus = menusLimpos
+
   const { error: errProfile } = await adminClient.from('profiles')
-    .update({ nome: nome.trim(), role, ativo: ativo !== false })
+    .update(updateProfile)
     .eq('id', id)
   if (errProfile) return NextResponse.json({ error: errProfile.message }, { status: 400 })
 

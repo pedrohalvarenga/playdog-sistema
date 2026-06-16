@@ -14,6 +14,7 @@ export interface Profile {
   nome: string
   role: UserRole
   ativo: boolean
+  menus?: string[] | null
   created_at: string
 }
 
