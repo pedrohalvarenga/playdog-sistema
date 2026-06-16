@@ -44,7 +44,7 @@ export default function AgendamentosListPage() {
 
   useEffect(() => { carregar() }, [carregar])
 
-  const podeNovo = profile?.role === 'admin' || profile?.role === 'recepcao'
+  const podeNovo = profile?.role === 'admin' || profile?.role === 'recepcao' || profile?.role === 'banho_tosa'
 
   const filtrados = agendamentos.filter(ag => {
     if (!busca) return true

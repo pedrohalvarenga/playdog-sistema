@@ -50,7 +50,8 @@ export default function BanhoTosaPage() {
 
   const hoje = toLocalDate(new Date())
   const podePagar = profile?.role === 'admin' || profile?.role === 'recepcao'
-  const podeNovo  = podePagar
+  // Banho & Tosa também pode cadastrar/agendar novos banhos (mas não registra o pagamento)
+  const podeNovo  = podePagar || profile?.role === 'banho_tosa'
 
   const carregar = useCallback(async () => {
     setLoading(true)
