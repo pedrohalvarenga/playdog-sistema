@@ -8,7 +8,7 @@ export async function POST(request: Request) {
 
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  const { data: profile } = await supabase.from('profiles').select('role, empresa_id').eq('id', user.id).single()
   if (profile?.role !== 'admin') {
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
   }
@@ -38,6 +38,7 @@ export async function POST(request: Request) {
     nome,
     role,
     menus: menusLimpos,
+    empresa_id: profile.empresa_id ?? '00000000-0000-0000-0000-000000000001',
     ativo: true,
   })
 
