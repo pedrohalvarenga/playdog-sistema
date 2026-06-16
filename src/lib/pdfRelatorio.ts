@@ -127,24 +127,23 @@ export function montarHtmlRelatorio(d: RelatorioPDF): string {
   </div>`
 }
 
-/** Captura um elemento já renderizado e devolve um jsPDF A4 (paginado se necessário). */
+/**
+ * Captura um elemento já renderizado e devolve um jsPDF com a página do
+ * tamanho EXATO do conteúdo (como um card) — sem espaço em branco sobrando.
+ */
 export async function elementoParaPDF(el: HTMLElement): Promise<jsPDF> {
   const html2canvas = (await import('html2canvas-pro')).default
   const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
-  const img = canvas.toDataURL('image/jpeg', 0.92)
+  const img = canvas.toDataURL('image/jpeg', 0.95)
 
-  const pdf = new jsPDF({ unit: 'mm', format: 'a4' })
-  const pw = 210, ph = 297
-  const ih = (canvas.height * pw) / canvas.width
+  const pw = 210 // largura fixa (mm); a altura acompanha o conteúdo
+  const ph = (canvas.height * pw) / canvas.width
 
-  pdf.addImage(img, 'JPEG', 0, 0, pw, ih)
-  let restante = ih - ph
-  let pos = -ph
-  while (restante > 0) {
-    pdf.addPage()
-    pdf.addImage(img, 'JPEG', 0, pos, pw, ih)
-    restante -= ph
-    pos -= ph
-  }
+  const pdf = new jsPDF({
+    unit: 'mm',
+    format: [pw, ph],
+    orientation: ph >= pw ? 'portrait' : 'landscape',
+  })
+  pdf.addImage(img, 'JPEG', 0, 0, pw, ph)
   return pdf
 }
