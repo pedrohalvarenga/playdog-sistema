@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Download, Share2, Dog, X, Loader2, MessageCircle, Mail, Instagram, ChevronRight } from 'lucide-react'
 import { formatDate, calcIdade, PORTE_LABELS, vacinaStatus } from '@/lib/utils'
 import { hojeLocal } from '@/lib/datas'
-import { gerarRelatorioPDF, type RelatorioPDF } from '@/lib/pdfRelatorio'
+import { carregarImagemDataUrl, montarHtmlRelatorio, elementoParaPDF, type PetPDF } from '@/lib/pdfRelatorio'
 import type { Pet, Presenca, Ocorrencia } from '@/types'
 
 type PetComTutor = Pet & { tutor: { id: string; nome: string; telefone: string; email?: string } }
@@ -50,6 +50,7 @@ interface PetRelatorio {
   presencas: Presenca[]
   ocorrencias: Ocorrencia[]
   vacinas: { label: string; vencimento: string; vencida: boolean }[]
+  ultimoPacote: number
 }
 
 export default function RelatorioCrechePage() {
@@ -68,6 +69,7 @@ export default function RelatorioCrechePage() {
   const [, setEnviando] = useState(false)
   const [gerando, setGerando] = useState(false)
   const [sheetAberto, setSheetAberto] = useState(false)
+  const pdfRef = useRef<HTMLDivElement>(null)
 
   // Define o período a partir do preset escolhido
   useEffect(() => {
@@ -132,10 +134,15 @@ export default function RelatorioCrechePage() {
 
     if (!ini || !fimP) { setLoading(false); return }
 
-    const [{ data: presencas }, { data: ocorrencias }] = await Promise.all([
+    const [{ data: presencas }, { data: ocorrencias }, { data: compras }] = await Promise.all([
       supabase.from('presencas').select('*').in('pet_id', petIds).gte('data', ini).lte('data', fimP).order('data'),
       supabase.from('ocorrencias').select('*').in('pet_id', petIds).gte('created_at', `${ini}T00:00:00`).lte('created_at', `${fimP}T23:59:59`).order('created_at'),
+      supabase.from('compras_diarias').select('pet_id, quantidade, data').in('pet_id', petIds).order('data', { ascending: false }),
     ])
+
+    // Quantidade da última compra de diárias (último pacote) por pet
+    const ultimoPacotePorPet = new Map<string, number>()
+    ;(compras ?? []).forEach(c => { if (!ultimoPacotePorPet.has(c.pet_id)) ultimoPacotePorPet.set(c.pet_id, c.quantidade) })
 
     const resultado: PetRelatorio[] = escopo.map(pet => {
       const p = pet as Pet & Record<string, string | null>
@@ -151,6 +158,7 @@ export default function RelatorioCrechePage() {
         presencas: (presencas ?? []).filter(x => x.pet_id === pet.id),
         ocorrencias: (ocorrencias ?? []).filter(x => x.pet_id === pet.id),
         vacinas: vacs,
+        ultimoPacote: ultimoPacotePorPet.get(pet.id) ?? 0,
       }
     }).filter(r => r.presencas.length > 0 || r.ocorrencias.length > 0 || r.vacinas.length > 0)
 
@@ -209,24 +217,6 @@ export default function RelatorioCrechePage() {
     ? `${formatDate(inicio, 'dd/MM/yyyy')} a ${formatDate(fim, 'dd/MM/yyyy')}`
     : ''
 
-  function montarDados(): RelatorioPDF {
-    return {
-      periodoLabel,
-      totalPresencas,
-      totalCaes: relatorio.length,
-      totalTutores: tutoresUnicos.length,
-      pets: relatorio.map(r => ({
-        nome: r.pet.nome,
-        detalhe: [r.pet.identificador, r.pet.raca, PORTE_LABELS[r.pet.porte], r.pet.data_nascimento ? calcIdade(r.pet.data_nascimento) : null].filter(Boolean).join(' · '),
-        tutor: [r.pet.tutor?.nome, r.pet.tutor?.telefone].filter(Boolean).join(' · '),
-        fotoUrl: r.pet.foto_url,
-        presencas: r.presencas.map(p => formatDate(p.data, 'dd/MM (EEE)')),
-        ocorrencias: r.ocorrencias.map(o => ({ data: formatDate(o.created_at, 'dd/MM'), descricao: o.descricao })),
-        vacinas: r.vacinas.map(v => ({ label: v.label, vencimento: formatDate(v.vencimento, 'dd/MM/yyyy'), vencida: v.vencida })),
-      })),
-    }
-  }
-
   function nomeArquivo(): string {
     const slug = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()
     const petSel = filtroCao ? pets.find(p => p.id === filtroCao) : null
@@ -234,11 +224,37 @@ export default function RelatorioCrechePage() {
     return `${base}.pdf`
   }
 
+  // Gera o PDF a partir do HTML do layout aprovado (captura com html2canvas)
+  async function gerarDoc() {
+    const logoDataUrl = await carregarImagemDataUrl('/logo-playdog.png')
+    const petsPDF: PetPDF[] = await Promise.all(relatorio.map(async r => ({
+      nome: r.pet.nome,
+      detalhe: [r.pet.identificador, r.pet.raca, PORTE_LABELS[r.pet.porte], r.pet.data_nascimento ? calcIdade(r.pet.data_nascimento) : null].filter(Boolean).join(' · '),
+      tutor: [r.pet.tutor?.nome, r.pet.tutor?.telefone].filter(Boolean).join(' · '),
+      fotoDataUrl: r.pet.foto_url ? await carregarImagemDataUrl(r.pet.foto_url) : null,
+      presencas: r.presencas.map(p => formatDate(p.data, 'dd/MM (EEE)')),
+      saldo: r.pet.saldo_diarias ?? 0,
+      ultimoPacote: r.ultimoPacote,
+      ocorrencias: r.ocorrencias.map(o => ({ data: formatDate(o.created_at, 'dd/MM'), descricao: o.descricao })),
+      vacinas: r.vacinas.map(v => ({ label: v.label, vencimento: formatDate(v.vencimento, 'dd/MM/yyyy'), vencida: v.vencida })),
+    })))
+
+    const host = pdfRef.current
+    if (!host) throw new Error('container indisponível')
+    host.innerHTML = montarHtmlRelatorio({ periodoLabel, logoDataUrl, pets: petsPDF })
+    await new Promise(r => setTimeout(r, 60))
+    try {
+      return await elementoParaPDF(host.firstElementChild as HTMLElement)
+    } finally {
+      host.innerHTML = ''
+    }
+  }
+
   async function salvar() {
     if (relatorio.length === 0) return
     setGerando(true)
     try {
-      const doc = await gerarRelatorioPDF(montarDados())
+      const doc = await gerarDoc()
       doc.save(nomeArquivo())
     } catch { alert('Não foi possível gerar o PDF. Tente novamente.') }
     setGerando(false)
@@ -249,7 +265,7 @@ export default function RelatorioCrechePage() {
     if (relatorio.length === 0) return
     setGerando(true)
     try {
-      const doc = await gerarRelatorioPDF(montarDados())
+      const doc = await gerarDoc()
       const blob = doc.output('blob')
       const file = new File([blob], nomeArquivo(), { type: 'application/pdf' })
       const nav = navigator as Navigator & { canShare?: (d: unknown) => boolean; share?: (d: unknown) => Promise<void> }
@@ -355,10 +371,6 @@ export default function RelatorioCrechePage() {
             <p className="text-2xl font-bold text-gray-700">{relatorio.length}</p>
             <p className="text-xs text-gray-500">Cães</p>
           </div>
-          <div className="flex-1 bg-gray-100 rounded-2xl p-3 text-center">
-            <p className="text-2xl font-bold text-gray-700">{tutoresUnicos.length}</p>
-            <p className="text-xs text-gray-500">Tutores</p>
-          </div>
         </div>
 
         {/* Lista (preview) */}
@@ -458,6 +470,8 @@ export default function RelatorioCrechePage() {
       )}
       <style>{`@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
 
+      {/* Container oculto usado para gerar o PDF (renderizado fora da tela) */}
+      <div ref={pdfRef} aria-hidden="true" style={{ position: 'absolute', left: -99999, top: 0, width: 760 }} />
     </>
   )
 }
