@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import { formatTime, formatDate, PORTE_LABELS } from '@/lib/utils'
-import { Dog, Clock, CheckCircle, Search, AlertCircle, Settings, CreditCard, AlertTriangle, BarChart2 } from 'lucide-react'
+import { Dog, Clock, CheckCircle, Search, AlertCircle, Settings, CreditCard, AlertTriangle, BarChart2, FileText } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Pet, Presenca } from '@/types'
@@ -129,6 +129,9 @@ export default function CrechePage() {
           <p className="text-sm text-gray-400">{formatDate(hoje, "dd 'de' MMMM, yyyy")}</p>
         </div>
         <div className="flex items-center gap-1">
+          <Link href="/creche/relatorio" className="p-2 rounded-xl text-gray-400 hover:text-brand-purple">
+            <FileText size={22} />
+          </Link>
           <Link href="/creche/resumo" className="p-2 rounded-xl text-gray-400 hover:text-brand-purple">
             <BarChart2 size={22} />
           </Link>
