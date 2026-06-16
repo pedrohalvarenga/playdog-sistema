@@ -30,6 +30,13 @@ const VACINAS = [
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
+function formatTelefone(t?: string): string {
+  const d = (t ?? '').replace(/\D/g, '')
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  return t ?? ''
+}
+
 /** Soma dias a uma data YYYY-MM-DD (cálculo em UTC para não escorregar fuso). */
 function addDias(iso: string, dias: number): string {
   const [y, m, d] = iso.split('-').map(Number)
@@ -230,7 +237,7 @@ export default function RelatorioCrechePage() {
     const petsPDF: PetPDF[] = await Promise.all(relatorio.map(async r => ({
       nome: r.pet.nome,
       detalhe: [r.pet.identificador, r.pet.raca, PORTE_LABELS[r.pet.porte], r.pet.data_nascimento ? calcIdade(r.pet.data_nascimento) : null].filter(Boolean).join(' · '),
-      tutor: [r.pet.tutor?.nome, r.pet.tutor?.telefone].filter(Boolean).join(' · '),
+      tutor: [r.pet.tutor?.nome, formatTelefone(r.pet.tutor?.telefone)].filter(Boolean).join(' · '),
       fotoDataUrl: r.pet.foto_url ? await carregarImagemDataUrl(r.pet.foto_url) : null,
       presencas: r.presencas.map(p => formatDate(p.data, 'dd/MM (EEE)')),
       saldo: r.pet.saldo_diarias ?? 0,
