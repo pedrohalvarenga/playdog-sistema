@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Printer, Send, Dog } from 'lucide-react'
-import Link from 'next/link'
+import { ArrowLeft, Download, Share2, Dog, X, Loader2, MessageCircle, Mail, Instagram, ChevronRight } from 'lucide-react'
 import { formatDate, calcIdade, PORTE_LABELS, vacinaStatus } from '@/lib/utils'
 import { hojeLocal } from '@/lib/datas'
+import { gerarRelatorioPDF, type RelatorioPDF } from '@/lib/pdfRelatorio'
 import type { Pet, Presenca, Ocorrencia } from '@/types'
 
 type PetComTutor = Pet & { tutor: { id: string; nome: string; telefone: string; email?: string } }
@@ -65,7 +65,9 @@ export default function RelatorioCrechePage() {
   const [pets, setPets] = useState<PetComTutor[]>([])
   const [relatorio, setRelatorio] = useState<PetRelatorio[]>([])
   const [loading, setLoading] = useState(true)
-  const [enviando, setEnviando] = useState(false)
+  const [, setEnviando] = useState(false)
+  const [gerando, setGerando] = useState(false)
+  const [sheetAberto, setSheetAberto] = useState(false)
 
   // Define o período a partir do preset escolhido
   useEffect(() => {
@@ -158,6 +160,23 @@ export default function RelatorioCrechePage() {
 
   useEffect(() => { carregar() }, [carregar])
 
+  // Pré-seleciona um cão quando a tela é aberta com ?pet=<id>
+  useEffect(() => {
+    if (pets.length === 0) return
+    const petId = new URLSearchParams(window.location.search).get('pet')
+    if (!petId) return
+    const pet = pets.find(p => p.id === petId)
+    if (pet) { setFiltroTutor(pet.tutor?.id ?? ''); setFiltroCao(pet.id) }
+    // aplica só na primeira carga dos pets
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pets.length])
+
+  function abrirRelatorioDoPet(pet: PetComTutor) {
+    setFiltroTutor(pet.tutor?.id ?? '')
+    setFiltroCao(pet.id)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const tutoresUnicos = useMemo(() => {
     const map = new Map<string, string>()
     pets.forEach(p => { if (p.tutor) map.set(p.tutor.id, p.tutor.nome) })
@@ -190,19 +209,66 @@ export default function RelatorioCrechePage() {
     ? `${formatDate(inicio, 'dd/MM/yyyy')} a ${formatDate(fim, 'dd/MM/yyyy')}`
     : ''
 
+  function montarDados(): RelatorioPDF {
+    return {
+      periodoLabel,
+      totalPresencas,
+      totalCaes: relatorio.length,
+      totalTutores: tutoresUnicos.length,
+      pets: relatorio.map(r => ({
+        nome: r.pet.nome,
+        detalhe: [r.pet.identificador, r.pet.raca, PORTE_LABELS[r.pet.porte], r.pet.data_nascimento ? calcIdade(r.pet.data_nascimento) : null].filter(Boolean).join(' · '),
+        tutor: [r.pet.tutor?.nome, r.pet.tutor?.telefone].filter(Boolean).join(' · '),
+        fotoUrl: r.pet.foto_url,
+        presencas: r.presencas.map(p => formatDate(p.data, 'dd/MM (EEE)')),
+        ocorrencias: r.ocorrencias.map(o => ({ data: formatDate(o.created_at, 'dd/MM'), descricao: o.descricao })),
+        vacinas: r.vacinas.map(v => ({ label: v.label, vencimento: formatDate(v.vencimento, 'dd/MM/yyyy'), vencida: v.vencida })),
+      })),
+    }
+  }
+
+  function nomeArquivo(): string {
+    const slug = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()
+    const petSel = filtroCao ? pets.find(p => p.id === filtroCao) : null
+    const base = petSel ? `relatorio-${slug(petSel.nome)}` : 'relatorio-presencas'
+    return `${base}.pdf`
+  }
+
+  async function salvar() {
+    if (relatorio.length === 0) return
+    setGerando(true)
+    try {
+      const doc = await gerarRelatorioPDF(montarDados())
+      doc.save(nomeArquivo())
+    } catch { alert('Não foi possível gerar o PDF. Tente novamente.') }
+    setGerando(false)
+    setSheetAberto(false)
+  }
+
+  async function compartilhar() {
+    if (relatorio.length === 0) return
+    setGerando(true)
+    try {
+      const doc = await gerarRelatorioPDF(montarDados())
+      const blob = doc.output('blob')
+      const file = new File([blob], nomeArquivo(), { type: 'application/pdf' })
+      const nav = navigator as Navigator & { canShare?: (d: unknown) => boolean; share?: (d: unknown) => Promise<void> }
+      if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+        await nav.share({ files: [file], title: 'Relatório de presenças — Play Dog' })
+      } else {
+        doc.save(nomeArquivo())
+        alert('Seu dispositivo não permite compartilhar direto. O PDF foi salvo para você anexar manualmente.')
+      }
+    } catch {
+      // usuário pode cancelar o compartilhamento — ignora
+    }
+    setGerando(false)
+    setSheetAberto(false)
+  }
+
   return (
     <>
-      <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          .print-only { display: block !important; }
-          body { background: #fff; }
-        }
-        .print-only { display: none; }
-      `}</style>
-
-      {/* ===================== TELA (não imprime) ===================== */}
-      <div className="no-print py-6 flex flex-col gap-4">
+      <div className="py-6 flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button onClick={() => router.push('/creche')} className="p-2 rounded-xl text-gray-400">
@@ -308,7 +374,11 @@ export default function RelatorioCrechePage() {
         ) : (
           <div className="flex flex-col gap-2">
             {relatorio.map(r => (
-              <div key={r.pet.id} className="bg-white border border-gray-100 rounded-2xl p-3 flex items-center gap-3 shadow-sm">
+              <button
+                key={r.pet.id}
+                onClick={() => abrirRelatorioDoPet(r.pet)}
+                className="w-full text-left bg-white border border-gray-100 rounded-2xl p-3 flex items-center gap-3 shadow-sm hover:border-brand-purple/40 active:scale-[0.99] transition"
+              >
                 <PetAvatar pet={r.pet} />
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-900 text-sm truncate">
@@ -321,138 +391,83 @@ export default function RelatorioCrechePage() {
                   <p className="text-base font-bold text-brand-purple">{r.presencas.length}</p>
                   <p className="text-[10px] text-gray-400">presenças</p>
                 </div>
-              </div>
+                <ChevronRight size={18} className="text-gray-300 flex-shrink-0" />
+              </button>
             ))}
+            {(filtroCao || filtroTutor) && (
+              <button
+                onClick={() => { setFiltroCao(''); setFiltroTutor('') }}
+                className="text-xs text-brand-purple font-semibold py-1"
+              >
+                ← Ver todos os cães
+              </button>
+            )}
           </div>
         )}
 
-        {/* Ações */}
-        <div className="flex gap-3 pt-1">
-          <button
-            onClick={() => window.print()}
-            disabled={relatorio.length === 0}
-            className="flex-1 flex items-center justify-center gap-2 border-2 border-gray-200 text-gray-700 rounded-2xl py-3 font-semibold disabled:opacity-40"
-          >
-            <Printer size={18} /> Gerar PDF
-          </button>
-          <button
-            onClick={enviarEmail}
-            disabled={enviando || !filtroTutor}
-            className="flex-1 flex items-center justify-center gap-2 bg-brand-purple text-white rounded-2xl py-3 font-semibold disabled:opacity-40"
-          >
-            <Send size={18} /> {enviando ? 'Enviando...' : 'Enviar e-mail'}
-          </button>
-        </div>
-        {!filtroTutor && (
-          <p className="text-[11px] text-gray-400 text-center -mt-2">
-            Selecione um tutor para habilitar o envio por e-mail.
-          </p>
-        )}
+        {/* Ação principal */}
+        <button
+          onClick={() => setSheetAberto(true)}
+          disabled={relatorio.length === 0 || gerando}
+          className="flex items-center justify-center gap-2 bg-brand-purple text-white rounded-2xl py-3.5 font-semibold disabled:opacity-40 shadow-sm"
+        >
+          {gerando ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
+          {gerando ? 'Gerando PDF...' : 'Salvar ou compartilhar PDF'}
+        </button>
       </div>
 
-      {/* ===================== PDF (somente impressão) ===================== */}
-      <div className="print-only" style={{ fontFamily: 'system-ui, sans-serif', color: '#2C2C2A' }}>
-        <div style={{ display: 'flex', height: 6 }}>
-          <div style={{ flex: 1, background: '#8A05BE' }} />
-          <div style={{ flex: 1, background: '#FF5600' }} />
-          <div style={{ flex: 1, background: '#00E9D2' }} />
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 4px 12px' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-playdog.png" alt="Play Dog" style={{ height: 54, width: 'auto' }} />
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>Relatório de presenças</div>
-            <div style={{ fontSize: 12, color: '#8A05BE' }}>{periodoLabel}</div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', borderTop: '1px solid #F1EFE8', borderBottom: '1px solid #F1EFE8', padding: '10px 0', marginBottom: 14 }}>
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#8A05BE' }}>{totalPresencas}</div>
-            <div style={{ fontSize: 10, color: '#888780' }}>Presenças no período</div>
-          </div>
-          <div style={{ flex: 1, textAlign: 'center', borderLeft: '1px solid #F1EFE8', borderRight: '1px solid #F1EFE8' }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#00B9A6' }}>{relatorio.length}</div>
-            <div style={{ fontSize: 10, color: '#888780' }}>Cães</div>
-          </div>
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#FF5600' }}>{tutoresUnicos.length}</div>
-            <div style={{ fontSize: 10, color: '#888780' }}>Tutores</div>
-          </div>
-        </div>
-
-        {relatorio.map(r => (
-          <div key={r.pet.id} style={{ marginBottom: 22, breakInside: 'avoid' }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              {r.pet.foto_url
-                ? <img src={r.pet.foto_url} alt={r.pet.nome} style={{ width: 58, height: 58, borderRadius: 14, objectFit: 'cover', border: '2px solid #EEEDFE' }} />
-                : <div style={{ width: 58, height: 58, borderRadius: 14, background: '#F4F0FB', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8A05BE', fontWeight: 700 }}>{r.pet.nome.charAt(0)}</div>}
-              <div>
-                <div style={{ fontSize: 17, fontWeight: 600, color: '#8A05BE' }}>{r.pet.nome}</div>
-                <div style={{ fontSize: 12, color: '#888780' }}>
-                  {[r.pet.identificador, r.pet.raca, PORTE_LABELS[r.pet.porte], r.pet.data_nascimento ? calcIdade(r.pet.data_nascimento) : null].filter(Boolean).join(' · ')}
-                </div>
-                <div style={{ fontSize: 12, color: '#888780' }}>
-                  Tutor: {r.pet.tutor?.nome}{r.pet.tutor?.telefone ? ` · ${r.pet.tutor.telefone}` : ''}
-                </div>
-              </div>
+      {/* ===================== Folha de compartilhamento ===================== */}
+      {sheetAberto && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={() => !gerando && setSheetAberto(false)}>
+          <div className="absolute inset-0 bg-black/40" />
+          <div
+            className="relative bg-white rounded-t-3xl p-5 pb-8 shadow-2xl animate-[slideUp_.2s_ease]"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Compartilhar relatório</h2>
+              <button onClick={() => setSheetAberto(false)} className="p-1 text-gray-400"><X size={22} /></button>
             </div>
 
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.04em', color: '#8A05BE', textTransform: 'uppercase', marginBottom: 8 }}>
-              Presenças no período ({r.presencas.length})
-            </div>
-            {r.presencas.length > 0 ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-                {r.presencas.map(p => (
-                  <span key={p.id} style={{ background: '#F4F0FB', borderRadius: 8, padding: '5px 10px', fontSize: 12, color: '#3C3489', fontWeight: 500 }}>
-                    {formatDate(p.data, 'dd/MM (EEE)')}
-                  </span>
-                ))}
+            {gerando ? (
+              <div className="flex flex-col items-center gap-3 py-8 text-gray-500">
+                <Loader2 size={28} className="animate-spin text-brand-purple" />
+                <p className="text-sm">Gerando o PDF...</p>
               </div>
             ) : (
-              <div style={{ fontSize: 12, color: '#888780', marginBottom: 14 }}>Sem presenças no período.</div>
-            )}
-
-            {r.ocorrencias.length > 0 && (
-              <div style={{ padding: '10px 2px', borderTop: '1px solid #F1EFE8' }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#FF5600', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 5 }}>
-                  Observações no período
-                </div>
-                {r.ocorrencias.map(o => (
-                  <div key={o.id} style={{ fontSize: 12, color: '#444441', lineHeight: 1.5, marginBottom: 3 }}>
-                    {formatDate(o.created_at, 'dd/MM')} — {o.descricao}
-                  </div>
-                ))}
+              <div className="grid grid-cols-4 gap-3">
+                <ShareOpt icon={<Download size={24} />} label="Salvar" cor="bg-purple-100 text-brand-purple" onClick={salvar} />
+                <ShareOpt icon={<MessageCircle size={24} />} label="WhatsApp" cor="bg-green-100 text-green-600" onClick={compartilhar} />
+                <ShareOpt icon={<Instagram size={24} />} label="Instagram" cor="bg-pink-100 text-pink-600" onClick={compartilhar} />
+                <ShareOpt
+                  icon={<Mail size={24} />} label="E-mail" cor="bg-blue-100 text-blue-600"
+                  onClick={() => { if (filtroTutor) { setSheetAberto(false); enviarEmail() } else { compartilhar() } }}
+                />
               </div>
             )}
 
-            {r.vacinas.length > 0 && (
-              <div style={{ padding: '10px 2px', borderTop: '1px solid #F1EFE8' }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#FF5600', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 5 }}>
-                  Vacina(s) a vencer (próximos 30 dias)
-                </div>
-                {r.vacinas.map(v => (
-                  <div key={v.label} style={{ fontSize: 12, color: '#444441', lineHeight: 1.5 }}>
-                    {v.label} {v.vencida ? 'venceu em' : 'vence em'} {formatDate(v.vencimento, 'dd/MM/yyyy')} — recomendamos agendar o reforço.
-                  </div>
-                ))}
-              </div>
+            {!gerando && (
+              <p className="text-[11px] text-gray-400 text-center mt-4">
+                {filtroTutor
+                  ? 'O e-mail é enviado direto ao tutor selecionado. WhatsApp e Instagram abrem o compartilhamento do seu aparelho.'
+                  : 'WhatsApp, Instagram e E-mail abrem o compartilhamento do seu aparelho. Selecione um tutor para enviar o e-mail automático.'}
+              </p>
             )}
-          </div>
-        ))}
-
-        <div style={{ marginTop: 18, padding: '12px 0', borderTop: '1px solid #F1EFE8', textAlign: 'center' }}>
-          <div style={{ fontSize: 11, color: '#5F5E5A' }}>
-            WhatsApp (32) 99165-1894 · @playdogjf · playdogjf.com.br
-          </div>
-          <div style={{ fontSize: 11, color: '#888780', marginTop: 4 }}>
-            Av. Presidente Costa e Silva, 2354 — São Pedro · Juiz de Fora / MG
           </div>
         </div>
-      </div>
+      )}
+      <style>{`@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
+
     </>
+  )
+}
+
+function ShareOpt({ icon, label, cor, onClick }: { icon: ReactNode; label: string; cor: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="flex flex-col items-center gap-1.5">
+      <span className={`w-14 h-14 rounded-2xl flex items-center justify-center ${cor}`}>{icon}</span>
+      <span className="text-[11px] text-gray-600 font-medium">{label}</span>
+    </button>
   )
 }
 

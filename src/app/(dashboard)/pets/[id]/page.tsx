@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { formatDate, calcIdade, PLANO_LABELS, PORTE_LABELS, vacinaStatus, whatsappUrl } from '@/lib/utils'
 import Badge from '@/components/ui/Badge'
 import Card from '@/components/ui/Card'
-import { Dog, Phone, Calendar, Syringe, ArrowLeft, Edit, Pill, MessageCircle, AlertTriangle, CreditCard, SlidersHorizontal, Plus } from 'lucide-react'
+import { Dog, Phone, Calendar, Syringe, ArrowLeft, Edit, Pill, MessageCircle, AlertTriangle, CreditCard, SlidersHorizontal, Plus, FileText, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Pet } from '@/types'
@@ -155,6 +155,23 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
           )}
         </div>
       </Card>
+
+      {/* Relatório de presenças */}
+      <Link
+        href={`/creche/relatorio?pet=${id}`}
+        className="flex items-center justify-between bg-white border border-gray-100 rounded-2xl px-4 py-3 shadow-sm"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
+            <FileText size={18} className="text-brand-purple" />
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900 text-sm">Relatório de presenças</p>
+            <p className="text-xs text-gray-400">Extrato em PDF do período</p>
+          </div>
+        </div>
+        <ChevronRight size={18} className="text-gray-300" />
+      </Link>
 
       {/* Saldo de diárias */}
       <Card className={p.saldo_diarias < 0 ? 'border-2 border-red-300 bg-red-50' : p.saldo_diarias === 0 ? 'border-2 border-yellow-200' : ''}>
