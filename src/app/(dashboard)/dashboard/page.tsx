@@ -13,19 +13,23 @@ async function getStats() {
   const supabase = await createClient()
   const hoje = hojeLocal()
 
-  const [presencasHoje, totalPets, totalTutores, hospedadosHoje, banhoHoje] = await Promise.all([
+  const [presencasHoje, petsAtivos, hospedadosHoje, banhoHoje] = await Promise.all([
     supabase.from('presencas').select('id', { count: 'exact' }).eq('data', hoje).is('checkout_at', null),
-    supabase.from('pets').select('id', { count: 'exact' }).eq('ativo', true),
-    supabase.from('tutores').select('id', { count: 'exact' }),
+    // Uma única fonte para pets e tutores: assim os dois cards usam a mesma base
+    // (pets ativos) e o nº de tutores nunca passa o de pets.
+    supabase.from('pets').select('tutor_id').eq('ativo', true),
     supabase.from('hospedagens').select('id', { count: 'exact' }).eq('status', 'hospedado'),
     supabase.from('agendamentos_banho_tosa').select('id', { count: 'exact' })
       .eq('data', hoje).not('status', 'in', '(cancelado,entregue)'),
   ])
 
+  const pets = (petsAtivos.data ?? []) as { tutor_id: string }[]
+  const tutoresComPet = new Set(pets.map(p => p.tutor_id))
+
   return {
     petsPresentes: presencasHoje.count ?? 0,
-    totalPets: totalPets.count ?? 0,
-    totalTutores: totalTutores.count ?? 0,
+    totalPets: pets.length,
+    totalTutores: tutoresComPet.size,
     hospedados: hospedadosHoje.count ?? 0,
     banhoHoje: banhoHoje.count ?? 0,
   }
