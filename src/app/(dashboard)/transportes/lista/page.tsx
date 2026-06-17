@@ -197,23 +197,40 @@ export default function ListaRapidaPage() {
       telefone = telefone ?? (tut as { telefone: string | null } | null)?.telefone ?? null
     }
 
-    const proxOrdem = itens.length
-      ? Math.max(...itens.map(t => t.ordem ?? 0)) + 1
-      : 1
+    // Padrão: quem vem também volta — cria coleta (buscar) E entrega (levar).
+    // Se o cão vier e não voltar (ou o contrário), apaga-se o trecho à mão.
+    const { data: doDia } = await supabase
+      .from('transportes')
+      .select('id, tipo, ordem, pet_id')
+      .eq('data', data)
+      .not('status', 'eq', 'cancelado')
+    const rows = (doDia as { tipo: TrechoTransporte; ordem: number | null; pet_id: string }[]) ?? []
+    const maxOrdem = (tp: TrechoTransporte) => {
+      const os = rows.filter(r => r.tipo === tp).map(r => r.ordem ?? 0)
+      return os.length ? Math.max(...os) : 0
+    }
+    const jaTem = (tp: TrechoTransporte) => rows.some(r => r.pet_id === opts.pet_id && r.tipo === tp)
 
-    await supabase.from('transportes').insert({
+    const base = {
       origem: 'creche',
       origem_id: null,
       pet_id: opts.pet_id,
       data,
-      horario: opts.horario || null,
-      tipo: trecho,
       endereco: endereco?.trim() || 'A definir',
       telefone: telefone || null,
       meio: 'playdog',
       status: 'pendente',
-      ordem: proxOrdem,
-    })
+    }
+    const inserts = (['buscar', 'levar'] as TrechoTransporte[])
+      .filter(tp => !jaTem(tp))
+      .map(tp => ({
+        ...base,
+        tipo: tp,
+        // o horário digitado/sugerido vale para o trecho aberto; o espelho começa sem horário
+        horario: tp === trecho ? (opts.horario || null) : null,
+        ordem: maxOrdem(tp) + 1,
+      }))
+    if (inserts.length) await supabase.from('transportes').insert(inserts)
 
     setBusca('')
     setResultados([])
@@ -323,7 +340,7 @@ export default function ListaRapidaPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Lista rápida</h1>
-          <p className="text-sm text-gray-400">Nome e horário na ordem da roda</p>
+          <p className="text-sm text-gray-400">Quem adicionar entra na coleta e na entrega</p>
         </div>
       </div>
 
