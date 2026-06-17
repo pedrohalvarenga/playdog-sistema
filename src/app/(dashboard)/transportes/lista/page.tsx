@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   ArrowLeft, ChevronLeft, ChevronRight, Search, X, Plus, Clock,
-  Sparkles, ChevronUp, ChevronDown, Car, Check,
+  Sparkles, ChevronUp, ChevronDown, Car, Check, GripVertical,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -65,6 +65,11 @@ export default function ListaRapidaPage() {
   const [resultados, setResultados] = useState<BuscaPet[]>([])
   const [adicionando, setAdicionando] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Arrastar para reordenar
+  const [arrastandoId, setArrastandoId] = useState<string | null>(null)
+  const rowRefs = useRef<(HTMLDivElement | null)[]>([])
+  const dragIdx = useRef<number | null>(null)
 
   const perfilCarregado = profile != null
   const podeEditar = profile?.role === 'admin' || profile?.role === 'recepcao'
@@ -224,7 +229,15 @@ export default function ListaRapidaPage() {
     await supabase.from('transportes').update({ horario: valor || null }).eq('id', t.id)
   }
 
-  // ── Reordena (sobe/desce) ─────────────────────────────────────
+  // ── Grava a ordem atual no banco ──────────────────────────────
+  async function persistirOrdem(arr: Transporte[]) {
+    const supabase = createClient()
+    await Promise.all(arr.map((t, i) =>
+      supabase.from('transportes').update({ ordem: i + 1 }).eq('id', t.id)
+    ))
+  }
+
+  // ── Reordena pelas setas (sobe/desce) ─────────────────────────
   async function mover(idx: number, delta: number) {
     const destino = idx + delta
     if (destino < 0 || destino >= itens.length) return
@@ -232,10 +245,43 @@ export default function ListaRapidaPage() {
     const [item] = novo.splice(idx, 1)
     novo.splice(destino, 0, item)
     setItens(novo)
-    const supabase = createClient()
-    await Promise.all(novo.map((t, i) =>
-      supabase.from('transportes').update({ ordem: i + 1 }).eq('id', t.id)
-    ))
+    await persistirOrdem(novo)
+  }
+
+  // ── Reordena arrastando (toque ou mouse) ──────────────────────
+  function iniciarArraste(e: React.PointerEvent, idx: number) {
+    e.preventDefault()
+    dragIdx.current = idx
+    setArrastandoId(itens[idx].id)
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  function moverArraste(e: React.PointerEvent) {
+    if (dragIdx.current == null) return
+    const y = e.clientY
+    let alvo = itens.length - 1
+    for (let i = 0; i < itens.length; i++) {
+      const el = rowRefs.current[i]
+      if (!el) continue
+      const r = el.getBoundingClientRect()
+      if (y < r.top + r.height / 2) { alvo = i; break }
+    }
+    if (alvo !== dragIdx.current) {
+      setItens(prev => {
+        const arr = [...prev]
+        const [it] = arr.splice(dragIdx.current as number, 1)
+        arr.splice(alvo, 0, it)
+        return arr
+      })
+      dragIdx.current = alvo
+    }
+  }
+
+  async function fimArraste() {
+    if (dragIdx.current == null) return
+    dragIdx.current = null
+    setArrastandoId(null)
+    await persistirOrdem(itens)
   }
 
   async function remover(t: Transporte) {
@@ -392,11 +438,26 @@ export default function ListaRapidaPage() {
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
             Lista do motorista ({itens.length})
           </p>
+          <p className="text-[11px] text-gray-400 -mt-1">Arraste pela alça <GripVertical size={11} className="inline -mt-0.5" /> para mudar a ordem</p>
           {itens.map((t, idx) => (
-            <div key={t.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-full bg-brand-orange text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
-                {idx + 1}
-              </span>
+            <div key={t.id}
+              ref={el => { rowRefs.current[idx] = el }}
+              className={`bg-white rounded-2xl border shadow-sm p-3 flex items-center gap-1.5 transition-shadow ${
+                arrastandoId === t.id ? 'border-brand-purple ring-2 ring-purple-200 shadow-lg opacity-90' : 'border-gray-100'
+              }`}>
+              {/* Alça de arraste */}
+              <div
+                onPointerDown={e => iniciarArraste(e, idx)}
+                onPointerMove={moverArraste}
+                onPointerUp={fimArraste}
+                onPointerCancel={fimArraste}
+                className="flex items-center gap-1 flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-gray-300"
+                title="Arraste para reordenar">
+                <GripVertical size={16} />
+                <span className="w-7 h-7 rounded-full bg-brand-orange text-white text-xs font-bold flex items-center justify-center">
+                  {idx + 1}
+                </span>
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-gray-900 truncate">
                   {t.pet?.nome ?? 'Pet'}
