@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   ChevronLeft, ChevronRight, Car, MapPin, Phone, Plus, X, Search,
-  Check, Route, Fuel, Wrench, FileText, RotateCcw,
+  Check, Route, Fuel, Wrench, FileText, RotateCcw, ListChecks,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -272,6 +272,9 @@ export default function TransportesPage() {
           <p className="text-sm text-gray-400">Passageiros do dia · Taxi Dog</p>
         </div>
         <div className="flex items-center gap-1">
+          <Link href="/transportes/lista" className="p-2.5 rounded-xl bg-purple-100 text-brand-purple" title="Lista rápida (nome + horário)">
+            <ListChecks size={18} />
+          </Link>
           <Link href="/transportes/abastecimento" className="p-2.5 rounded-xl bg-orange-100 text-brand-orange" title="Registrar abastecimento">
             <Fuel size={18} />
           </Link>
