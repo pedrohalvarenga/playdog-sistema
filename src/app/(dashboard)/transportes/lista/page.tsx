@@ -70,6 +70,8 @@ export default function ListaRapidaPage() {
   const [arrastandoId, setArrastandoId] = useState<string | null>(null)
   const rowRefs = useRef<(HTMLDivElement | null)[]>([])
   const dragIdx = useRef<number | null>(null)
+  const itensRef = useRef<Transporte[]>([])
+  useEffect(() => { itensRef.current = itens }, [itens])
 
   const perfilCarregado = profile != null
   const podeEditar = profile?.role === 'admin' || profile?.role === 'recepcao'
@@ -266,40 +268,54 @@ export default function ListaRapidaPage() {
   }
 
   // ── Reordena arrastando (toque ou mouse) ──────────────────────
-  function iniciarArraste(e: React.PointerEvent, idx: number) {
-    e.preventDefault()
-    dragIdx.current = idx
-    setArrastandoId(itens[idx].id)
-    e.currentTarget.setPointerCapture(e.pointerId)
-  }
-
-  function moverArraste(e: React.PointerEvent) {
+  // Usa listeners globais no window: setPointerCapture + eventos sintéticos
+  // do React não são confiáveis durante o re-render da lista.
+  const onPointerMoveWin = useCallback((e: PointerEvent) => {
     if (dragIdx.current == null) return
+    e.preventDefault()
     const y = e.clientY
-    let alvo = itens.length - 1
-    for (let i = 0; i < itens.length; i++) {
+    const n = itensRef.current.length
+    let alvo = n - 1
+    for (let i = 0; i < n; i++) {
       const el = rowRefs.current[i]
       if (!el) continue
       const r = el.getBoundingClientRect()
       if (y < r.top + r.height / 2) { alvo = i; break }
     }
     if (alvo !== dragIdx.current) {
+      const de = dragIdx.current
       setItens(prev => {
         const arr = [...prev]
-        const [it] = arr.splice(dragIdx.current as number, 1)
+        const [it] = arr.splice(de, 1)
         arr.splice(alvo, 0, it)
         return arr
       })
       dragIdx.current = alvo
     }
-  }
+  }, [])
 
-  async function fimArraste() {
+  const onPointerUpWin = useCallback(async () => {
+    window.removeEventListener('pointermove', onPointerMoveWin)
+    window.removeEventListener('pointerup', onPointerUpWin)
     if (dragIdx.current == null) return
     dragIdx.current = null
     setArrastandoId(null)
-    await persistirOrdem(itens)
+    await persistirOrdem(itensRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onPointerMoveWin])
+
+  function iniciarArraste(e: React.PointerEvent, idx: number) {
+    e.preventDefault()
+    dragIdx.current = idx
+    setArrastandoId(itens[idx].id)
+    window.addEventListener('pointermove', onPointerMoveWin, { passive: false })
+    window.addEventListener('pointerup', onPointerUpWin)
   }
+
+  useEffect(() => () => {
+    window.removeEventListener('pointermove', onPointerMoveWin)
+    window.removeEventListener('pointerup', onPointerUpWin)
+  }, [onPointerMoveWin, onPointerUpWin])
 
   async function remover(t: Transporte) {
     setItens(prev => prev.filter(x => x.id !== t.id))
@@ -465,9 +481,6 @@ export default function ListaRapidaPage() {
               {/* Alça de arraste */}
               <div
                 onPointerDown={e => iniciarArraste(e, idx)}
-                onPointerMove={moverArraste}
-                onPointerUp={fimArraste}
-                onPointerCancel={fimArraste}
                 className="flex items-center gap-1 flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-gray-300"
                 title="Arraste para reordenar">
                 <GripVertical size={16} />
