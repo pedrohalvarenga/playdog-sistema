@@ -8,6 +8,8 @@ import Input from '@/components/ui/Input'
 import { ArrowLeft, Dog } from 'lucide-react'
 import Link from 'next/link'
 import type { Pet, Tutor, FormaPagamentoCreche } from '@/types'
+import type { ContaFinanceira, FormaPagamento, TipoConta, CategoriaReceita } from '@/types/financeiro'
+import { TAXAS_PADRAO, calcValorLiquido } from '@/lib/financeiro'
 import { hojeLocal } from '@/lib/datas'
 
 const FORMAS: { value: FormaPagamentoCreche; label: string }[] = [
@@ -18,6 +20,16 @@ const FORMAS: { value: FormaPagamentoCreche; label: string }[] = [
   { value: 'credito', label: 'Crédito' },
 ]
 
+// Mapeia a forma de pagamento da creche para a receita do Financeiro
+// (forma + tipo de conta de destino).
+const MAPA_PAGAMENTO: Record<FormaPagamentoCreche, { forma: FormaPagamento; contaTipo: TipoConta }> = {
+  pix_pagbank: { forma: 'pix', contaTipo: 'pagbank_pj' },
+  pix_c6:      { forma: 'pix', contaTipo: 'c6_pf' },
+  dinheiro:    { forma: 'dinheiro', contaTipo: 'dinheiro' },
+  debito:      { forma: 'debito', contaTipo: 'pagbank_pj' },
+  credito:     { forma: 'credito', contaTipo: 'pagbank_pj' },
+}
+
 type PetComTutor = Pet & { tutor: Tutor }
 
 export default function ComprarDiariasPage() {
@@ -26,6 +38,7 @@ export default function ComprarDiariasPage() {
   const router = useRouter()
 
   const [pet, setPet] = useState<PetComTutor | null>(null)
+  const [contas, setContas] = useState<ContaFinanceira[]>([])
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState(false)
 
@@ -38,12 +51,12 @@ export default function ComprarDiariasPage() {
   useEffect(() => {
     async function load() {
       const supabase = createClient()
-      const { data } = await supabase
-        .from('pets')
-        .select('*, tutor:tutores(*)')
-        .eq('id', petId)
-        .single()
+      const [{ data }, { data: contasData }] = await Promise.all([
+        supabase.from('pets').select('*, tutor:tutores(*)').eq('id', petId).single(),
+        supabase.from('contas_financeiras').select('*').eq('ativo', true),
+      ])
       setPet(data as PetComTutor)
+      if (contasData) setContas(contasData as ContaFinanceira[])
       setLoading(false)
     }
     load()
@@ -73,13 +86,49 @@ export default function ComprarDiariasPage() {
 
     if (errCompra) { setSalvando(false); alert('Erro ao registrar compra'); return }
 
-    // Credita saldo no pet
-    const { error: errSaldo } = await supabase
-      .from('pets')
-      .update({ saldo_diarias: (pet.saldo_diarias ?? 0) + qtd })
-      .eq('id', petId)
+    if (valor > 0) {
+      // Gera a receita no Financeiro. O trigger creditar_diarias_receita
+      // credita o saldo_diarias do pet automaticamente — por isso NÃO
+      // creditamos o saldo na mão aqui (senão dobraria). Apagar a receita
+      // no Financeiro estorna as diárias pelo mesmo trigger.
+      const mapa = MAPA_PAGAMENTO[formaPagamento]
+      const conta = contas.find(c => c.tipo === mapa.contaTipo)
+      const aplicaTaxa = (mapa.forma === 'debito' || mapa.forma === 'credito') && conta?.tipo === 'pagbank_pj'
+      const taxa = aplicaTaxa ? TAXAS_PADRAO[mapa.forma] : null
+      const categoria: CategoriaReceita = qtd >= 20 ? 'pacote_mensal' : qtd >= 5 ? 'pacote_semanal' : 'diaria_avulsa'
 
-    if (errSaldo) { setSalvando(false); alert('Compra registrada mas erro ao atualizar saldo'); return }
+      const { error: errReceita } = await supabase.from('receitas').insert({
+        data,
+        valor,
+        area: 'creche',
+        categoria,
+        forma_pagamento: mapa.forma,
+        conta_id: conta?.id ?? null,
+        taxa_cartao: taxa,
+        valor_liquido: taxa != null ? calcValorLiquido(valor, taxa) : null,
+        tutor_id: pet.tutor_id,
+        pet_id: petId,
+        num_diarias: qtd,
+        descricao: observacoes || `Compra de ${qtd} diária${qtd !== 1 ? 's' : ''} — ${pet.nome}`,
+        status: 'pago',
+        registrado_por: user?.id,
+      })
+
+      if (errReceita) {
+        setSalvando(false)
+        alert('Compra registrada, mas erro ao gerar a receita no Financeiro: ' + errReceita.message)
+        return
+      }
+      // saldo_diarias é creditado pelo trigger ao inserir a receita
+    } else {
+      // Sem valor pago: não há movimento no Financeiro, credita o saldo na mão
+      const { error: errSaldo } = await supabase
+        .from('pets')
+        .update({ saldo_diarias: (pet.saldo_diarias ?? 0) + qtd })
+        .eq('id', petId)
+
+      if (errSaldo) { setSalvando(false); alert('Compra registrada mas erro ao atualizar saldo'); return }
+    }
 
     router.push('/creche')
   }
