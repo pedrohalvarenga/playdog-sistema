@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { LogOut, Bell } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -31,9 +31,6 @@ export default function TopBar({ titulo, nome }: TopBarProps) {
           </div>
         </Link>
         <div className="flex items-center gap-2">
-          <button className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50">
-            <Bell size={20} />
-          </button>
           <button
             onClick={handleLogout}
             className="p-2 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50"

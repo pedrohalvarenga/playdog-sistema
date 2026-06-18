@@ -33,14 +33,17 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
   const [statusPag, setStatusPag] = useState<'pago' | 'pendente'>('pago')
   const [execPor, setExecPor] = useState('')
   const [usarPacote, setUsarPacote] = useState(false)
+  const [erroPag, setErroPag] = useState('')
   const [salvandoPag, setSalvandoPag] = useState(false)
 
   // Modal cancelamento
   const [showCancel, setShowCancel] = useState(false)
   const [motivoCancel, setMotivoCancel] = useState('')
 
-  const podePagar   = profile?.role === 'admin' || profile?.role === 'recepcao'
-  const podeEditar  = podePagar
+  // Admin, recepção e o funcionário do banho podem registrar pagamento/entrega.
+  const podePagar   = profile?.role === 'admin' || profile?.role === 'recepcao' || profile?.role === 'banho_tosa'
+  // Editar/cancelar continua com admin e recepção.
+  const podeEditar  = profile?.role === 'admin' || profile?.role === 'recepcao'
   const podeAvancar = profile?.role !== 'motorista'
 
   const carregar = useCallback(async () => {
@@ -60,6 +63,7 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
     if (!ag || !showPag) return
     setValorServico(ag.valor_servico != null ? ag.valor_servico.toFixed(2) : '')
     setValorTaxi(ag.valor_taxi != null ? ag.valor_taxi.toFixed(2) : '')
+    setErroPag('')
     const temCredito = ag.pet?.tipo_banho === 'pacote' && (ag.pet?.saldo_banhos ?? 0) > 0
     setUsarPacote(!!temCredito)
   }, [ag, showPag])
@@ -77,13 +81,24 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
 
   async function confirmarEntrega() {
     if (!ag) return
-    setSalvandoPag(true)
-    const supabase = createClient()
+    // Guarda: não reprocessa atendimento já finalizado/cancelado
+    if (ag.status === 'entregue' || ag.status === 'cancelado') { setShowPag(false); return }
+
     const pet = ag.pet!
     const vServico = parseFloat(valorServico.replace(',', '.')) || 0
     const vTaxi    = parseFloat(valorTaxi.replace(',', '.')) || 0
     const temCredito = pet.tipo_banho === 'pacote' && (pet.saldo_banhos ?? 0) > 0
     const pagarComPacote = usarPacote && temCredito
+
+    // Validação: precisa usar o pacote OU informar o valor do serviço
+    if (!pagarComPacote && vServico <= 0) {
+      setErroPag('Informe o valor do serviço ou use o crédito do pacote.')
+      return
+    }
+
+    setErroPag('')
+    setSalvandoPag(true)
+    const supabase = createClient()
     const updates: Record<string, unknown> = {
       status: 'entregue',
       hora_saida_real: new Date().toISOString(),
@@ -91,10 +106,10 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
     }
 
     if (pagarComPacote) {
-      // Usa 1 crédito do pacote — sem cobrança extra, sem receita do serviço
-      await supabase.rpc('consumir_credito_banho', { p_pet_id: pet.id })
+      const { error } = await supabase.rpc('consumir_credito_banho', { p_pet_id: pet.id })
+      if (error) { setErroPag('Erro ao usar o crédito do pacote: ' + error.message); setSalvandoPag(false); return }
     } else if (vServico > 0) {
-      const { data: r1 } = await supabase.from('receitas').insert({
+      const { data: r1, error } = await supabase.from('receitas').insert({
         data: hojeLocal(),
         valor: vServico,
         area: 'banho_tosa',
@@ -107,11 +122,12 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
         pet_id: pet.id,
         executado_por: execPor || null,
       }).select('id').single()
+      if (error) { setErroPag('Erro ao registrar a receita do serviço: ' + error.message); setSalvandoPag(false); return }
       if (r1) updates.receita_servico_id = r1.id
     }
 
     if (ag.taxi_dog && vTaxi > 0) {
-      const { data: r2 } = await supabase.from('receitas').insert({
+      const { data: r2, error } = await supabase.from('receitas').insert({
         data: hojeLocal(),
         valor: vTaxi,
         area: 'transporte',
@@ -123,10 +139,13 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
         tutor_id: pet.tutor_id,
         pet_id: pet.id,
       }).select('id').single()
+      if (error) { setErroPag('Erro ao registrar a receita do taxi: ' + error.message); setSalvandoPag(false); return }
       if (r2) updates.receita_taxi_id = r2.id
     }
 
-    await supabase.from('agendamentos_banho_tosa').update(updates).eq('id', id)
+    const { error: errUp } = await supabase.from('agendamentos_banho_tosa').update(updates).eq('id', id)
+    if (errUp) { setErroPag('Erro ao concluir a entrega: ' + errUp.message); setSalvandoPag(false); return }
+
     setSalvandoPag(false)
     setShowPag(false)
     await carregar()
@@ -139,7 +158,11 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
     await supabase.from('agendamentos_banho_tosa')
       .update({ status: 'cancelado', motivo_cancelamento: motivoCancel.trim() })
       .eq('id', id)
-    await supabase.from('transportes').update({ status: 'cancelado' }).eq('origem_id', id)
+    await supabase.from('transportes')
+      .update({ status: 'cancelado' })
+      .eq('origem', 'banho_tosa')
+      .eq('origem_id', id)
+      .in('status', ['pendente', 'em_rota'])
     setShowCancel(false)
     setAgindo(false)
     router.push('/banho-tosa')
@@ -210,7 +233,7 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
                 {pet.saldo_banhos ?? 0} banho{(pet.saldo_banhos ?? 0) !== 1 ? 's' : ''}
               </p>
             </div>
-            {podePagar && (
+            {podeEditar && (
               <div className="flex gap-2 flex-shrink-0">
                 <Link href={`/banho-tosa/comprar-pacote/${pet.id}`} className="flex items-center gap-1.5 bg-brand-teal text-white px-3 py-2 rounded-xl text-xs font-semibold">
                   <Check size={14} /> Vender
@@ -320,7 +343,7 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
             </button>
           )}
 
-          {podePagar && (
+          {podeEditar && (
             <button
               onClick={() => setShowCancel(true)}
               className="w-full py-3 rounded-2xl border-2 border-red-200 text-red-500 font-semibold text-sm flex items-center justify-center gap-2"
@@ -433,6 +456,8 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
                 </div>
               )}
             </div>
+
+            {erroPag && <p className="text-sm text-red-500 bg-red-50 rounded-xl px-4 py-3">{erroPag}</p>}
 
             <div className="grid grid-cols-2 gap-3">
               <button onClick={() => setShowPag(false)}

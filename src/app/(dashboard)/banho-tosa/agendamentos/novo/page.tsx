@@ -47,11 +47,14 @@ export default function NovoAgendamentoPage() {
     setBuscando(true)
     const t = setTimeout(async () => {
       const supabase = createClient()
+      // Remove caracteres que quebram o filtro `or` do PostgREST (vírgula, parênteses, %)
+      const termo = petBusca.toLowerCase().replace(/[%,()]/g, ' ').trim()
+      if (!termo) { setPetSugestoes([]); setBuscando(false); return }
       const { data: pets } = await supabase
         .from('pets')
         .select('*, tutor:tutores(nome, telefone, endereco)')
         .eq('ativo', true)
-        .or(`nome.ilike.%${petBusca.toLowerCase()}%,identificador.ilike.%${petBusca.toLowerCase()}%`)
+        .or(`nome.ilike.%${termo}%,identificador.ilike.%${termo}%`)
         .limit(8)
       setPetSugestoes((pets as PetComTutor[]) ?? [])
       setBuscando(false)

@@ -78,8 +78,13 @@ export default function EditarAgendamentoPage({ params }: { params: Promise<{ id
       valor_taxi: taxiDog && valorTaxi ? parseFloat(valorTaxi.replace(',', '.')) : null,
     }).eq('id', id)
 
-    // Recria registros de transporte
-    await supabase.from('transportes').delete().eq('origem_id', id)
+    // Recria registros de transporte — preserva os que já saíram (em_rota/concluído),
+    // removendo só os pendentes desta origem.
+    await supabase.from('transportes')
+      .delete()
+      .eq('origem', 'banho_tosa')
+      .eq('origem_id', id)
+      .eq('status', 'pendente')
     if (taxiDog) {
       const tipos = taxiTipo === 'ambos' ? (['buscar', 'levar'] as const) : ([taxiTipo] as const)
       await supabase.from('transportes').insert(

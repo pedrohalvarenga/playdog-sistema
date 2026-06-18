@@ -42,6 +42,7 @@ export default function BanhoTosaPage() {
   const [statusPag, setStatusPag] = useState<'pago' | 'pendente'>('pago')
   const [execPor, setExecPor] = useState('')
   const [usarPacote, setUsarPacote] = useState(false)
+  const [erroPag, setErroPag] = useState('')
   const [salvandoPag, setSalvandoPag] = useState(false)
 
   // Estado do modal de cancelamento
@@ -50,9 +51,11 @@ export default function BanhoTosaPage() {
   const [cancelando, setCancelando] = useState(false)
 
   const hoje = toLocalDate(new Date())
-  const podePagar = profile?.role === 'admin' || profile?.role === 'recepcao'
-  // Banho & Tosa também pode cadastrar/agendar novos banhos (mas não registra o pagamento)
-  const podeNovo  = podePagar || profile?.role === 'banho_tosa'
+  // Admin, recepção e o funcionário do banho podem registrar pagamento/entrega.
+  const podePagar = profile?.role === 'admin' || profile?.role === 'recepcao' || profile?.role === 'banho_tosa'
+  // Criar / cancelar agendamento é só admin e recepção.
+  const podeGerenciar = profile?.role === 'admin' || profile?.role === 'recepcao'
+  const podeNovo  = podeGerenciar
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -102,6 +105,7 @@ export default function BanhoTosaPage() {
     setFormaPag('pix')
     setStatusPag('pago')
     setExecPor('')
+    setErroPag('')
     // Cliente de pacote com saldo: já vem marcado para usar o crédito
     const temCredito = ag.pet?.tipo_banho === 'pacote' && (ag.pet?.saldo_banhos ?? 0) > 0
     setUsarPacote(!!temCredito)
@@ -109,13 +113,24 @@ export default function BanhoTosaPage() {
 
   async function confirmarEntrega() {
     if (!modalPag) return
-    setSalvandoPag(true)
-    const supabase = createClient()
+    // Guarda: não reprocessa atendimento já finalizado/cancelado
+    if (modalPag.status === 'entregue' || modalPag.status === 'cancelado') { setModalPag(null); return }
+
     const pet = modalPag.pet!
     const vServico = parseFloat(valorServico.replace(',', '.')) || 0
     const vTaxi    = parseFloat(valorTaxi.replace(',', '.')) || 0
     const temCredito = pet.tipo_banho === 'pacote' && (pet.saldo_banhos ?? 0) > 0
     const pagarComPacote = usarPacote && temCredito
+
+    // Validação: precisa usar o pacote OU informar o valor do serviço
+    if (!pagarComPacote && vServico <= 0) {
+      setErroPag('Informe o valor do serviço ou use o crédito do pacote.')
+      return
+    }
+
+    setErroPag('')
+    setSalvandoPag(true)
+    const supabase = createClient()
     const updates: Record<string, unknown> = {
       status: 'entregue',
       hora_saida_real: new Date().toISOString(),
@@ -124,9 +139,10 @@ export default function BanhoTosaPage() {
 
     if (pagarComPacote) {
       // Usa 1 crédito do pacote — sem cobrança extra, sem receita do serviço
-      await supabase.rpc('consumir_credito_banho', { p_pet_id: pet.id })
+      const { error } = await supabase.rpc('consumir_credito_banho', { p_pet_id: pet.id })
+      if (error) { setErroPag('Erro ao usar o crédito do pacote: ' + error.message); setSalvandoPag(false); return }
     } else if (vServico > 0) {
-      const { data: r1 } = await supabase.from('receitas').insert({
+      const { data: r1, error } = await supabase.from('receitas').insert({
         data: hojeLocal(),
         valor: vServico,
         area: 'banho_tosa',
@@ -139,11 +155,12 @@ export default function BanhoTosaPage() {
         pet_id: pet.id,
         executado_por: execPor || null,
       }).select('id').single()
+      if (error) { setErroPag('Erro ao registrar a receita do serviço: ' + error.message); setSalvandoPag(false); return }
       if (r1) updates.receita_servico_id = r1.id
     }
 
     if (modalPag.taxi_dog && vTaxi > 0) {
-      const { data: r2 } = await supabase.from('receitas').insert({
+      const { data: r2, error } = await supabase.from('receitas').insert({
         data: hojeLocal(),
         valor: vTaxi,
         area: 'transporte',
@@ -155,10 +172,13 @@ export default function BanhoTosaPage() {
         tutor_id: pet.tutor_id,
         pet_id: pet.id,
       }).select('id').single()
+      if (error) { setErroPag('Erro ao registrar a receita do taxi: ' + error.message); setSalvandoPag(false); return }
       if (r2) updates.receita_taxi_id = r2.id
     }
 
-    await supabase.from('agendamentos_banho_tosa').update(updates).eq('id', modalPag.id)
+    const { error: errUp } = await supabase.from('agendamentos_banho_tosa').update(updates).eq('id', modalPag.id)
+    if (errUp) { setErroPag('Erro ao concluir a entrega: ' + errUp.message); setSalvandoPag(false); return }
+
     setSalvandoPag(false)
     setModalPag(null)
     await carregar()
@@ -171,10 +191,12 @@ export default function BanhoTosaPage() {
     await supabase.from('agendamentos_banho_tosa')
       .update({ status: 'cancelado', motivo_cancelamento: motivoCancel.trim() })
       .eq('id', modalCancel.id)
-    // Cancela transportes vinculados
+    // Cancela transportes vinculados (apenas os ainda não rodados, desta origem)
     await supabase.from('transportes')
       .update({ status: 'cancelado' })
+      .eq('origem', 'banho_tosa')
       .eq('origem_id', modalCancel.id)
+      .in('status', ['pendente', 'em_rota'])
     setCancelando(false)
     setModalCancel(null)
     setMotivoCancel('')
@@ -292,6 +314,7 @@ export default function BanhoTosaPage() {
                   ag={ag}
                   avancando={avancando === ag.id}
                   podePagar={podePagar}
+                  podeGerenciar={podeGerenciar}
                   onAvancar={avancar}
                   onEntregue={abrirModalPag}
                   onCancelar={setModalCancel}
@@ -365,6 +388,7 @@ export default function BanhoTosaPage() {
                       ag={ag}
                       avancando={avancando === ag.id}
                       podePagar={podePagar}
+                  podeGerenciar={podeGerenciar}
                       onAvancar={avancar}
                       onEntregue={abrirModalPag}
                       onCancelar={setModalCancel}
@@ -503,6 +527,8 @@ export default function BanhoTosaPage() {
               )}
             </div>
 
+            {erroPag && <p className="text-sm text-red-500 bg-red-50 rounded-xl px-4 py-3">{erroPag}</p>}
+
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setModalPag(null)}
@@ -565,11 +591,12 @@ export default function BanhoTosaPage() {
 }
 
 function AgendamentoCard({
-  ag, avancando, podePagar, onAvancar, onEntregue, onCancelar,
+  ag, avancando, podePagar, podeGerenciar, onAvancar, onEntregue, onCancelar,
 }: {
   ag: AgendamentoBanhoTosa
   avancando: boolean
   podePagar: boolean
+  podeGerenciar: boolean
   onAvancar: (id: string, status: StatusAgendamento) => void
   onEntregue: (ag: AgendamentoBanhoTosa) => void
   onCancelar: (ag: AgendamentoBanhoTosa) => void
@@ -633,7 +660,7 @@ function AgendamentoCard({
               {avancando ? '...' : `→ ${STATUS_BT_LABELS[proximo]}`}
             </button>
           )}
-          {podePagar && (
+          {podeGerenciar && (
             <button
               onClick={() => onCancelar(ag)}
               className="px-3 py-2.5 rounded-xl border border-red-200 text-red-400 text-sm"
