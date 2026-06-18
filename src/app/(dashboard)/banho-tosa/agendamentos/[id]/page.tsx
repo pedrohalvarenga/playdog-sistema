@@ -3,7 +3,7 @@
 import { use, useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Edit, Car, Clock, Check, X, History } from 'lucide-react'
+import { ArrowLeft, Edit, Car, Clock, Check, X, History, SlidersHorizontal } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -211,9 +211,14 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
               </p>
             </div>
             {podePagar && (
-              <Link href={`/banho-tosa/comprar-pacote/${pet.id}`} className="flex items-center gap-1.5 bg-brand-teal text-white px-3 py-2 rounded-xl text-xs font-semibold">
-                <Check size={14} /> Vender pacote
-              </Link>
+              <div className="flex gap-2 flex-shrink-0">
+                <Link href={`/banho-tosa/comprar-pacote/${pet.id}`} className="flex items-center gap-1.5 bg-brand-teal text-white px-3 py-2 rounded-xl text-xs font-semibold">
+                  <Check size={14} /> Vender
+                </Link>
+                <Link href={`/banho-tosa/ajustar-saldo/${pet.id}`} className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-2 rounded-xl text-xs font-semibold">
+                  <SlidersHorizontal size={14} /> Ajustar
+                </Link>
+              </div>
             )}
           </div>
         </Card>

@@ -211,9 +211,16 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
                 <p className="text-sm text-gray-500">Cobrança por atendimento. Defina como pacote na edição do pet.</p>
               )}
             </div>
-            <Link href={`/banho-tosa/comprar-pacote/${id}`} className="flex items-center gap-1.5 bg-brand-teal text-white px-3 py-2 rounded-xl text-xs font-semibold flex-shrink-0">
-              <CreditCard size={14} /> Vender pacote
-            </Link>
+            <div className="flex gap-2 flex-shrink-0">
+              <Link href={`/banho-tosa/comprar-pacote/${id}`} className="flex items-center gap-1.5 bg-brand-teal text-white px-3 py-2 rounded-xl text-xs font-semibold">
+                <CreditCard size={14} /> Vender
+              </Link>
+              {p.tipo_banho === 'pacote' && (
+                <Link href={`/banho-tosa/ajustar-saldo/${id}`} className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-2 rounded-xl text-xs font-semibold">
+                  <SlidersHorizontal size={14} /> Ajustar
+                </Link>
+              )}
+            </div>
           </div>
         </Card>
       )}
