@@ -18,6 +18,7 @@ export interface AgendamentoBanhoTosa {
   status: StatusAgendamento
   motivo_cancelamento: string | null
   observacoes: string | null
+  pago_com_pacote: boolean
   receita_servico_id: string | null
   receita_taxi_id: string | null
   registrado_por: string | null
@@ -30,6 +31,8 @@ export interface AgendamentoBanhoTosa {
     foto_url: string | null
     porte: string
     tutor_id: string
+    tipo_banho?: 'avulso' | 'pacote'
+    saldo_banhos?: number
     tutor?: {
       nome: string
       telefone: string | null

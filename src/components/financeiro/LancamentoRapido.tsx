@@ -14,7 +14,7 @@ import type { AreaNegocio, CategoriaReceita, CategoriaDespesa, FormaPagamento } 
 import { hojeLocal } from '@/lib/datas'
 
 type Tipo = 'receita' | 'despesa'
-type Step = 'tipo' | 'valor' | 'area' | 'categoria' | 'diarias' | 'forma' | 'conta' | 'pet' | 'ok'
+type Step = 'tipo' | 'valor' | 'area' | 'categoria' | 'diarias' | 'banhos' | 'forma' | 'conta' | 'pet' | 'ok'
 
 interface PetOption { id: string; nome: string; tutor_id: string | null; identificador?: string | null }
 
@@ -51,6 +51,7 @@ export default function LancamentoRapido() {
   const [conta, setConta] = useState<string | null>(null)
   const [contas, setContas] = useState<ContaFinanceira[]>([])
   const [numDiarias, setNumDiarias] = useState<number | ''>('')
+  const [numBanhos, setNumBanhos] = useState<number | ''>('')
   const [saving, setSaving] = useState(false)
   const [petBusca, setPetBusca] = useState('')
   const [petSugestoes, setPetSugestoes] = useState<PetOption[]>([])
@@ -69,7 +70,7 @@ export default function LancamentoRapido() {
 
   function reset() {
     setStep('tipo'); setTipo('receita'); setValorRaw('')
-    setArea(null); setCategoria(null); setForma('pix'); setConta(null); setNumDiarias('')
+    setArea(null); setCategoria(null); setForma('pix'); setConta(null); setNumDiarias(''); setNumBanhos('')
     setPetBusca(''); setPetSugestoes([])
   }
 
@@ -121,6 +122,7 @@ export default function LancamentoRapido() {
         valor, area, categoria, forma_pagamento: forma,
         conta_id: contaId, taxa_cartao: taxa, valor_liquido, status: 'pago',
         num_diarias: numDiarias !== '' ? numDiarias : null,
+        num_banhos: numBanhos !== '' ? numBanhos : null,
         pet_id: pet?.id ?? null,
         tutor_id: pet?.tutor_id ?? null,
       })
@@ -273,6 +275,7 @@ export default function LancamentoRapido() {
                       onClick={() => {
                       setCategoria(cat)
                       if (tipo === 'receita' && CATEGORIAS_CRECHE.includes(cat)) setStep('diarias')
+                      else if (tipo === 'receita' && area === 'banho_tosa' && cat === 'banho_tosa') setStep('banhos')
                       else setStep(tipo === 'receita' ? 'forma' : 'conta')
                     }}
                       className="py-3 px-4 rounded-2xl bg-gray-50 border-2 border-gray-200 text-gray-800 font-semibold text-sm text-left hover:border-brand-purple hover:bg-purple-50 transition-colors active:scale-95"
@@ -306,6 +309,33 @@ export default function LancamentoRapido() {
                 </button>
                 <button
                   onClick={() => { setNumDiarias(''); setStep('forma') }}
+                  className="w-full py-2 rounded-2xl text-gray-400 text-sm"
+                >
+                  Pular
+                </button>
+              </div>
+            )}
+
+            {/* STEP: número de banhos (pacote banho & tosa) */}
+            {step === 'banhos' && (
+              <div className="flex flex-col gap-3">
+                <p className="text-sm text-gray-500 font-medium">Nº de banhos do pacote</p>
+                <input
+                  type="number" min="1" step="1" placeholder="Ex: 8"
+                  value={numBanhos}
+                  onChange={e => setNumBanhos(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+                  className="w-full py-3 px-4 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-lg bg-white text-center font-bold"
+                  autoFocus
+                />
+                <p className="text-xs text-gray-400 text-center">Quantos banhos este pagamento cobre (credita no pet)</p>
+                <button
+                  onClick={() => setStep('forma')}
+                  className="w-full py-3 rounded-2xl bg-brand-purple text-white font-bold"
+                >
+                  Continuar →
+                </button>
+                <button
+                  onClick={() => { setNumBanhos(''); setStep('forma') }}
                   className="w-full py-2 rounded-2xl text-gray-400 text-sm"
                 >
                   Pular
@@ -423,10 +453,10 @@ export default function LancamentoRapido() {
             {/* Barra de progresso / step indicator */}
             {step !== 'ok' && step !== 'tipo' && (
               <div className="flex gap-1 justify-center mt-1">
-                {(['valor','area','categoria','diarias','forma','conta','pet'] as Step[]).map((s, i) => (
+                {(['valor','area','categoria','diarias','banhos','forma','conta','pet'] as Step[]).map((s, i) => (
                   <div key={s} className={cn(
                     'h-1.5 rounded-full transition-all',
-                    step === s ? 'w-6 bg-brand-purple' : i < ['valor','area','categoria','diarias','forma','conta','pet'].indexOf(step) ? 'w-3 bg-brand-purple/50' : 'w-3 bg-gray-200'
+                    step === s ? 'w-6 bg-brand-purple' : i < ['valor','area','categoria','diarias','banhos','forma','conta','pet'].indexOf(step) ? 'w-3 bg-brand-purple/50' : 'w-3 bg-gray-200'
                   )} />
                 ))}
               </div>

@@ -71,7 +71,9 @@ export default function HistoricoPetPage({ params }: { params: Promise<{ petId: 
                 <p className="text-sm text-gray-700">{ag.descricao_servico}</p>
                 <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
                   <span>{formatHora(ag.hora_chegada)}{ag.hora_saida_prevista ? ` → ${formatHora(ag.hora_saida_prevista)}` : ''}</span>
-                  {ag.valor_servico != null && (
+                  {ag.pago_com_pacote ? (
+                    <span className="font-semibold text-teal-600">1 crédito do pacote</span>
+                  ) : ag.valor_servico != null && (
                     <span className="font-semibold text-gray-600">{formatCurrencyBT(ag.valor_servico)}</span>
                   )}
                   {ag.taxi_dog && <span className="flex items-center gap-0.5 text-brand-orange"><Car size={11} /> Taxi</span>}

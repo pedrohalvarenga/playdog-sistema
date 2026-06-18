@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { formatDate, calcIdade, PLANO_LABELS, PORTE_LABELS, vacinaStatus, whatsappUrl } from '@/lib/utils'
 import Badge from '@/components/ui/Badge'
 import Card from '@/components/ui/Card'
-import { Dog, Phone, Calendar, Syringe, ArrowLeft, Edit, Pill, MessageCircle, AlertTriangle, CreditCard, SlidersHorizontal, Plus, FileText, ChevronRight } from 'lucide-react'
+import { Dog, Phone, Calendar, Syringe, ArrowLeft, Edit, Pill, MessageCircle, AlertTriangle, CreditCard, SlidersHorizontal, Plus, FileText, ChevronRight, Droplets } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Pet } from '@/types'
@@ -193,6 +193,30 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
           </div>
         </div>
       </Card>
+
+      {/* Pacote de banho (clientes de Banho & Tosa) */}
+      {(p.areas_servico ?? []).includes('banho_tosa') && (
+        <Card className={p.tipo_banho === 'pacote' ? 'border-2 border-teal-200' : ''}>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-1.5 mb-1">
+                <Droplets size={13} className="text-brand-teal" />
+                <p className="text-xs text-gray-400">Banho — {p.tipo_banho === 'pacote' ? 'Pacote (créditos)' : 'Avulso'}</p>
+              </div>
+              {p.tipo_banho === 'pacote' ? (
+                <p className={`text-2xl font-bold ${(p.saldo_banhos ?? 0) <= 0 ? 'text-yellow-600' : 'text-teal-600'}`}>
+                  {p.saldo_banhos ?? 0} banho{(p.saldo_banhos ?? 0) !== 1 ? 's' : ''}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-500">Cobrança por atendimento. Defina como pacote na edição do pet.</p>
+              )}
+            </div>
+            <Link href={`/banho-tosa/comprar-pacote/${id}`} className="flex items-center gap-1.5 bg-brand-teal text-white px-3 py-2 rounded-xl text-xs font-semibold flex-shrink-0">
+              <CreditCard size={14} /> Vender pacote
+            </Link>
+          </div>
+        </Card>
+      )}
 
       {/* Plano */}
       <Card>

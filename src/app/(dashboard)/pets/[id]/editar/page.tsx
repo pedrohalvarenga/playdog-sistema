@@ -10,7 +10,7 @@ import FotoComCrop from '@/components/ui/FotoComCrop'
 import { ArrowLeft, Camera, X, Dog, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import VacinaInput from '@/components/pets/VacinaInput'
-import type { Tutor, Porte, PlanoTipo, AreaServicoPet } from '@/types'
+import type { Tutor, Porte, PlanoTipo, AreaServicoPet, TipoBanho } from '@/types'
 
 export default function EditarPetPage() {
   const router = useRouter()
@@ -42,6 +42,7 @@ export default function EditarPetPage() {
   const [vacinaGripe, setVacinaGripe] = useState('')
   const [vacinaGiardia, setVacinaGiardia] = useState('')
   const [areasServico, setAreasServico] = useState<AreaServicoPet[]>([])
+  const [tipoBanho, setTipoBanho] = useState<TipoBanho>('avulso')
 
   function toggleArea(a: AreaServicoPet) {
     setAreasServico(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a])
@@ -70,6 +71,7 @@ export default function EditarPetPage() {
         setVacinaGripe(pet.vacina_gripe ?? '')
         setVacinaGiardia((pet as any).vacina_giardia ?? '')
         setAreasServico((pet as any).areas_servico ?? [])
+        setTipoBanho((pet as any).tipo_banho ?? 'avulso')
         setFotoAtual(pet.foto_url ?? null)
       }
       setTutores(ts ?? [])
@@ -135,6 +137,7 @@ export default function EditarPetPage() {
       vacina_gripe: vacinaGripe || null,
       vacina_giardia: vacinaGiardia || null,
       areas_servico: areasServico,
+      tipo_banho: tipoBanho,
       foto_url: fotoUrl,
     }).eq('id', id)
 
@@ -278,6 +281,39 @@ export default function EditarPetPage() {
             <p className="text-xs text-gray-400 bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2">
               Adaptação: cliente em prospecção — visitou mas ainda não contratou.
             </p>
+          )}
+
+          {/* Tipo de cobrança do banho — só para clientes de Banho & Tosa */}
+          {areasServico.includes('banho_tosa') && (
+            <div className="border-t border-gray-100 pt-3 mt-1">
+              <label className="text-sm font-semibold text-gray-700 block mb-1">Cobrança do banho</label>
+              <p className="text-xs text-gray-400 mb-2">Este cliente paga banho avulso ou tem pacote de créditos?</p>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { value: 'avulso', label: 'Avulso', desc: 'Paga a cada banho' },
+                  { value: 'pacote', label: 'Pacote', desc: 'Créditos pré-pagos' },
+                ] as { value: TipoBanho; label: string; desc: string }[]).map(t => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    onClick={() => setTipoBanho(t.value)}
+                    className={`py-3 px-3 rounded-2xl text-sm font-semibold border-2 transition-all text-left ${
+                      tipoBanho === t.value
+                        ? 'border-brand-teal bg-teal-50 text-teal-700'
+                        : 'border-gray-200 bg-white text-gray-500'
+                    }`}
+                  >
+                    {tipoBanho === t.value ? '✓ ' : ''}{t.label}
+                    <span className="block text-[11px] font-normal text-gray-400 mt-0.5">{t.desc}</span>
+                  </button>
+                ))}
+              </div>
+              {tipoBanho === 'pacote' && (
+                <p className="text-xs text-teal-600 bg-teal-50 border border-teal-200 rounded-xl px-3 py-2 mt-2">
+                  Venda os créditos na ficha do pet, no Banho &amp; Tosa ou no Financeiro. Cada banho usado desconta 1 crédito.
+                </p>
+              )}
+            </div>
           )}
         </section>
 

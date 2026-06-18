@@ -38,11 +38,13 @@ export default function NovaReceitaPage() {
   const [pets, setPets] = useState<{ id: string; nome: string; tutor_id: string | null; identificador?: string | null }[]>([])
   const [petId, setPetId] = useState('')
   const [numDiarias, setNumDiarias] = useState<number | ''>('')
+  const [numBanhos, setNumBanhos] = useState<number | ''>('')
   const [executadoPor, setExecutadoPor] = useState('')
   const [erro, setErro] = useState('')
 
   const CATEGORIAS_CRECHE: string[] = ['diaria_avulsa', 'pacote_semanal', 'pacote_mensal']
   const mostrarDiarias = area === 'creche' && CATEGORIAS_CRECHE.includes(categoria)
+  const mostrarBanhos = area === 'banho_tosa' && categoria === 'banho_tosa'
 
   useEffect(() => {
     const supabase = createClient()
@@ -114,6 +116,7 @@ export default function NovaReceitaPage() {
       pet_id: petId || null,
       descricao: descricao || null,
       num_diarias: mostrarDiarias && numDiarias !== '' ? numDiarias : null,
+      num_banhos: mostrarBanhos && numBanhos !== '' ? numBanhos : null,
       executado_por: executadoPor || null,
       status,
       data_vencimento: status === 'pendente' ? dataVenc : null,
@@ -180,6 +183,20 @@ export default function NovaReceitaPage() {
             className="w-full py-3 px-4 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-base bg-white"
           />
           <p className="text-xs text-gray-400">Quantas diárias este pagamento cobre</p>
+        </div>
+      )}
+
+      {/* Número de banhos (pacote banho & tosa) */}
+      {mostrarBanhos && (
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-semibold text-gray-700">Nº de banhos do pacote</label>
+          <input
+            type="number" min="1" step="1" placeholder="Ex: 8"
+            value={numBanhos}
+            onChange={e => setNumBanhos(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+            className="w-full py-3 px-4 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-base bg-white"
+          />
+          <p className="text-xs text-gray-400">Quantos banhos este pagamento cobre (credita no pet)</p>
         </div>
       )}
 

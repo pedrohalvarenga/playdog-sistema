@@ -41,6 +41,7 @@ export default function BanhoTosaPage() {
   const [formaPag, setFormaPag] = useState('pix')
   const [statusPag, setStatusPag] = useState<'pago' | 'pendente'>('pago')
   const [execPor, setExecPor] = useState('')
+  const [usarPacote, setUsarPacote] = useState(false)
   const [salvandoPag, setSalvandoPag] = useState(false)
 
   // Estado do modal de cancelamento
@@ -71,7 +72,7 @@ export default function BanhoTosaPage() {
 
     const { data } = await supabase
       .from('agendamentos_banho_tosa')
-      .select('*, pet:pets(id, nome, identificador, foto_url, porte, tutor_id, tutor:tutores(nome, telefone, whatsapp, endereco))')
+      .select('*, pet:pets(id, nome, identificador, foto_url, porte, tutor_id, tipo_banho, saldo_banhos, tutor:tutores(nome, telefone, whatsapp, endereco))')
       .gte('data', inicio)
       .lte('data', fim)
       .not('status', 'eq', 'cancelado')
@@ -101,6 +102,9 @@ export default function BanhoTosaPage() {
     setFormaPag('pix')
     setStatusPag('pago')
     setExecPor('')
+    // Cliente de pacote com saldo: já vem marcado para usar o crédito
+    const temCredito = ag.pet?.tipo_banho === 'pacote' && (ag.pet?.saldo_banhos ?? 0) > 0
+    setUsarPacote(!!temCredito)
   }
 
   async function confirmarEntrega() {
@@ -110,12 +114,18 @@ export default function BanhoTosaPage() {
     const pet = modalPag.pet!
     const vServico = parseFloat(valorServico.replace(',', '.')) || 0
     const vTaxi    = parseFloat(valorTaxi.replace(',', '.')) || 0
+    const temCredito = pet.tipo_banho === 'pacote' && (pet.saldo_banhos ?? 0) > 0
+    const pagarComPacote = usarPacote && temCredito
     const updates: Record<string, unknown> = {
       status: 'entregue',
       hora_saida_real: new Date().toISOString(),
+      pago_com_pacote: pagarComPacote,
     }
 
-    if (vServico > 0) {
+    if (pagarComPacote) {
+      // Usa 1 crédito do pacote — sem cobrança extra, sem receita do serviço
+      await supabase.rpc('consumir_credito_banho', { p_pet_id: pet.id })
+    } else if (vServico > 0) {
       const { data: r1 } = await supabase.from('receitas').insert({
         data: hojeLocal(),
         valor: vServico,
@@ -374,18 +384,46 @@ export default function BanhoTosaPage() {
             <h2 className="text-xl font-bold text-gray-900">Registrar entrega</h2>
             <p className="text-sm text-gray-500">{modalPag.pet?.nome} — {modalPag.descricao_servico}</p>
 
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
-                Valor do serviço (R$)
-              </label>
-              <input
-                type="number" inputMode="decimal" min="0" step="0.01"
-                value={valorServico}
-                onChange={e => setValorServico(e.target.value)}
-                placeholder="0,00"
-                className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-teal outline-none text-sm"
-              />
-            </div>
+            {/* Pacote de banho — usar crédito */}
+            {modalPag.pet?.tipo_banho === 'pacote' && (
+              (modalPag.pet?.saldo_banhos ?? 0) > 0 ? (
+                <div className="bg-teal-50 rounded-2xl p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-teal-800">Usar 1 crédito do pacote</p>
+                    <p className="text-xs text-teal-600">
+                      Saldo: {modalPag.pet?.saldo_banhos} → {usarPacote ? (modalPag.pet!.saldo_banhos! - 1) : modalPag.pet?.saldo_banhos}
+                      {usarPacote ? ' · sem cobrança do serviço' : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setUsarPacote(v => !v)}
+                    className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 ${usarPacote ? 'bg-brand-teal' : 'bg-gray-300'}`}
+                  >
+                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${usarPacote ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-yellow-50 rounded-2xl p-3 text-xs text-yellow-700">
+                  Cliente de pacote sem créditos. Este banho será cobrado avulso.
+                </div>
+              )
+            )}
+
+            {!usarPacote && (
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
+                  Valor do serviço (R$)
+                </label>
+                <input
+                  type="number" inputMode="decimal" min="0" step="0.01"
+                  value={valorServico}
+                  onChange={e => setValorServico(e.target.value)}
+                  placeholder="0,00"
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-teal outline-none text-sm"
+                />
+              </div>
+            )}
 
             {modalPag.taxi_dog && (
               <div>
@@ -453,7 +491,9 @@ export default function BanhoTosaPage() {
               <p className="text-xs text-gray-500 mb-1">Resumo</p>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Serviço</span>
-                <span className="font-bold text-gray-900">{formatCurrencyBT(parseFloat(valorServico.replace(',', '.')) || 0)}</span>
+                <span className="font-bold text-gray-900">
+                  {usarPacote ? '1 crédito do pacote' : formatCurrencyBT(parseFloat(valorServico.replace(',', '.')) || 0)}
+                </span>
               </div>
               {modalPag.taxi_dog && (
                 <div className="flex justify-between text-sm mt-1">

@@ -6,6 +6,8 @@ export type PlanoTipo = 'diaria_avulsa' | 'pacote_semanal' | 'pacote_mensal' | '
 
 export type AreaServicoPet = 'creche' | 'hotel' | 'banho_tosa' | 'adaptacao'
 
+export type TipoBanho = 'avulso' | 'pacote'
+
 export type FormaPagamentoCreche = 'pix_pagbank' | 'pix_c6' | 'dinheiro' | 'debito' | 'credito'
 
 export interface Profile {
@@ -53,6 +55,8 @@ export interface Pet {
   plano_inicio?: string
   plano_fim?: string
   saldo_diarias: number
+  tipo_banho?: TipoBanho
+  saldo_banhos?: number
   ativo: boolean
   created_at: string
   updated_at: string

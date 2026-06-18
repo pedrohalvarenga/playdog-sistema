@@ -45,6 +45,7 @@ export interface Receita {
   descricao?: string
   status: StatusFinanceiro
   num_diarias?: number
+  num_banhos?: number
   executado_por?: string
   data_vencimento?: string
   registrado_por?: string

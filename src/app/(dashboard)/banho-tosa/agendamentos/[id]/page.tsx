@@ -32,6 +32,7 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
   const [formaPag, setFormaPag] = useState('pix')
   const [statusPag, setStatusPag] = useState<'pago' | 'pendente'>('pago')
   const [execPor, setExecPor] = useState('')
+  const [usarPacote, setUsarPacote] = useState(false)
   const [salvandoPag, setSalvandoPag] = useState(false)
 
   // Modal cancelamento
@@ -46,7 +47,7 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
     const supabase = createClient()
     const { data } = await supabase
       .from('agendamentos_banho_tosa')
-      .select('*, pet:pets(id, nome, identificador, foto_url, porte, tutor_id, tutor:tutores(nome, telefone, whatsapp, endereco))')
+      .select('*, pet:pets(id, nome, identificador, foto_url, porte, tutor_id, tipo_banho, saldo_banhos, tutor:tutores(nome, telefone, whatsapp, endereco))')
       .eq('id', id)
       .single()
     setAg(data as AgendamentoBanhoTosa)
@@ -59,6 +60,8 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
     if (!ag || !showPag) return
     setValorServico(ag.valor_servico != null ? ag.valor_servico.toFixed(2) : '')
     setValorTaxi(ag.valor_taxi != null ? ag.valor_taxi.toFixed(2) : '')
+    const temCredito = ag.pet?.tipo_banho === 'pacote' && (ag.pet?.saldo_banhos ?? 0) > 0
+    setUsarPacote(!!temCredito)
   }, [ag, showPag])
 
   async function avancar(novoStatus: StatusAgendamento) {
@@ -79,12 +82,18 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
     const pet = ag.pet!
     const vServico = parseFloat(valorServico.replace(',', '.')) || 0
     const vTaxi    = parseFloat(valorTaxi.replace(',', '.')) || 0
+    const temCredito = pet.tipo_banho === 'pacote' && (pet.saldo_banhos ?? 0) > 0
+    const pagarComPacote = usarPacote && temCredito
     const updates: Record<string, unknown> = {
       status: 'entregue',
       hora_saida_real: new Date().toISOString(),
+      pago_com_pacote: pagarComPacote,
     }
 
-    if (vServico > 0) {
+    if (pagarComPacote) {
+      // Usa 1 crédito do pacote — sem cobrança extra, sem receita do serviço
+      await supabase.rpc('consumir_credito_banho', { p_pet_id: pet.id })
+    } else if (vServico > 0) {
       const { data: r1 } = await supabase.from('receitas').insert({
         data: hojeLocal(),
         valor: vServico,
@@ -191,11 +200,32 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
         </div>
       </Card>
 
+      {/* Pacote de banho (clientes de pacote) */}
+      {pet.tipo_banho === 'pacote' && (
+        <Card className="border-2 border-teal-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-gray-400 mb-0.5">Saldo do pacote de banho</p>
+              <p className={`text-xl font-bold ${(pet.saldo_banhos ?? 0) <= 0 ? 'text-yellow-600' : 'text-teal-600'}`}>
+                {pet.saldo_banhos ?? 0} banho{(pet.saldo_banhos ?? 0) !== 1 ? 's' : ''}
+              </p>
+            </div>
+            {podePagar && (
+              <Link href={`/banho-tosa/comprar-pacote/${pet.id}`} className="flex items-center gap-1.5 bg-brand-teal text-white px-3 py-2 rounded-xl text-xs font-semibold">
+                <Check size={14} /> Vender pacote
+              </Link>
+            )}
+          </div>
+        </Card>
+      )}
+
       {/* Serviço */}
       <Card>
         <p className="text-xs text-gray-400 mb-1">Serviço</p>
         <p className="font-semibold text-gray-800">{ag.descricao_servico}</p>
-        {ag.valor_servico != null && (
+        {ag.pago_com_pacote ? (
+          <p className="text-teal-600 font-bold mt-1">Pago com 1 crédito do pacote</p>
+        ) : ag.valor_servico != null && (
           <p className="text-brand-teal font-bold mt-1">{formatCurrencyBT(ag.valor_servico)}</p>
         )}
       </Card>
@@ -302,14 +332,42 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
           <div className="bg-white rounded-t-3xl w-full max-w-lg mx-auto p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-900">Registrar entrega</h2>
 
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Valor do serviço (R$)</label>
-              <input
-                type="number" inputMode="decimal" min="0" step="0.01"
-                value={valorServico} onChange={e => setValorServico(e.target.value)} placeholder="0,00"
-                className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-teal outline-none text-sm"
-              />
-            </div>
+            {/* Pacote de banho — usar crédito */}
+            {ag.pet?.tipo_banho === 'pacote' && (
+              (ag.pet?.saldo_banhos ?? 0) > 0 ? (
+                <div className="bg-teal-50 rounded-2xl p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-teal-800">Usar 1 crédito do pacote</p>
+                    <p className="text-xs text-teal-600">
+                      Saldo: {ag.pet?.saldo_banhos} → {usarPacote ? (ag.pet!.saldo_banhos! - 1) : ag.pet?.saldo_banhos}
+                      {usarPacote ? ' · sem cobrança do serviço' : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setUsarPacote(v => !v)}
+                    className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 ${usarPacote ? 'bg-brand-teal' : 'bg-gray-300'}`}
+                  >
+                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${usarPacote ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-yellow-50 rounded-2xl p-3 text-xs text-yellow-700">
+                  Cliente de pacote sem créditos. Este banho será cobrado avulso.
+                </div>
+              )
+            )}
+
+            {!usarPacote && (
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Valor do serviço (R$)</label>
+                <input
+                  type="number" inputMode="decimal" min="0" step="0.01"
+                  value={valorServico} onChange={e => setValorServico(e.target.value)} placeholder="0,00"
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-teal outline-none text-sm"
+                />
+              </div>
+            )}
 
             {ag.taxi_dog && (
               <div>
@@ -359,7 +417,9 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
               <p className="text-xs text-gray-500 mb-2">Registros que serão criados:</p>
               <div className="flex justify-between text-sm mb-1">
                 <span className="text-gray-600">Banho & Tosa</span>
-                <span className="font-bold">{formatCurrencyBT(parseFloat(valorServico.replace(',', '.')) || 0)}</span>
+                <span className="font-bold">
+                  {usarPacote ? '1 crédito do pacote' : formatCurrencyBT(parseFloat(valorServico.replace(',', '.')) || 0)}
+                </span>
               </div>
               {ag.taxi_dog && (
                 <div className="flex justify-between text-sm text-orange-600">
