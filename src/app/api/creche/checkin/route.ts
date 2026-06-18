@@ -78,14 +78,24 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'presença não encontrada' }, { status: 404 })
   }
 
-  // Apaga o registro de presença
-  const { error: errDel } = await supabase
+  // Apaga o registro de presença. Usa .select() para confirmar que a
+  // linha realmente saiu — se o RLS bloquear (sem policy de DELETE), o
+  // delete não dá erro mas remove 0 linhas; nesse caso NÃO devolvemos a
+  // diária, para não inflar o saldo deixando a presença no banco.
+  const { data: apagadas, error: errDel } = await supabase
     .from('presencas')
     .delete()
     .eq('id', presenca_id)
+    .select('id')
 
   if (errDel) {
     return NextResponse.json({ error: errDel.message }, { status: 400 })
+  }
+  if (!apagadas || apagadas.length === 0) {
+    return NextResponse.json(
+      { error: 'Não foi possível apagar a presença (permissão). Aplique presencas_delete_policy.sql no Supabase.' },
+      { status: 403 }
+    )
   }
 
   // Devolve a diária que o check-in havia descontado
