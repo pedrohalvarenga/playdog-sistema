@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import { formatTime, formatDate, PORTE_LABELS } from '@/lib/utils'
-import { Dog, Clock, CheckCircle, Search, AlertCircle, Settings, CreditCard, AlertTriangle, BarChart2, FileText } from 'lucide-react'
+import { Dog, Clock, CheckCircle, Search, AlertCircle, Settings, CreditCard, AlertTriangle, BarChart2, FileText, Undo2, CalendarClock } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Pet, Presenca } from '@/types'
@@ -81,6 +81,25 @@ export default function CrechePage() {
     setFazendoCheckout(null)
   }
 
+  const [desfazendo, setDesfazendo] = useState<string | null>(null)
+
+  async function desfazerCheckin(presencaId: string, nomePet: string) {
+    if (desfazendo) return
+    if (!confirm(`Desfazer o check-in de ${nomePet}? O registro será apagado e a diária devolvida ao saldo.`)) return
+    setDesfazendo(presencaId)
+    const res = await fetch('/api/creche/checkin', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ presenca_id: presencaId }),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      alert(err.error ?? 'Erro ao desfazer check-in')
+    }
+    await carregar()
+    setDesfazendo(null)
+  }
+
   // Pets com check-in hoje (sem checkout = presentes; com checkout = saíram)
   const idsComCheckin = new Set(presencasHoje.map(p => p.pet_id))
   const presentes = presencasHoje.filter(p => !p.checkout_at)
@@ -129,6 +148,9 @@ export default function CrechePage() {
           <p className="text-sm text-gray-400">{formatDate(hoje, "dd 'de' MMMM, yyyy")}</p>
         </div>
         <div className="flex items-center gap-1">
+          <Link href="/creche/presencas" className="p-2 rounded-xl text-gray-400 hover:text-brand-purple" title="Editar presenças">
+            <CalendarClock size={22} />
+          </Link>
           <Link href="/creche/relatorio" className="p-2 rounded-xl text-gray-400 hover:text-brand-purple">
             <FileText size={22} />
           </Link>
@@ -214,12 +236,22 @@ export default function CrechePage() {
                           <CheckCircle size={22} />
                           <span className="text-[9px] font-semibold mt-0.5">SAÍDA</span>
                         </button>
-                        <Link
-                          href={`/creche/comprar-diarias/${p.pet.id}`}
-                          className="w-14 h-7 rounded-xl bg-purple-100 flex items-center justify-center text-brand-purple active:bg-purple-200"
-                        >
-                          <CreditCard size={14} />
-                        </Link>
+                        <div className="flex gap-1">
+                          <Link
+                            href={`/creche/comprar-diarias/${p.pet.id}`}
+                            className="w-[26px] h-7 rounded-xl bg-purple-100 flex items-center justify-center text-brand-purple active:bg-purple-200"
+                          >
+                            <CreditCard size={14} />
+                          </Link>
+                          <button
+                            onClick={() => desfazerCheckin(p.id, p.pet.nome)}
+                            disabled={desfazendo !== null}
+                            title="Desfazer check-in"
+                            className="w-[26px] h-7 rounded-xl bg-red-50 flex items-center justify-center text-red-500 active:bg-red-100 disabled:opacity-50"
+                          >
+                            <Undo2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </Card>

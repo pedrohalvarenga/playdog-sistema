@@ -4,14 +4,16 @@ import { hojeLocal } from '@/lib/datas'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { pet_id } = await request.json()
+  const { pet_id, data } = await request.json()
 
   if (!pet_id) return NextResponse.json({ error: 'pet_id required' }, { status: 400 })
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-  const hoje = hojeLocal()
+  // Aceita uma data manual (YYYY-MM-DD) para lançar presença esquecida;
+  // por padrão, usa o dia de hoje (check-in normal).
+  const hoje = typeof data === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data) ? data : hojeLocal()
 
   // Registra a presença
   const { data: presenca, error: errPresenca } = await supabase
@@ -52,4 +54,53 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ presenca_id: presenca.id })
+}
+
+// Desfaz um check-in feito por engano: apaga a presença e devolve a diária.
+// Diferente do checkout (que registra a saída de uma visita real).
+export async function DELETE(request: Request) {
+  const supabase = await createClient()
+  const { presenca_id } = await request.json()
+
+  if (!presenca_id) return NextResponse.json({ error: 'presenca_id required' }, { status: 400 })
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
+  // Busca a presença para saber qual pet teve a diária descontada
+  const { data: presenca, error: errBusca } = await supabase
+    .from('presencas')
+    .select('id, pet_id')
+    .eq('id', presenca_id)
+    .single()
+
+  if (errBusca || !presenca) {
+    return NextResponse.json({ error: 'presença não encontrada' }, { status: 404 })
+  }
+
+  // Apaga o registro de presença
+  const { error: errDel } = await supabase
+    .from('presencas')
+    .delete()
+    .eq('id', presenca_id)
+
+  if (errDel) {
+    return NextResponse.json({ error: errDel.message }, { status: 400 })
+  }
+
+  // Devolve a diária que o check-in havia descontado
+  const { data: pet } = await supabase
+    .from('pets')
+    .select('saldo_diarias')
+    .eq('id', presenca.pet_id)
+    .single()
+
+  if (pet && typeof pet.saldo_diarias === 'number') {
+    await supabase
+      .from('pets')
+      .update({ saldo_diarias: pet.saldo_diarias + 1 })
+      .eq('id', presenca.pet_id)
+  }
+
+  return NextResponse.json({ ok: true })
 }
