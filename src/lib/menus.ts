@@ -25,12 +25,14 @@ export const MENUS: MenuItem[] = [
   { key: 'pets', label: 'Pets', sublabel: 'Cadastro de pets', href: '/pets', icon: Dog, iconColor: 'text-brand-purple', iconBg: 'bg-purple-100', defaultRoles: ['admin', 'recepcao', 'banho_tosa'] },
   { key: 'tutores', label: 'Tutores', sublabel: 'Cadastro de tutores', href: '/tutores', icon: Users, iconColor: 'text-brand-orange', iconBg: 'bg-orange-50', defaultRoles: ['admin', 'recepcao'] },
   { key: 'financeiro', label: 'Financeiro', sublabel: 'Receitas, despesas e relatórios', href: '/financeiro', icon: DollarSign, iconColor: 'text-green-600', iconBg: 'bg-green-50', defaultRoles: ['admin', 'recepcao'] },
-  { key: 'transportes', label: 'Transportes', sublabel: 'Corridas de hoje e agenda do motorista', href: '/transportes', icon: Car, iconColor: 'text-brand-orange', iconBg: 'bg-orange-100', defaultRoles: ['admin', 'recepcao', 'motorista'] },
+  // Ordem do menu "Mais" (1 a 7): Adaptação, Fornecedores, Funcionários,
+  // Transportes, Veterinário, Início, Administração.
   { key: 'adaptacao', label: 'Adaptação', sublabel: 'Agendamentos do primeiro dia na Play Dog', href: '/adaptacao', icon: PawPrint, iconColor: 'text-brand-teal', iconBg: 'bg-teal-50', defaultRoles: ['admin', 'recepcao'] },
-  { key: 'veterinario', label: 'Veterinário', sublabel: 'Agendamentos de atendimento veterinário', href: '/veterinario', icon: Stethoscope, iconColor: 'text-rose-500', iconBg: 'bg-rose-50', defaultRoles: ['admin', 'recepcao'] },
   { key: 'fornecedores', label: 'Fornecedores', sublabel: 'Contatos e parceiros', href: '/fornecedores', icon: Truck, iconColor: 'text-brand-purple', iconBg: 'bg-purple-100', defaultRoles: ['admin', 'recepcao'] },
-  { key: 'dashboard', label: 'Início', sublabel: 'Painel geral do sistema', href: '/dashboard', icon: Home, iconColor: 'text-brand-purple', iconBg: 'bg-purple-100', defaultRoles: ['admin', 'recepcao', 'banho_tosa'] },
   { key: 'funcionarios', label: 'Funcionários', sublabel: 'Equipe, uniformes e comissões', href: '/funcionarios', icon: Briefcase, iconColor: 'text-brand-orange', iconBg: 'bg-orange-50', defaultRoles: ['admin'] },
+  { key: 'transportes', label: 'Transportes', sublabel: 'Corridas de hoje e agenda do motorista', href: '/transportes', icon: Car, iconColor: 'text-brand-orange', iconBg: 'bg-orange-100', defaultRoles: ['admin', 'recepcao', 'motorista'] },
+  { key: 'veterinario', label: 'Veterinário', sublabel: 'Agendamentos de atendimento veterinário', href: '/veterinario', icon: Stethoscope, iconColor: 'text-rose-500', iconBg: 'bg-rose-50', defaultRoles: ['admin', 'recepcao'] },
+  { key: 'dashboard', label: 'Início', sublabel: 'Painel geral do sistema', href: '/dashboard', icon: Home, iconColor: 'text-brand-purple', iconBg: 'bg-purple-100', defaultRoles: ['admin', 'recepcao', 'banho_tosa'] },
   { key: 'admin', label: 'Administração', sublabel: 'Usuários e configurações', href: '/admin', icon: Settings, iconColor: 'text-gray-600', iconBg: 'bg-gray-100', defaultRoles: ['admin'] },
 ]
 
