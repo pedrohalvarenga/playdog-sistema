@@ -1,16 +1,20 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, ChevronDown, ChevronUp, Dog, Users, ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
+import {
+  ArrowLeft, ChevronDown, ChevronUp, Dog, Users, ChevronLeft, ChevronRight,
+  Search, X, Download, Share2, CalendarRange, Calendar,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency } from '@/lib/financeiro'
-import { CATEGORIA_RECEITA_LABELS, AREA_LABELS } from '@/lib/financeiro'
+import { formatCurrency, CATEGORIA_RECEITA_LABELS, AREA_LABELS } from '@/lib/financeiro'
 import type { CategoriaReceita, AreaNegocio } from '@/types/financeiro'
 import { formatDate } from '@/lib/utils'
 import { diaLocal } from '@/lib/datas'
 
 type Aba = 'pet' | 'tutor'
+type Modo = 'mes' | 'periodo'
+type AreaFiltro = AreaNegocio | 'todas'
 
 interface Lancamento {
   id: string
@@ -21,23 +25,41 @@ interface Lancamento {
   area: AreaNegocio
   descricao: string | null
   forma_pagamento: string
+  status: string
+}
+
+interface RawRow extends Lancamento {
+  pet: { id: string; nome: string } | null
+  tutor: { id: string; nome: string } | null
 }
 
 interface GrupoItem {
   id: string | null
   nome: string
   total: number
+  totalPago: number
+  totalPendente: number
   lancamentos: Lancamento[]
 }
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
+// Áreas oferecidas no filtro (na ordem que faz sentido para a Play Dog)
+const AREAS_FILTRO: AreaNegocio[] = ['creche', 'hotel', 'banho_tosa', 'transporte', 'veterinario', 'loja', 'outros', 'geral']
+
+const valorLiquidoOuBruto = (l: { valor: number; valor_liquido: number | null }) => l.valor_liquido ?? l.valor
+
 export default function FaturamentoPorPage() {
   const hoje = new Date()
   const [mes, setMes] = useState(hoje.getMonth())
   const [ano, setAno] = useState(hoje.getFullYear())
+  const [modo, setModo] = useState<Modo>('mes')
+  const [dataIni, setDataIni] = useState(diaLocal(new Date(hoje.getFullYear(), hoje.getMonth(), 1)))
+  const [dataFim, setDataFim] = useState(diaLocal(hoje))
   const [aba, setAba] = useState<Aba>('pet')
-  const [grupos, setGrupos] = useState<GrupoItem[]>([])
+  const [areaFiltro, setAreaFiltro] = useState<AreaFiltro>('todas')
+  const [incluirPendentes, setIncluirPendentes] = useState(false)
+  const [raw, setRaw] = useState<RawRow[]>([])
   const [loading, setLoading] = useState(true)
   const [aberto, setAberto] = useState<string | null>(null)
   const [filtro, setFiltro] = useState('')
@@ -48,85 +70,192 @@ export default function FaturamentoPorPage() {
     setAno(d.getFullYear())
   }
 
+  // Intervalo efetivo da busca
+  const inicio = modo === 'mes' ? `${ano}-${String(mes + 1).padStart(2, '0')}-01` : dataIni
+  const fim = modo === 'mes' ? diaLocal(new Date(ano, mes + 1, 0)) : dataFim
+
   const buscar = useCallback(async () => {
     setLoading(true)
     setAberto(null)
     const supabase = createClient()
-    const inicio = `${ano}-${String(mes + 1).padStart(2, '0')}-01`
-    const fim = diaLocal(new Date(ano, mes + 1, 0))
 
-    const { data } = await supabase
+    let query = supabase
       .from('receitas')
       .select(`
-        id, data, valor, valor_liquido, categoria, area, descricao, forma_pagamento,
+        id, data, valor, valor_liquido, categoria, area, descricao, forma_pagamento, status,
         pet:pets(id, nome),
         tutor:tutores(id, nome)
       `)
       .gte('data', inicio)
       .lte('data', fim)
-      .eq('status', 'pago')
       .order('data', { ascending: false })
 
-    if (!data) { setGrupos([]); setLoading(false); return }
+    query = incluirPendentes
+      ? query.in('status', ['pago', 'pendente'])
+      : query.eq('status', 'pago')
 
-    // Agrupar
-    const map = new Map<string, GrupoItem>()
-
-    for (const r of data as any[]) {
-      const entidade = aba === 'pet' ? r.pet : r.tutor
-      const key = entidade?.id ?? '__sem__'
-      const nome = entidade?.nome ?? (aba === 'pet' ? 'Sem pet vinculado' : 'Sem tutor vinculado')
-      const valor = r.valor_liquido ?? r.valor
-
-      if (!map.has(key)) {
-        map.set(key, { id: key === '__sem__' ? null : key, nome, total: 0, lancamentos: [] })
-      }
-      const g = map.get(key)!
-      g.total += valor
-      g.lancamentos.push({
-        id: r.id, data: r.data, valor: r.valor, valor_liquido: r.valor_liquido,
-        categoria: r.categoria, area: r.area, descricao: r.descricao,
-        forma_pagamento: r.forma_pagamento,
-      })
-    }
-
-    const lista = Array.from(map.values()).sort((a, b) => b.total - a.total)
-    setGrupos(lista)
+    const { data } = await query
+    setRaw((data as unknown as RawRow[]) ?? [])
     setLoading(false)
-  }, [mes, ano, aba])
+  }, [inicio, fim, incluirPendentes])
 
   useEffect(() => { buscar() }, [buscar])
 
-  const total = grupos.reduce((s, g) => s + g.total, 0)
+  // Agrupa por pet/tutor, já aplicando o filtro de área
+  const grupos = useMemo<GrupoItem[]>(() => {
+    const map = new Map<string, GrupoItem>()
+    for (const r of raw) {
+      if (areaFiltro !== 'todas' && r.area !== areaFiltro) continue
+      const entidade = aba === 'pet' ? r.pet : r.tutor
+      const key = entidade?.id ?? '__sem__'
+      const nome = entidade?.nome ?? (aba === 'pet' ? 'Sem pet vinculado' : 'Sem tutor vinculado')
+      const valor = valorLiquidoOuBruto(r)
 
-  // Filtro de busca (mantém o ranking original pela posição em `grupos`)
+      if (!map.has(key)) {
+        map.set(key, { id: key === '__sem__' ? null : key, nome, total: 0, totalPago: 0, totalPendente: 0, lancamentos: [] })
+      }
+      const g = map.get(key)!
+      g.total += valor
+      if (r.status === 'pendente') g.totalPendente += valor
+      else g.totalPago += valor
+      g.lancamentos.push({
+        id: r.id, data: r.data, valor: r.valor, valor_liquido: r.valor_liquido,
+        categoria: r.categoria, area: r.area, descricao: r.descricao,
+        forma_pagamento: r.forma_pagamento, status: r.status,
+      })
+    }
+    return Array.from(map.values()).sort((a, b) => b.total - a.total)
+  }, [raw, aba, areaFiltro])
+
+  const total = grupos.reduce((s, g) => s + g.total, 0)
+  const totalPago = grupos.reduce((s, g) => s + g.totalPago, 0)
+  const totalPendente = grupos.reduce((s, g) => s + g.totalPendente, 0)
+  const totalLancamentos = grupos.reduce((s, g) => s + g.lancamentos.length, 0)
+  const ticketMedio = totalLancamentos > 0 ? total / totalLancamentos : 0
+
+  // Busca por nome (mantém o ranking original pela posição em `grupos`)
   const termo = filtro.trim().toLowerCase()
   const gruposVisiveis = grupos
     .map((g, idx) => ({ g, idx }))
     .filter(({ g }) => !termo || g.nome.toLowerCase().includes(termo))
+
+  const periodoLabel = modo === 'mes'
+    ? `${MESES[mes]} ${ano}`
+    : `${formatDate(inicio)} a ${formatDate(fim)}`
+  const areaLabel = areaFiltro === 'todas' ? 'Todas as áreas' : AREA_LABELS[areaFiltro]
+
+  // ── Exportar CSV ──────────────────────────────────────────
+  function exportarCSV() {
+    const linhas: string[] = []
+    linhas.push(`Faturamento por ${aba === 'pet' ? 'Pet' : 'Tutor'} - ${periodoLabel} - ${areaLabel}`)
+    linhas.push(`${aba === 'pet' ? 'Pet' : 'Tutor'};Lançamentos;Total${incluirPendentes ? ';Pago;A receber' : ''}`)
+    for (const g of grupos) {
+      const campos = [
+        `"${g.nome.replace(/"/g, '""')}"`,
+        String(g.lancamentos.length),
+        formatCurrency(g.total).replace('R$', '').trim(),
+      ]
+      if (incluirPendentes) {
+        campos.push(formatCurrency(g.totalPago).replace('R$', '').trim())
+        campos.push(formatCurrency(g.totalPendente).replace('R$', '').trim())
+      }
+      linhas.push(campos.join(';'))
+    }
+    linhas.push(`TOTAL;${totalLancamentos};${formatCurrency(total).replace('R$', '').trim()}`)
+    const csv = '﻿' + linhas.join('\r\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `faturamento-${aba}-${inicio}-a-${fim}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // ── Compartilhar (WhatsApp / nativo) ──────────────────────
+  function textoResumo() {
+    const linhas: string[] = []
+    linhas.push(`*Play Dog — Faturamento por ${aba === 'pet' ? 'Pet' : 'Tutor'}*`)
+    linhas.push(`${periodoLabel} · ${areaLabel}`)
+    linhas.push(`Total: ${formatCurrency(total)}`)
+    if (incluirPendentes) linhas.push(`(Pago ${formatCurrency(totalPago)} · A receber ${formatCurrency(totalPendente)})`)
+    linhas.push('')
+    grupos.slice(0, 30).forEach((g, i) => {
+      linhas.push(`${i + 1}. ${g.nome} — ${formatCurrency(g.total)}`)
+    })
+    if (grupos.length > 30) linhas.push(`...e mais ${grupos.length - 30}`)
+    return linhas.join('\n')
+  }
+
+  async function compartilhar() {
+    const texto = textoResumo()
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Faturamento Play Dog', text: texto }); return } catch { /* cancelado */ }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank')
+  }
 
   return (
     <div className="py-6 flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/financeiro" className="p-2 rounded-xl text-gray-400"><ArrowLeft size={24} /></Link>
-        <h1 className="text-xl font-bold text-gray-900">Faturamento</h1>
+        <h1 className="text-xl font-bold text-gray-900 flex-1">Faturamento</h1>
+        {!loading && grupos.length > 0 && (
+          <div className="flex items-center gap-1">
+            <button onClick={exportarCSV} className="p-2 rounded-xl text-gray-400 hover:text-brand-purple" aria-label="Exportar CSV" title="Exportar CSV">
+              <Download size={20} />
+            </button>
+            <button onClick={compartilhar} className="p-2 rounded-xl text-gray-400 hover:text-green-600" aria-label="Compartilhar" title="Compartilhar">
+              <Share2 size={20} />
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Navegação de mês */}
-      <div className="flex items-center justify-between bg-white rounded-2xl border-2 border-gray-100 px-4 py-3">
-        <button onClick={() => navMes(-1)} className="p-1 rounded-xl text-gray-400 hover:text-gray-700">
-          <ChevronLeft size={20} />
+      {/* Modo: mês x período */}
+      <div className="flex rounded-2xl bg-gray-100 p-1 gap-1">
+        <button
+          onClick={() => setModo('mes')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-colors ${modo === 'mes' ? 'bg-white shadow text-brand-purple' : 'text-gray-500'}`}
+        >
+          <Calendar size={14} /> Mês
         </button>
-        <span className="font-semibold text-gray-800 capitalize">
-          {MESES[mes]} {ano}
-        </span>
-        <button onClick={() => navMes(1)} className="p-1 rounded-xl text-gray-400 hover:text-gray-700">
-          <ChevronRight size={20} />
+        <button
+          onClick={() => setModo('periodo')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-colors ${modo === 'periodo' ? 'bg-white shadow text-brand-purple' : 'text-gray-500'}`}
+        >
+          <CalendarRange size={14} /> Período
         </button>
       </div>
 
-      {/* Abas */}
+      {/* Navegação de mês / intervalo de datas */}
+      {modo === 'mes' ? (
+        <div className="flex items-center justify-between bg-white rounded-2xl border-2 border-gray-100 px-4 py-3">
+          <button onClick={() => navMes(-1)} className="p-1 rounded-xl text-gray-400 hover:text-gray-700">
+            <ChevronLeft size={20} />
+          </button>
+          <span className="font-semibold text-gray-800 capitalize">{MESES[mes]} {ano}</span>
+          <button onClick={() => navMes(1)} className="p-1 rounded-xl text-gray-400 hover:text-gray-700">
+            <ChevronRight size={20} />
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1 block">De</label>
+            <input type="date" value={dataIni} max={dataFim} onChange={e => setDataIni(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-sm bg-white" />
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1 block">Até</label>
+            <input type="date" value={dataFim} min={dataIni} onChange={e => setDataFim(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-sm bg-white" />
+          </div>
+        </div>
+      )}
+
+      {/* Abas pet/tutor */}
       <div className="grid grid-cols-2 gap-2">
         <button
           onClick={() => setAba('pet')}
@@ -146,12 +275,53 @@ export default function FaturamentoPorPage() {
         </button>
       </div>
 
+      {/* Filtro por área */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        <button
+          onClick={() => setAreaFiltro('todas')}
+          className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+            areaFiltro === 'todas' ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600'
+          }`}
+        >
+          Todas
+        </button>
+        {AREAS_FILTRO.map(a => (
+          <button
+            key={a}
+            onClick={() => setAreaFiltro(a)}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+              areaFiltro === a ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            {AREA_LABELS[a]}
+          </button>
+        ))}
+      </div>
+
+      {/* Incluir pendentes */}
+      <button
+        onClick={() => setIncluirPendentes(v => !v)}
+        className="flex items-center justify-between bg-white rounded-2xl border-2 border-gray-100 px-4 py-2.5"
+      >
+        <span className="text-sm font-medium text-gray-700">Incluir contas a receber (pendentes)</span>
+        <span className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${incluirPendentes ? 'bg-brand-purple' : 'bg-gray-300'}`}>
+          <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${incluirPendentes ? 'translate-x-5' : 'translate-x-0.5'}`} />
+        </span>
+      </button>
+
       {/* Total do período */}
       {!loading && (
         <div className="bg-gradient-to-r from-brand-purple to-purple-600 rounded-2xl px-5 py-4 text-white">
-          <p className="text-sm opacity-80">Total — {MESES[mes]} {ano}</p>
+          <p className="text-sm opacity-80">Total — {periodoLabel}{areaFiltro !== 'todas' ? ` · ${areaLabel}` : ''}</p>
           <p className="text-3xl font-bold mt-0.5">{formatCurrency(total)}</p>
-          <p className="text-xs opacity-70 mt-1">{grupos.length} {aba === 'pet' ? 'pets' : 'tutores'} · {grupos.reduce((s, g) => s + g.lancamentos.length, 0)} lançamentos</p>
+          {incluirPendentes && (totalPendente > 0 || totalPago > 0) && (
+            <p className="text-xs opacity-80 mt-1">
+              Pago {formatCurrency(totalPago)} · A receber {formatCurrency(totalPendente)}
+            </p>
+          )}
+          <p className="text-xs opacity-70 mt-1">
+            {grupos.length} {aba === 'pet' ? 'pets' : 'tutores'} · {totalLancamentos} lançamentos · ticket médio {formatCurrency(ticketMedio)}
+          </p>
         </div>
       )}
 
@@ -189,7 +359,7 @@ export default function FaturamentoPorPage() {
       {loading ? (
         <div className="text-center py-10 text-gray-400">Carregando...</div>
       ) : grupos.length === 0 ? (
-        <div className="text-center py-10 text-gray-400">Nenhum lançamento pago neste período.</div>
+        <div className="text-center py-10 text-gray-400">Nenhum lançamento neste período.</div>
       ) : gruposVisiveis.length === 0 ? (
         <div className="text-center py-10 text-gray-400">Nenhum {aba === 'pet' ? 'pet' : 'tutor'} encontrado para “{filtro.trim()}”.</div>
       ) : (
@@ -199,6 +369,7 @@ export default function FaturamentoPorPage() {
             const isOpen = aberto === key
             const pct = total > 0 ? (g.total / total) * 100 : 0
             const isNenhum = !g.id
+            const ticketGrupo = g.lancamentos.length > 0 ? g.total / g.lancamentos.length : 0
 
             return (
               <div key={key} className="bg-white rounded-2xl border-2 border-gray-100 overflow-hidden">
@@ -220,18 +391,19 @@ export default function FaturamentoPorPage() {
                     <p className={`font-semibold text-sm truncate ${isNenhum ? 'text-gray-400 italic' : 'text-gray-800'}`}>
                       {g.nome}
                     </p>
-                    {/* Barra de progresso */}
                     <div className="mt-1.5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-brand-purple rounded-full transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
+                      <div className="h-full bg-brand-purple rounded-full transition-all" style={{ width: `${pct}%` }} />
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-0.5">{pct.toFixed(1)}% do total · {g.lancamentos.length} lançto{g.lancamentos.length !== 1 ? 's' : ''}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">
+                      {pct.toFixed(1)}% · {g.lancamentos.length} lançto{g.lancamentos.length !== 1 ? 's' : ''} · médio {formatCurrency(ticketGrupo)}
+                    </p>
                   </div>
 
                   <div className="text-right flex-shrink-0">
                     <p className="font-bold text-green-600">{formatCurrency(g.total)}</p>
+                    {incluirPendentes && g.totalPendente > 0 && (
+                      <p className="text-[10px] text-orange-500">a receber {formatCurrency(g.totalPendente)}</p>
+                    )}
                     {isOpen ? <ChevronUp size={14} className="text-gray-400 ml-auto mt-0.5" /> : <ChevronDown size={14} className="text-gray-400 ml-auto mt-0.5" />}
                   </div>
                 </button>
@@ -251,9 +423,10 @@ export default function FaturamentoPorPage() {
                           </p>
                           <p className="text-xs text-gray-400">
                             {formatDate(l.data)} · {AREA_LABELS[l.area]}
+                            {l.status === 'pendente' && <span className="text-orange-500 font-semibold"> · a receber</span>}
                           </p>
                         </div>
-                        <p className="font-semibold text-sm text-green-600 flex-shrink-0">
+                        <p className={`font-semibold text-sm flex-shrink-0 ${l.status === 'pendente' ? 'text-orange-500' : 'text-green-600'}`}>
                           +{formatCurrency(l.valor_liquido ?? l.valor)}
                         </p>
                       </Link>
