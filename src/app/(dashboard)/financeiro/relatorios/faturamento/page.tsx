@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, ChevronDown, ChevronUp, Dog, Users, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronUp, Dog, Users, ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/financeiro'
 import { CATEGORIA_RECEITA_LABELS, AREA_LABELS } from '@/lib/financeiro'
@@ -40,6 +40,7 @@ export default function FaturamentoPorPage() {
   const [grupos, setGrupos] = useState<GrupoItem[]>([])
   const [loading, setLoading] = useState(true)
   const [aberto, setAberto] = useState<string | null>(null)
+  const [filtro, setFiltro] = useState('')
 
   const navMes = (dir: number) => {
     const d = new Date(ano, mes + dir, 1)
@@ -98,6 +99,12 @@ export default function FaturamentoPorPage() {
 
   const total = grupos.reduce((s, g) => s + g.total, 0)
 
+  // Filtro de busca (mantém o ranking original pela posição em `grupos`)
+  const termo = filtro.trim().toLowerCase()
+  const gruposVisiveis = grupos
+    .map((g, idx) => ({ g, idx }))
+    .filter(({ g }) => !termo || g.nome.toLowerCase().includes(termo))
+
   return (
     <div className="py-6 flex flex-col gap-4">
       {/* Header */}
@@ -148,14 +155,46 @@ export default function FaturamentoPorPage() {
         </div>
       )}
 
+      {/* Busca por pet/tutor */}
+      {!loading && grupos.length > 0 && (
+        <div>
+          <div className="relative">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={filtro}
+              onChange={e => setFiltro(e.target.value)}
+              placeholder={aba === 'pet' ? 'Buscar pet...' : 'Buscar tutor...'}
+              className="w-full pl-10 pr-10 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-purple outline-none text-sm bg-white"
+            />
+            {filtro && (
+              <button
+                onClick={() => setFiltro('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+                aria-label="Limpar busca"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          {termo && (
+            <p className="text-xs text-gray-400 mt-1.5 px-1">
+              {gruposVisiveis.length} {gruposVisiveis.length === 1 ? 'resultado' : 'resultados'} para “{filtro.trim()}”
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Lista */}
       {loading ? (
         <div className="text-center py-10 text-gray-400">Carregando...</div>
       ) : grupos.length === 0 ? (
         <div className="text-center py-10 text-gray-400">Nenhum lançamento pago neste período.</div>
+      ) : gruposVisiveis.length === 0 ? (
+        <div className="text-center py-10 text-gray-400">Nenhum {aba === 'pet' ? 'pet' : 'tutor'} encontrado para “{filtro.trim()}”.</div>
       ) : (
         <div className="flex flex-col gap-2">
-          {grupos.map((g, idx) => {
+          {gruposVisiveis.map(({ g, idx }) => {
             const key = g.id ?? '__sem__'
             const isOpen = aberto === key
             const pct = total > 0 ? (g.total / total) * 100 : 0
