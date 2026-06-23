@@ -15,6 +15,12 @@ export async function POST(request: Request) {
 
   const { nome, email, senha, role, menus, funcionario_id } = await request.json()
 
+  // Valida o papel contra a lista permitida (evita role inexistente)
+  const PAPEIS = ['admin', 'recepcao', 'banho_tosa', 'motorista']
+  if (!PAPEIS.includes(role)) {
+    return NextResponse.json({ error: 'Papel inválido.' }, { status: 400 })
+  }
+
   const menusLimpos = Array.isArray(menus) ? menus.filter(m => typeof m === 'string') : null
 
   const adminClient = createAdminClient(

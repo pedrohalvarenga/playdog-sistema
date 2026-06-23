@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { validarImagem } from '@/lib/upload-validacao'
 
 const adminClient = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,6 +12,9 @@ export async function POST(request: Request) {
   const formData = await request.formData()
   const file = formData.get('arquivo') as File | null
   if (!file) return NextResponse.json({ error: 'Sem arquivo' }, { status: 400 })
+
+  const erroValidacao = validarImagem(file)
+  if (erroValidacao) return NextResponse.json({ error: erroValidacao }, { status: 415 })
 
   const ext = file.name.split('.').pop() ?? 'jpg'
   const path = `pets/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
