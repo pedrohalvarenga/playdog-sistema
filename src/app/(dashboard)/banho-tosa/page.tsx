@@ -53,9 +53,10 @@ export default function BanhoTosaPage() {
   const hoje = toLocalDate(new Date())
   // Admin, recepção e o funcionário do banho podem registrar pagamento/entrega.
   const podePagar = profile?.role === 'admin' || profile?.role === 'recepcao' || profile?.role === 'banho_tosa'
-  // Criar / cancelar agendamento é só admin e recepção.
+  // Cancelar agendamento é só admin e recepção.
   const podeGerenciar = profile?.role === 'admin' || profile?.role === 'recepcao'
-  const podeNovo  = podeGerenciar
+  // Admin, recepção e banho_tosa podem criar novos agendamentos.
+  const podeNovo = podeGerenciar || profile?.role === 'banho_tosa'
 
   const carregar = useCallback(async () => {
     setLoading(true)
