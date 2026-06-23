@@ -2,18 +2,23 @@
 
 import { use, useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Car } from 'lucide-react'
+import { ArrowLeft, Car, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
+import { useProfile } from '@/hooks/useProfile'
 import type { AgendamentoBanhoTosa } from '@/types/banho_tosa'
 
 export default function EditarAgendamentoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const { profile, loading: loadingProfile } = useProfile()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [erro, setErro] = useState('')
+  const [statusAg, setStatusAg] = useState<string>('agendado')
+
+  const podeEditar = profile?.role === 'admin' || profile?.role === 'recepcao'
 
   const [data, setData] = useState('')
   const [horaChegada, setHoraChegada] = useState('')
@@ -35,6 +40,7 @@ export default function EditarAgendamentoPage({ params }: { params: Promise<{ id
       .eq('id', id)
       .single<AgendamentoBanhoTosa>()
     if (!ag) return
+    setStatusAg(ag.status)
     setData(ag.data)
     setHoraChegada(ag.hora_chegada.slice(0, 5))
     setHoraSaida(ag.hora_saida_prevista ? ag.hora_saida_prevista.slice(0, 5) : '')
@@ -53,6 +59,8 @@ export default function EditarAgendamentoPage({ params }: { params: Promise<{ id
 
   async function salvar() {
     setErro('')
+    if (!podeEditar) { setErro('Você não tem permissão para editar agendamentos.'); return }
+    if (statusAg !== 'agendado') { setErro('Só é possível editar agendamentos com status "Agendado".'); return }
     if (!data || !horaChegada || !descricao.trim()) {
       setErro('Preencha os campos obrigatórios.')
       return
@@ -104,9 +112,22 @@ export default function EditarAgendamentoPage({ params }: { params: Promise<{ id
     router.push(`/banho-tosa/agendamentos/${id}`)
   }
 
-  if (loading) return (
+  if (loading || loadingProfile) return (
     <div className="flex justify-center py-20">
       <span className="w-8 h-8 border-2 border-brand-teal/30 border-t-brand-teal rounded-full animate-spin" />
+    </div>
+  )
+
+  if (!podeEditar || statusAg !== 'agendado') return (
+    <div className="py-20 text-center flex flex-col items-center gap-3">
+      <AlertCircle size={40} className="text-red-400" />
+      <p className="font-semibold text-gray-700">
+        {!podeEditar ? 'Acesso restrito à recepção/admin' : 'Este agendamento não pode mais ser editado'}
+      </p>
+      {statusAg !== 'agendado' && podeEditar && (
+        <p className="text-xs text-gray-400">Só agendamentos com status “Agendado” podem ser editados.</p>
+      )}
+      <Link href={`/banho-tosa/agendamentos/${id}`} className="text-brand-teal text-sm font-semibold">← Voltar</Link>
     </div>
   )
 

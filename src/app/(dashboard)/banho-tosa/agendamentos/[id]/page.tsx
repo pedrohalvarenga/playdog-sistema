@@ -106,8 +106,14 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
     }
 
     if (pagarComPacote) {
-      const { error } = await supabase.rpc('consumir_credito_banho', { p_pet_id: pet.id })
+      // Só conclui se o crédito foi REALMENTE descontado (RPC retorna null se não havia).
+      const { data: novoSaldo, error } = await supabase.rpc('consumir_credito_banho', { p_pet_id: pet.id })
       if (error) { setErroPag('Erro ao usar o crédito do pacote: ' + error.message); setSalvandoPag(false); return }
+      if (novoSaldo === null) {
+        setErroPag('Sem crédito de pacote disponível agora. Desligue "Usar 1 crédito do pacote" e informe o valor para cobrar avulso.')
+        setSalvandoPag(false)
+        return
+      }
     } else if (vServico > 0) {
       const { data: r1, error } = await supabase.from('receitas').insert({
         data: hojeLocal(),

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdmin } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { diaLocal } from '@/lib/datas'
@@ -19,9 +20,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'tutor_id, mes e ano são obrigatórios' }, { status: 400 })
   }
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  const cookieClient = await createClient()
+  const { data: { user } } = await cookieClient.auth.getUser()
+  // Aceita usuário logado OU chamada interna (cron/lote) com segredo
+  const isInternal = request.headers.get('x-internal-secret') === process.env.CRON_SECRET
+  if (!user && !isInternal) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
+  // Leituras/escritas via service-role (funciona tanto para usuário quanto p/ cron)
+  const supabase = createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
 
   const inicio = `${ano}-${String(mes).padStart(2, '0')}-01`
   const fim = diaLocal(new Date(ano, mes, 0))

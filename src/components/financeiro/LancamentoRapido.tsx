@@ -53,6 +53,7 @@ export default function LancamentoRapido() {
   const [numDiarias, setNumDiarias] = useState<number | ''>('')
   const [numBanhos, setNumBanhos] = useState<number | ''>('')
   const [saving, setSaving] = useState(false)
+  const [erroSalvar, setErroSalvar] = useState('')
   const [petBusca, setPetBusca] = useState('')
   const [petSugestoes, setPetSugestoes] = useState<PetOption[]>([])
   const [buscandoPets, setBuscandoPets] = useState(false)
@@ -71,7 +72,7 @@ export default function LancamentoRapido() {
   function reset() {
     setStep('tipo'); setTipo('receita'); setValorRaw('')
     setArea(null); setCategoria(null); setForma('pix'); setConta(null); setNumDiarias(''); setNumBanhos('')
-    setPetBusca(''); setPetSugestoes([])
+    setPetBusca(''); setPetSugestoes([]); setErroSalvar('')
   }
 
   // Busca pets pelo nome (etapa pet)
@@ -116,23 +117,22 @@ export default function LancamentoRapido() {
       ? TAXAS_PADRAO[forma] : undefined
     const valor_liquido = taxa ? calcValorLiquido(valor, taxa) : undefined
 
-    if (tipo === 'receita') {
-      await supabase.from('receitas').insert({
-        data: hojeLocal(),
-        valor, area, categoria, forma_pagamento: forma,
-        conta_id: contaId, taxa_cartao: taxa, valor_liquido, status: 'pago',
-        num_diarias: numDiarias !== '' ? numDiarias : null,
-        num_banhos: numBanhos !== '' ? numBanhos : null,
-        pet_id: pet?.id ?? null,
-        tutor_id: pet?.tutor_id ?? null,
-      })
-    } else {
-      await supabase.from('despesas').insert({
-        data: hojeLocal(),
-        valor, area, categoria, conta_id: contaId, status: 'pago',
-      })
-    }
+    const { error } = tipo === 'receita'
+      ? await supabase.from('receitas').insert({
+          data: hojeLocal(),
+          valor, area, categoria, forma_pagamento: forma,
+          conta_id: contaId, taxa_cartao: taxa, valor_liquido, status: 'pago',
+          num_diarias: numDiarias !== '' ? numDiarias : null,
+          num_banhos: numBanhos !== '' ? numBanhos : null,
+          pet_id: pet?.id ?? null,
+          tutor_id: pet?.tutor_id ?? null,
+        })
+      : await supabase.from('despesas').insert({
+          data: hojeLocal(),
+          valor, area, categoria, conta_id: contaId, status: 'pago',
+        })
     setSaving(false)
+    if (error) { setErroSalvar(error.message); return }
     setStep('ok')
   }
 
@@ -180,6 +180,12 @@ export default function LancamentoRapido() {
                 <X size={22} />
               </button>
             </div>
+
+            {erroSalvar && (
+              <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">
+                Não foi possível salvar: {erroSalvar}
+              </p>
+            )}
 
             {/* STEP: tipo */}
             {step === 'tipo' && (

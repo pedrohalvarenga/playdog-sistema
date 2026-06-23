@@ -78,41 +78,37 @@ export default function ConciliacaoPage() {
     setImportando(true)
     const supabase = createClient()
 
-    const inserts = novos.map(t => ({
-      data: t.data,
-      valor: t.valor,
-      area: 'geral' as const,
-      categoria: t.tipo === 'CREDIT' ? 'outros' as const : undefined,
-      conta_id: contaId,
-      descricao: t.memo,
-      status: 'pago' as const,
-    }))
+    // Dedup contra o que já existe na conta no período (evita reimportar o mesmo OFX)
+    const datasOrd = novos.map(t => t.data).sort()
+    const minData = datasOrd[0]
+    const maxData = datasOrd[datasOrd.length - 1]
+    const [{ data: recEx }, { data: despEx }] = await Promise.all([
+      supabase.from('receitas').select('data, valor').eq('conta_id', contaId).gte('data', minData).lte('data', maxData),
+      supabase.from('despesas').select('data, valor').eq('conta_id', contaId).gte('data', minData).lte('data', maxData),
+    ])
+    const jaRec = new Set((recEx ?? []).map(r => `${r.data}|${Number(r.valor)}`))
+    const jaDesp = new Set((despEx ?? []).map(d => `${d.data}|${Number(d.valor)}`))
 
-    const receitasInsert = inserts.filter(i => {
-      const txn = novos.find(t => t.data === i.data && t.valor === i.valor && t.tipo === 'CREDIT')
-      return !!txn
-    })
-    const despesasInsert = inserts.filter(i => {
-      const txn = novos.find(t => t.data === i.data && t.valor === i.valor && t.tipo === 'DEBIT')
-      return !!txn
-    })
+    // Separa pelo TIPO de cada transação (não por casamento data+valor, que invertia/duplicava)
+    const receitas = novos.filter(t => t.tipo === 'CREDIT' && !jaRec.has(`${t.data}|${t.valor}`))
+    const despesas = novos.filter(t => t.tipo === 'DEBIT' && !jaDesp.has(`${t.data}|${t.valor}`))
 
-    if (receitasInsert.length > 0) {
+    if (receitas.length > 0) {
       const { error } = await supabase.from('receitas').insert(
-        receitasInsert.map(r => ({
-          data: r.data, valor: r.valor, area: r.area,
+        receitas.map(t => ({
+          data: t.data, valor: t.valor, area: 'geral' as const,
           categoria: 'outros' as const, forma_pagamento: 'pix' as const,
-          conta_id: r.conta_id, descricao: r.descricao, status: 'pago' as const,
+          conta_id: contaId, descricao: t.memo, status: 'pago' as const,
         }))
       )
       if (error) { alert(`Erro ao importar receitas: ${error.message}`); setImportando(false); return }
     }
-    if (despesasInsert.length > 0) {
+    if (despesas.length > 0) {
       const { error } = await supabase.from('despesas').insert(
-        despesasInsert.map(d => ({
-          data: d.data, valor: d.valor, area: d.area,
+        despesas.map(t => ({
+          data: t.data, valor: t.valor, area: 'geral' as const,
           categoria: 'outros' as const,
-          conta_id: d.conta_id, descricao: d.descricao, status: 'pago' as const,
+          conta_id: contaId, descricao: t.memo, status: 'pago' as const,
         }))
       )
       if (error) { alert(`Erro ao importar despesas: ${error.message}`); setImportando(false); return }

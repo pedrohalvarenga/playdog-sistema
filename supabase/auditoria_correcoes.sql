@@ -14,8 +14,7 @@ BEGIN
     WHERE id = p_pet_id AND COALESCE(saldo_banhos, 0) > 0
     RETURNING saldo_banhos INTO v_saldo;
   IF NOT FOUND THEN
-    -- sem saldo: não desconta, retorna o saldo atual (0)
-    SELECT COALESCE(saldo_banhos, 0) INTO v_saldo FROM public.pets WHERE id = p_pet_id;
+    RETURN NULL;  -- sem saldo: nada consumido (cliente deve abortar e cobrar avulso)
   END IF;
   RETURN v_saldo;
 END;

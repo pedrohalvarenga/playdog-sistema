@@ -30,13 +30,24 @@ export default async function DespesaDetalhe({ params }: { params: Promise<{ id:
   if (!data) notFound()
   const d = data
 
+  // Favorecido: texto livre OU nome do fornecedor/funcionário cadastrado (por id)
+  let favorecido = d.fornecedor ?? ''
+  if (!favorecido && d.fornecedor_id) {
+    const { data: f } = await supabase.from('fornecedores').select('nome').eq('id', d.fornecedor_id).single()
+    favorecido = (f as { nome?: string } | null)?.nome ?? ''
+  }
+  if (!favorecido && d.funcionario_id) {
+    const { data: fn } = await supabase.from('funcionarios').select('nome').eq('id', d.funcionario_id).single()
+    favorecido = (fn as { nome?: string } | null)?.nome ?? ''
+  }
+
   const rows: { label: string; value: string }[] = [
     { label: 'Data', value: formatDate(d.data) },
     { label: 'Área', value: AREA_LABELS[d.area] },
     { label: 'Categoria', value: CATEGORIA_DESPESA_LABELS[d.categoria] },
     { label: 'Conta', value: d.conta?.nome ?? '—' },
     { label: 'Valor', value: formatCurrency(d.valor) },
-    ...(d.fornecedor ? [{ label: 'Fornecedor', value: d.fornecedor }] : []),
+    ...(favorecido ? [{ label: 'Favorecido', value: favorecido }] : []),
     ...(d.descricao ? [{ label: 'Descrição', value: d.descricao }] : []),
     ...(d.data_vencimento ? [{ label: 'Vencimento', value: formatDate(d.data_vencimento) }] : []),
     { label: 'Recorrente', value: d.recorrente ? `Sim (dia ${d.dia_vencimento})` : 'Não' },

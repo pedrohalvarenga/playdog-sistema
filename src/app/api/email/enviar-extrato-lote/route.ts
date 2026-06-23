@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     try {
       const res = await fetch(`${baseUrl}/api/email/enviar-extrato`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET ?? '' },
         body: JSON.stringify({ tutor_id: tutor.id, mes, ano }),
       })
 

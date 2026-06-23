@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { CircleDollarSign, Check, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { hojeLocal } from '@/lib/datas'
 
 interface PendenciaActionsProps {
   id: string
@@ -14,6 +13,7 @@ interface PendenciaActionsProps {
 export default function PendenciaActions({ id, tipo }: PendenciaActionsProps) {
   const [loading, setLoading] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
+  const [erro, setErro] = useState('')
   const router = useRouter()
 
   const labelAcao = tipo === 'receita' ? 'Registrar recebimento' : 'Registrar pagamento'
@@ -22,12 +22,23 @@ export default function PendenciaActions({ id, tipo }: PendenciaActionsProps) {
     setLoading(true)
     const supabase = createClient()
     const tabela = tipo === 'receita' ? 'receitas' : 'despesas'
-    await supabase.from(tabela).update({
-      status: 'pago',
-      data: hojeLocal(),
-    }).eq('id', id)
+    // Não sobrescreve `data` (mantém a competência original do lançamento)
+    const { error } = await supabase.from(tabela).update({ status: 'pago' }).eq('id', id)
     setLoading(false)
+    if (error) { setErro(error.message); return }
     router.refresh()
+  }
+
+  if (erro) {
+    return (
+      <button
+        onClick={e => { e.preventDefault(); setErro(''); setConfirmando(false) }}
+        className="text-[11px] text-red-500 bg-red-50 rounded-lg px-2 py-1.5 text-left max-w-[160px]"
+        title={erro}
+      >
+        Falha ao salvar. Toque para tentar de novo.
+      </button>
+    )
   }
 
   if (confirmando) {

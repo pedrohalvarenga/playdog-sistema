@@ -47,7 +47,7 @@ export async function GET(req: Request) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
     const res = await fetch(`${baseUrl}/api/email/enviar-extrato`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.CRON_SECRET ?? '' },
       body: JSON.stringify({ tutor_id: tutor.id, mes: mesRef, ano: anoRef }),
     })
     if (res.ok) enviados++

@@ -138,9 +138,15 @@ export default function BanhoTosaPage() {
     }
 
     if (pagarComPacote) {
-      // Usa 1 crédito do pacote — sem cobrança extra, sem receita do serviço
-      const { error } = await supabase.rpc('consumir_credito_banho', { p_pet_id: pet.id })
+      // Usa 1 crédito do pacote — só conclui se o crédito foi REALMENTE descontado.
+      // A RPC retorna o novo saldo, ou null quando não havia crédito (corrida/saldo zerado).
+      const { data: novoSaldo, error } = await supabase.rpc('consumir_credito_banho', { p_pet_id: pet.id })
       if (error) { setErroPag('Erro ao usar o crédito do pacote: ' + error.message); setSalvandoPag(false); return }
+      if (novoSaldo === null) {
+        setErroPag('Sem crédito de pacote disponível agora. Desligue "Usar 1 crédito do pacote" e informe o valor para cobrar avulso.')
+        setSalvandoPag(false)
+        return
+      }
     } else if (vServico > 0) {
       const { data: r1, error } = await supabase.from('receitas').insert({
         data: hojeLocal(),
