@@ -115,6 +115,16 @@ export default function TransportesPage() {
     if (!endereco.trim()) { setErroAdd('Informe o endereço.'); return }
     setSalvando(true)
     const supabase = createClient()
+
+    // Evita duplicar: confere quais trechos o pet já tem no dia (não cancelados)
+    const { data: existentes } = await supabase
+      .from('transportes')
+      .select('tipo')
+      .eq('pet_id', petSel.id)
+      .eq('data', data)
+      .not('status', 'eq', 'cancelado')
+    const jaTem = new Set((existentes ?? []).map((t: { tipo: string }) => t.tipo))
+
     const base = {
       origem,
       origem_id: null,
@@ -124,10 +134,18 @@ export default function TransportesPage() {
       telefone: telefone.trim() || null,
       status: 'pendente',
     }
-    const { error } = await supabase.from('transportes').insert([
+    const novos = [
       { ...base, tipo: 'buscar', meio: meioIda },
       { ...base, tipo: 'levar', meio: meioVolta },
-    ])
+    ].filter(t => !jaTem.has(t.tipo))
+
+    if (novos.length === 0) {
+      setSalvando(false)
+      setErroAdd('Este pet já está na lista de hoje (coleta e entrega).')
+      return
+    }
+
+    const { error } = await supabase.from('transportes').insert(novos)
     setSalvando(false)
     if (error) { setErroAdd(error.message); return }
     setModalAdd(false)

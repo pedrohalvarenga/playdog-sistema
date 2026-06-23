@@ -18,13 +18,16 @@ export async function salvarOrcamento(fd: FormData) {
   const meta_receita = parseFloat((fd.get('meta_receita') as string).replace(',', '.') || '0')
   const teto_despesa = parseFloat((fd.get('teto_despesa') as string).replace(',', '.') || '0')
 
-  // Upsert: tenta atualizar existente, senão cria
-  const { data: existente } = await supabase
+  // Upsert: tenta atualizar existente, senão cria.
+  // Usa .is(col, null) para campos nulos — .eq(col, null) nunca casa no PostgREST.
+  let q = supabase
     .from('orcamentos')
     .select('id')
     .eq('area', area).eq('periodo', periodo).eq('ano', ano)
-    .eq('mes', mes).eq('trimestre', trimestre).eq('semestre', semestre)
-    .maybeSingle()
+  q = mes === null ? q.is('mes', null) : q.eq('mes', mes)
+  q = trimestre === null ? q.is('trimestre', null) : q.eq('trimestre', trimestre)
+  q = semestre === null ? q.is('semestre', null) : q.eq('semestre', semestre)
+  const { data: existente } = await q.maybeSingle()
 
   if (existente) {
     await supabase.from('orcamentos').update({

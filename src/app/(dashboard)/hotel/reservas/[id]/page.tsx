@@ -79,8 +79,9 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
     const pacoteProprio = h.valor_pacote != null && h.valor_pacote > 0
       ? h.valor_pacote
       : noites * h.valor_diaria
+    // Mesmo conjunto que entra no rateio do checkout (exclui finalizada/cancelada)
     const pacoteGrupo = grupo
-      .filter(g => g.status !== 'cancelada')
+      .filter(g => g.status === 'hospedado' || g.status === 'reservada')
       .reduce((s, g) => s + (g.valor_pacote ?? 0), 0)
     setValorTotal((pacoteProprio + pacoteGrupo).toFixed(2))
   }, [h, grupo, showCheckout])
@@ -165,6 +166,8 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
 
       const { error: errHosp } = await supabase.from('hospedagens').update({
         status: 'finalizada',
+        // Garante coerência: irmão 'reservada' que sai junto recebe o check-in real
+        checkin_real: m.checkin_real ?? agora,
         checkout_real: agora,
         valor_total: valorPet,
         valor_extras: i === 0 ? extras : 0,

@@ -81,17 +81,19 @@ export default async function FinanceiroPage() {
   const emSeteStr = diaLocal(emSete)
   const hojeStr = diaLocal(hoje)
 
+  // Inclui pendentes SEM vencimento (banho/hotel) além dos que vencem até 7 dias
+  const filtroVenc = `data_vencimento.is.null,data_vencimento.lte.${emSeteStr}`
   const [{ data: receitasPend }, { data: despesasPend }] = await Promise.all([
     supabase.from('receitas')
       .select('id, descricao, valor, data_vencimento, area')
       .eq('status', 'pendente')
-      .lte('data_vencimento', emSeteStr)
+      .or(filtroVenc)
       .order('data_vencimento'),
     isAdmin
       ? supabase.from('despesas')
           .select('id, descricao, valor, data_vencimento, area, categoria')
           .eq('status', 'pendente')
-          .lte('data_vencimento', emSeteStr)
+          .or(filtroVenc)
           .order('data_vencimento')
       : Promise.resolve({ data: [] }),
   ])

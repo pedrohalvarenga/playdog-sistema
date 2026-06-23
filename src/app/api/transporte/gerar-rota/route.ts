@@ -132,6 +132,9 @@ export async function POST(req: Request) {
   if (rotaExistente?.status === 'finalizada') {
     return NextResponse.json({ error: 'Esta rota já foi finalizada.' }, { status: 400 })
   }
+  if (rotaExistente?.status === 'em_andamento') {
+    return NextResponse.json({ error: 'A rota já está em andamento — não dá para recalcular sem reordenar paradas que o motorista já passou.' }, { status: 400 })
+  }
 
   let rotaId = rotaExistente?.id as string | undefined
   if (!rotaId) {

@@ -18,7 +18,8 @@ export default function SelectExecutadoPor({ value, onChange, label = 'Quem exec
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.from('funcionarios').select('id, nome').eq('ativo', true).eq('recebe_comissao', true).order('nome')
+    // Via RPC SECURITY DEFINER: recepção/banho também veem (sem expor salários)
+    supabase.rpc('funcionarios_comissionaveis')
       .then(({ data }) => setFuncionarios((data as Funcionario[]) ?? []))
   }, [])
 

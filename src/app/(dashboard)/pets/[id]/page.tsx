@@ -49,6 +49,7 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
   const { data: { user } } = await supabase.auth.getUser()
   const { data: perfil } = await supabase.from('profiles').select('role').eq('id', user?.id ?? '').single()
   const isAdmin = perfil?.role === 'admin'
+  const podeEditar = perfil?.role === 'admin' || perfil?.role === 'recepcao'
 
   const { data: pet } = await supabase
     .from('pets')
@@ -183,14 +184,16 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
             </p>
             {p.saldo_diarias < 0 && <p className="text-xs text-red-500 font-semibold mt-0.5">Saldo negativo</p>}
           </div>
-          <div className="flex gap-2">
-            <Link href={`/creche/comprar-diarias/${id}`} className="flex items-center gap-1.5 bg-brand-purple text-white px-3 py-2 rounded-xl text-xs font-semibold">
-              <CreditCard size={14} /> Comprar
-            </Link>
-            <Link href={`/creche/ajustar-saldo/${id}`} className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-2 rounded-xl text-xs font-semibold">
-              <SlidersHorizontal size={14} /> Ajustar
-            </Link>
-          </div>
+          {podeEditar && (
+            <div className="flex gap-2">
+              <Link href={`/creche/comprar-diarias/${id}`} className="flex items-center gap-1.5 bg-brand-purple text-white px-3 py-2 rounded-xl text-xs font-semibold">
+                <CreditCard size={14} /> Comprar
+              </Link>
+              <Link href={`/creche/ajustar-saldo/${id}`} className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-2 rounded-xl text-xs font-semibold">
+                <SlidersHorizontal size={14} /> Ajustar
+              </Link>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -211,16 +214,18 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
                 <p className="text-sm text-gray-500">Cobrança por atendimento. Defina como pacote na edição do pet.</p>
               )}
             </div>
-            <div className="flex gap-2 flex-shrink-0">
-              <Link href={`/banho-tosa/comprar-pacote/${id}`} className="flex items-center gap-1.5 bg-brand-teal text-white px-3 py-2 rounded-xl text-xs font-semibold">
-                <CreditCard size={14} /> Vender
-              </Link>
-              {p.tipo_banho === 'pacote' && (
-                <Link href={`/banho-tosa/ajustar-saldo/${id}`} className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-2 rounded-xl text-xs font-semibold">
-                  <SlidersHorizontal size={14} /> Ajustar
+            {podeEditar && (
+              <div className="flex gap-2 flex-shrink-0">
+                <Link href={`/banho-tosa/comprar-pacote/${id}`} className="flex items-center gap-1.5 bg-brand-teal text-white px-3 py-2 rounded-xl text-xs font-semibold">
+                  <CreditCard size={14} /> Vender
                 </Link>
-              )}
-            </div>
+                {p.tipo_banho === 'pacote' && (
+                  <Link href={`/banho-tosa/ajustar-saldo/${id}`} className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-2 rounded-xl text-xs font-semibold">
+                    <SlidersHorizontal size={14} /> Ajustar
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
         </Card>
       )}
