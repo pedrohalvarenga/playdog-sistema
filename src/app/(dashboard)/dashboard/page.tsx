@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { Dog, CalendarCheck, Users, TrendingUp, Moon, Scissors, Car } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import { formatDate } from '@/lib/utils'
+import { formatCurrency } from '@/lib/financeiro'
 import { STATUS_ROTA_LABELS, STATUS_ROTA_CORES } from '@/lib/transporte'
 import type { Rota, Transporte } from '@/types/transporte'
 import type { Profile } from '@/types'
@@ -13,7 +14,9 @@ async function getStats() {
   const supabase = await createClient()
   const hoje = hojeLocal()
 
-  const [presencasHoje, petsAtivos, hospedadosHoje, banhoHoje] = await Promise.all([
+  const inicioMes = hoje.slice(0, 8) + '01'
+
+  const [presencasHoje, petsAtivos, hospedadosHoje, banhoHoje, receitasMes] = await Promise.all([
     supabase.from('presencas').select('id', { count: 'exact' }).eq('data', hoje).is('checkout_at', null),
     // Uma única fonte para pets e tutores: assim os dois cards usam a mesma base
     // (pets ativos) e o nº de tutores nunca passa o de pets.
@@ -21,10 +24,13 @@ async function getStats() {
     supabase.from('hospedagens').select('id', { count: 'exact' }).eq('status', 'hospedado'),
     supabase.from('agendamentos_banho_tosa').select('id', { count: 'exact' })
       .eq('data', hoje).not('status', 'in', '(cancelado,entregue)'),
+    supabase.from('receitas').select('valor, valor_liquido').eq('status', 'pago').gte('data', inicioMes).lte('data', hoje),
   ])
 
   const pets = (petsAtivos.data ?? []) as { tutor_id: string }[]
   const tutoresComPet = new Set(pets.map(p => p.tutor_id))
+  const receitaMes = ((receitasMes.data ?? []) as { valor: number; valor_liquido: number | null }[])
+    .reduce((s, r) => s + (r.valor_liquido ?? r.valor), 0)
 
   return {
     petsPresentes: presencasHoje.count ?? 0,
@@ -32,6 +38,7 @@ async function getStats() {
     totalTutores: tutoresComPet.size,
     hospedados: hospedadosHoje.count ?? 0,
     banhoHoje: banhoHoje.count ?? 0,
+    receitaMes,
   }
 }
 
@@ -98,11 +105,21 @@ export default async function DashboardPage() {
           <p className="text-sm text-gray-500">Tutores</p>
         </Card>
 
-        <Card className="bg-brand-orange text-white">
-          <TrendingUp size={28} className="mb-2 opacity-80" />
-          <p className="text-3xl font-bold">—</p>
-          <p className="text-sm opacity-80">Receita do mês</p>
-        </Card>
+        {(profile?.role === 'admin' || profile?.role === 'recepcao') ? (
+          <Link href="/financeiro">
+            <Card className="bg-brand-orange text-white h-full active:scale-98 transition-transform">
+              <TrendingUp size={28} className="mb-2 opacity-80" />
+              <p className="text-2xl font-bold">{formatCurrency(stats.receitaMes)}</p>
+              <p className="text-sm opacity-80">Receita do mês (recebida)</p>
+            </Card>
+          </Link>
+        ) : (
+          <Card className="bg-brand-orange text-white">
+            <TrendingUp size={28} className="mb-2 opacity-80" />
+            <p className="text-3xl font-bold">—</p>
+            <p className="text-sm opacity-80">Receita do mês</p>
+          </Card>
+        )}
       </div>
 
       {/* Transporte: rotas do dia com progresso */}

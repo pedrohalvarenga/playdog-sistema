@@ -5,8 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
-import { Search, Dog, Plus, ChevronRight, X } from 'lucide-react'
-import { PORTE_LABELS } from '@/lib/utils'
+import { Search, Dog, Plus, ChevronRight, X, MessageCircle } from 'lucide-react'
+import { PORTE_LABELS, whatsappUrl } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Pet } from '@/types'
@@ -120,8 +120,8 @@ export default function PetsPage() {
                 <span className="text-xs font-bold text-brand-purple tracking-widest">{letra}</span>
               </div>
               {petsDaLetra.map(pet => (
-                <Link key={pet.id} href={`/pets/${pet.id}`}>
-                  <Card className="flex items-center gap-3 cursor-pointer hover:shadow-md transition-shadow">
+                <Card key={pet.id} className="flex items-center gap-3 hover:shadow-md transition-shadow">
+                  <Link href={`/pets/${pet.id}`} className="flex items-center gap-3 flex-1 min-w-0">
                     <div className="w-14 h-14 rounded-2xl bg-purple-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
                       {pet.foto_url ? (
                         <Image src={pet.foto_url} alt={pet.nome} width={56} height={56} className="object-cover w-full h-full" />
@@ -141,9 +141,21 @@ export default function PetsPage() {
                         </p>
                       )}
                     </div>
+                  </Link>
+                  {pet.tutor?.telefone ? (
+                    <a
+                      href={whatsappUrl(pet.tutor.telefone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center w-10 h-10 rounded-xl bg-green-50 text-green-600 flex-shrink-0 active:scale-95"
+                      aria-label={`WhatsApp de ${pet.tutor?.nome ?? 'tutor'}`}
+                    >
+                      <MessageCircle size={18} />
+                    </a>
+                  ) : (
                     <ChevronRight size={18} className="text-gray-300 flex-shrink-0" />
-                  </Card>
-                </Link>
+                  )}
+                </Card>
               ))}
             </div>
           ))}

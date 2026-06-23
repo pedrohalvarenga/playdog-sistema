@@ -3,8 +3,10 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { LogOut } from 'lucide-react'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import GlobalSearch from './GlobalSearch'
 
 interface TopBarProps {
   titulo?: string
@@ -13,6 +15,7 @@ interface TopBarProps {
 
 export default function TopBar({ titulo, nome }: TopBarProps) {
   const router = useRouter()
+  const [confirmando, setConfirmando] = useState(false)
 
   async function handleLogout() {
     const supabase = createClient()
@@ -31,12 +34,21 @@ export default function TopBar({ titulo, nome }: TopBarProps) {
           </div>
         </Link>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleLogout}
-            className="p-2 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50"
-          >
-            <LogOut size={20} />
-          </button>
+          <GlobalSearch />
+          {confirmando ? (
+            <div className="flex items-center gap-1.5">
+              <button onClick={handleLogout} className="px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold">Sair</button>
+              <button onClick={() => setConfirmando(false)} className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 text-xs font-semibold">Cancelar</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmando(true)}
+              className="p-2 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50"
+              aria-label="Sair da conta"
+            >
+              <LogOut size={20} />
+            </button>
+          )}
         </div>
       </div>
     </header>
