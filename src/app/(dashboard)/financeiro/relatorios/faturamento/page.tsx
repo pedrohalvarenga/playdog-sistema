@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft, ChevronDown, ChevronUp, Dog, Users, ChevronLeft, ChevronRight,
-  Search, X, Download, Share2, CalendarRange, Calendar,
+  Search, X, Download, Share2, CalendarRange, Calendar, Scissors,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency, CATEGORIA_RECEITA_LABELS, AREA_LABELS } from '@/lib/financeiro'
@@ -63,6 +63,10 @@ export default function FaturamentoPorPage() {
   const [loading, setLoading] = useState(true)
   const [aberto, setAberto] = useState<string | null>(null)
   const [filtro, setFiltro] = useState('')
+  // Banhos entregues no período (inclui pagos e por pacote) — contagem por pet/tutor
+  const [banhosPet, setBanhosPet] = useState<Record<string, number>>({})
+  const [banhosTutor, setBanhosTutor] = useState<Record<string, number>>({})
+  const [banhosTotal, setBanhosTotal] = useState(0)
 
   const navMes = (dir: number) => {
     const d = new Date(ano, mes + dir, 1)
@@ -96,6 +100,27 @@ export default function FaturamentoPorPage() {
 
     const { data } = await query
     setRaw((data as unknown as RawRow[]) ?? [])
+
+    // Banhos entregues no mesmo período — contados por pet e por tutor.
+    // Inclui banhos pagos e os pagos com crédito do pacote (status 'entregue').
+    const { data: banhos } = await supabase
+      .from('agendamentos_banho_tosa')
+      .select('pet_id, pet:pets(tutor_id)')
+      .eq('status', 'entregue')
+      .gte('data', inicio)
+      .lte('data', fim)
+
+    const porPet: Record<string, number> = {}
+    const porTutor: Record<string, number> = {}
+    for (const b of (banhos ?? []) as { pet_id: string | null; pet: { tutor_id: string | null } | null }[]) {
+      if (b.pet_id) porPet[b.pet_id] = (porPet[b.pet_id] ?? 0) + 1
+      const tutorId = b.pet?.tutor_id
+      if (tutorId) porTutor[tutorId] = (porTutor[tutorId] ?? 0) + 1
+    }
+    setBanhosPet(porPet)
+    setBanhosTutor(porTutor)
+    setBanhosTotal((banhos ?? []).length)
+
     setLoading(false)
   }, [inicio, fim, incluirPendentes])
 
@@ -322,6 +347,11 @@ export default function FaturamentoPorPage() {
           <p className="text-xs opacity-70 mt-1">
             {grupos.length} {aba === 'pet' ? 'pets' : 'tutores'} · {totalLancamentos} lançamentos · ticket médio {formatCurrency(ticketMedio)}
           </p>
+          {banhosTotal > 0 && (
+            <p className="text-xs opacity-80 mt-1 flex items-center gap-1">
+              <Scissors size={12} /> {banhosTotal} banho{banhosTotal !== 1 ? 's' : ''} no período
+            </p>
+          )}
         </div>
       )}
 
@@ -401,8 +431,16 @@ export default function FaturamentoPorPage() {
 
                   <div className="text-right flex-shrink-0">
                     <p className="font-bold text-green-600">{formatCurrency(g.total)}</p>
+                    {(() => {
+                      const nb = g.id ? (aba === 'pet' ? banhosPet[g.id] : banhosTutor[g.id]) ?? 0 : 0
+                      return nb > 0 ? (
+                        <span className="inline-flex items-center gap-1 bg-teal-50 text-teal-700 text-[10px] font-semibold px-2 py-0.5 rounded-full mt-1">
+                          <Scissors size={10} /> {nb} banho{nb !== 1 ? 's' : ''}
+                        </span>
+                      ) : null
+                    })()}
                     {incluirPendentes && g.totalPendente > 0 && (
-                      <p className="text-[10px] text-orange-500">a receber {formatCurrency(g.totalPendente)}</p>
+                      <p className="text-[10px] text-orange-500 mt-0.5">a receber {formatCurrency(g.totalPendente)}</p>
                     )}
                     {isOpen ? <ChevronUp size={14} className="text-gray-400 ml-auto mt-0.5" /> : <ChevronDown size={14} className="text-gray-400 ml-auto mt-0.5" />}
                   </div>
