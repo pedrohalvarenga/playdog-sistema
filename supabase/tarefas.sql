@@ -25,7 +25,7 @@ UPDATE public.profiles SET tarefas_perm = 'criador'
 CREATE OR REPLACE FUNCTION public.minha_tarefas_perm()
 RETURNS TEXT AS $$
   SELECT tarefas_perm FROM public.profiles WHERE id = auth.uid() AND ativo = true LIMIT 1;
-$$ LANGUAGE SQL STABLE SECURITY DEFINER;
+$$ LANGUAGE SQL STABLE SECURITY DEFINER SET search_path = public;
 
 -- ── 2) View de pessoas (para mostrar responsáveis e atribuir) ─
 -- A RLS de profiles só deixa o usuário ver o próprio perfil; esta view
@@ -94,7 +94,7 @@ BEGIN
     concluida_por = CASE WHEN p_concluir THEN v_uid ELSE NULL END
   WHERE id = p_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Registrar atividade no catálogo (toda escrita manual vira atividade reutilizável).
 CREATE OR REPLACE FUNCTION public.registrar_atividade(p_nome TEXT, p_empresa UUID)
@@ -111,7 +111,7 @@ BEGIN
   RETURNING id INTO v_id;
   RETURN v_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 GRANT EXECUTE ON FUNCTION public.minha_tarefas_perm()                TO authenticated;
 GRANT EXECUTE ON FUNCTION public.tarefa_toggle(UUID, BOOLEAN)        TO authenticated;

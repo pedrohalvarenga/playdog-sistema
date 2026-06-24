@@ -1,6 +1,7 @@
 import {
   CalendarCheck, Building2, Scissors, Dog, Users, DollarSign,
-  Home, Settings, Car, PawPrint, Briefcase, Truck, Stethoscope, UtensilsCrossed, type LucideIcon,
+  Home, Settings, Car, PawPrint, Briefcase, Truck, Stethoscope, UtensilsCrossed,
+  ListTodo, type LucideIcon,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 
@@ -33,6 +34,7 @@ export const MENUS: MenuItem[] = [
   { key: 'transportes', label: 'Transportes', sublabel: 'Corridas de hoje e agenda do motorista', href: '/transportes', icon: Car, iconColor: 'text-brand-orange', iconBg: 'bg-orange-100', defaultRoles: ['admin', 'recepcao', 'motorista'] },
   { key: 'veterinario', label: 'Veterinário', sublabel: 'Agendamentos de atendimento veterinário', href: '/veterinario', icon: Stethoscope, iconColor: 'text-rose-500', iconBg: 'bg-rose-50', defaultRoles: ['admin', 'recepcao'] },
   { key: 'alimentacao_medicacao', label: 'Alimentação', sublabel: 'Alimentação e medicação dos pets', href: '/alimentacao-medicacao', icon: UtensilsCrossed, iconColor: 'text-amber-500', iconBg: 'bg-amber-50', defaultRoles: ['admin', 'recepcao', 'banho_tosa', 'motorista'] },
+  { key: 'tarefas', label: 'Tarefas do Dia', sublabel: 'Checklist da equipe e suas tarefas', href: '/tarefas', icon: ListTodo, iconColor: 'text-brand-purple', iconBg: 'bg-purple-100', defaultRoles: ['admin', 'recepcao', 'banho_tosa', 'motorista'] },
   { key: 'dashboard', label: 'Início', sublabel: 'Painel geral do sistema', href: '/dashboard', icon: Home, iconColor: 'text-brand-purple', iconBg: 'bg-purple-100', defaultRoles: ['admin', 'recepcao', 'banho_tosa'] },
   { key: 'admin', label: 'Administração', sublabel: 'Usuários e configurações', href: '/admin', icon: Settings, iconColor: 'text-gray-600', iconBg: 'bg-gray-100', defaultRoles: ['admin'] },
 ]
