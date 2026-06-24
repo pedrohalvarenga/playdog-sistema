@@ -337,7 +337,7 @@ function PetCard({
           {pet.tutor && <p className="text-sm text-gray-500 truncate">{pet.tutor}</p>}
         </div>
         {registro.medicacao.trim() && (
-          <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0">
+          <span className="inline-flex items-center gap-1 bg-purple-100 text-brand-purple text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0">
             <Pill size={11} /> Medicação
           </span>
         )}
@@ -423,7 +423,7 @@ function PetCard({
       {/* Medicação (sempre disponível) */}
       <div className="mt-3">
         <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
-          <Pill size={13} className="text-amber-500" /> Medicação
+          <Pill size={13} className="text-brand-purple" /> Medicação
         </label>
         <textarea
           rows={2}
@@ -431,7 +431,7 @@ function PetCard({
           onChange={e => onTexto(pet.petId, 'medicacao', e.target.value)}
           onBlur={onBlurSalvar}
           placeholder="Ex: Apoquel 16 mg — 1 comp. no café, dar com comida..."
-          className="w-full px-3 py-2 rounded-xl border-2 border-gray-200 focus:border-amber-400 outline-none text-sm bg-white resize-none"
+          className="w-full px-3 py-2 rounded-xl border-2 border-gray-200 focus:border-brand-purple outline-none text-sm bg-white resize-none"
         />
       </div>
     </div>
