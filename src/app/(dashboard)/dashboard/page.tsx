@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Dog, CalendarCheck, Users, TrendingUp, Moon, Scissors, Car } from 'lucide-react'
+import { Dog, CalendarCheck, Users, TrendingUp, Moon, Scissors, Car, AlertTriangle, ChevronRight } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import { formatDate } from '@/lib/utils'
 import { formatCurrency } from '@/lib/financeiro'
@@ -8,7 +8,7 @@ import { STATUS_ROTA_LABELS, STATUS_ROTA_CORES } from '@/lib/transporte'
 import type { Rota, Transporte } from '@/types/transporte'
 import type { Profile } from '@/types'
 import Link from 'next/link'
-import { hojeLocal } from '@/lib/datas'
+import { hojeLocal, horaLocal } from '@/lib/datas'
 
 async function getStats() {
   const supabase = await createClient()
@@ -63,6 +63,21 @@ async function getRotasHoje() {
   })
 }
 
+// Minhas tarefas atrasadas: pendentes de dias anteriores ou com horário de hoje já vencido.
+async function getMinhasTarefasAtrasadas(userId: string) {
+  const supabase = await createClient()
+  const hoje = hojeLocal()
+  const agora = horaLocal()
+  const { data } = await supabase
+    .from('tarefas')
+    .select('id, data, horario')
+    .eq('atribuido_para', userId)
+    .eq('status', 'pendente')
+    .lte('data', hoje)
+  const rows = (data ?? []) as { id: string; data: string; horario: string | null }[]
+  return rows.filter(t => t.data < hoje || (t.data === hoje && !!t.horario && t.horario.slice(0, 5) < agora)).length
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -73,6 +88,7 @@ export default async function DashboardPage() {
 
   const stats = await getStats()
   const rotasHoje = await getRotasHoje()
+  const tarefasAtrasadas = await getMinhasTarefasAtrasadas(user!.id)
   const hoje = formatDate(new Date(), "EEEE, dd 'de' MMMM")
 
   return (
@@ -84,6 +100,23 @@ export default async function DashboardPage() {
           Olá, {profile?.nome.split(' ')[0]}! 👋
         </h1>
       </div>
+
+      {/* Lembrete de tarefas atrasadas */}
+      {tarefasAtrasadas > 0 && (
+        <Link href="/tarefas"
+          className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3 active:bg-red-100">
+          <div className="w-11 h-11 rounded-2xl bg-red-100 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle size={22} className="text-red-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-red-700 text-sm">
+              {tarefasAtrasadas} tarefa{tarefasAtrasadas !== 1 ? 's' : ''} atrasada{tarefasAtrasadas !== 1 ? 's' : ''}
+            </p>
+            <p className="text-xs text-red-600">Já deveria ter sido feita — toque para ver</p>
+          </div>
+          <ChevronRight size={20} className="text-red-300 flex-shrink-0" />
+        </Link>
+      )}
 
       {/* Cards de estatísticas */}
       <div className="grid grid-cols-2 gap-3">
