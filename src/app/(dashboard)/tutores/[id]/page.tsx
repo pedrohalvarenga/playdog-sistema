@@ -37,9 +37,11 @@ export default async function TutorPage({ params }: { params: Promise<{ id: stri
         <Link href="/tutores" className="p-2 rounded-xl text-gray-400">
           <ArrowLeft size={24} />
         </Link>
-        <Link href={`/tutores/${id}/editar`} className="p-2 rounded-xl text-gray-400">
-          <Edit size={22} />
-        </Link>
+        {isAdmin && (
+          <Link href={`/tutores/${id}/editar`} className="p-2 rounded-xl text-gray-400">
+            <Edit size={22} />
+          </Link>
+        )}
       </div>
 
       {/* Header */}
@@ -98,12 +100,14 @@ export default async function TutorPage({ params }: { params: Promise<{ id: stri
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
             Cães ({pets?.length ?? 0})
           </h2>
-          <Link
-            href={`/pets/novo?tutor_id=${id}`}
-            className="flex items-center gap-1 text-xs font-semibold text-brand-purple"
-          >
-            <Plus size={14} /> Cadastrar cão
-          </Link>
+          {isAdmin && (
+            <Link
+              href={`/pets/novo?tutor_id=${id}`}
+              className="flex items-center gap-1 text-xs font-semibold text-brand-purple"
+            >
+              <Plus size={14} /> Cadastrar cão
+            </Link>
+          )}
         </div>
 
         {pets && pets.length > 0 ? (
@@ -139,9 +143,11 @@ export default async function TutorPage({ params }: { params: Promise<{ id: stri
             <div className="text-center py-4 text-gray-400">
               <Dog size={32} className="mx-auto mb-2 opacity-30" />
               <p className="text-sm">Nenhum cão cadastrado</p>
-              <Link href={`/pets/novo?tutor_id=${id}`} className="text-brand-purple text-sm font-semibold mt-1 inline-block">
-                + Cadastrar primeiro cão
-              </Link>
+              {isAdmin && (
+                <Link href={`/pets/novo?tutor_id=${id}`} className="text-brand-purple text-sm font-semibold mt-1 inline-block">
+                  + Cadastrar primeiro cão
+                </Link>
+              )}
             </div>
           </Card>
         )}

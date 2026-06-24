@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Dog, CalendarCheck, Users, TrendingUp, Moon, Scissors, Car, AlertTriangle, ChevronRight } from 'lucide-react'
+import { Dog, CalendarCheck, Users, TrendingUp, Moon, Scissors, Car, AlertTriangle, ChevronRight, ListTodo } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import { formatDate } from '@/lib/utils'
 import { formatCurrency } from '@/lib/financeiro'
@@ -9,6 +9,7 @@ import type { Rota, Transporte } from '@/types/transporte'
 import type { Profile } from '@/types'
 import Link from 'next/link'
 import { hojeLocal, horaLocal } from '@/lib/datas'
+import { menusVisiveis } from '@/lib/menus'
 
 async function getStats() {
   const supabase = await createClient()
@@ -78,6 +79,19 @@ async function getMinhasTarefasAtrasadas(userId: string) {
   return rows.filter(t => t.data < hoje || (t.data === hoje && !!t.horario && t.horario.slice(0, 5) < agora)).length
 }
 
+// Quantas tarefas o usuário tem pendentes (de hoje ou de dias anteriores).
+async function getMinhasTarefasPendentes(userId: string) {
+  const supabase = await createClient()
+  const hoje = hojeLocal()
+  const { count } = await supabase
+    .from('tarefas')
+    .select('id', { count: 'exact', head: true })
+    .eq('atribuido_para', userId)
+    .eq('status', 'pendente')
+    .lte('data', hoje)
+  return count ?? 0
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -89,6 +103,11 @@ export default async function DashboardPage() {
   const stats = await getStats()
   const rotasHoje = await getRotasHoje()
   const tarefasAtrasadas = await getMinhasTarefasAtrasadas(user!.id)
+  // O card de receita só aparece para quem tem o menu Financeiro habilitado.
+  const temFinanceiro = profile
+    ? menusVisiveis(profile.role, profile.menus).some(m => m.key === 'financeiro')
+    : false
+  const tarefasPendentes = temFinanceiro ? 0 : await getMinhasTarefasPendentes(user!.id)
   const hoje = formatDate(new Date(), "EEEE, dd 'de' MMMM")
 
   return (
@@ -138,7 +157,7 @@ export default async function DashboardPage() {
           <p className="text-sm text-gray-500">Tutores</p>
         </Card>
 
-        {(profile?.role === 'admin' || profile?.role === 'recepcao') ? (
+        {temFinanceiro ? (
           <Link href="/financeiro">
             <Card className="bg-brand-orange text-white h-full active:scale-98 transition-transform">
               <TrendingUp size={28} className="mb-2 opacity-80" />
@@ -147,11 +166,13 @@ export default async function DashboardPage() {
             </Card>
           </Link>
         ) : (
-          <Card className="bg-brand-orange text-white">
-            <TrendingUp size={28} className="mb-2 opacity-80" />
-            <p className="text-3xl font-bold">—</p>
-            <p className="text-sm opacity-80">Receita do mês</p>
-          </Card>
+          <Link href="/tarefas">
+            <Card className="bg-brand-purple text-white h-full active:scale-98 transition-transform">
+              <ListTodo size={28} className="mb-2 opacity-80" />
+              <p className="text-3xl font-bold">{tarefasPendentes}</p>
+              <p className="text-sm opacity-80">Minhas tarefas{tarefasPendentes !== 1 ? ' pendentes' : ' pendente'}</p>
+            </Card>
+          </Link>
         )}
       </div>
 

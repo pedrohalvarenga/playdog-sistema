@@ -10,6 +10,7 @@ import { PORTE_LABELS, whatsappUrl } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Pet } from '@/types'
+import { useProfile } from '@/hooks/useProfile'
 
 type PetComTutor = Pet & { tutor: { nome: string; telefone: string } }
 
@@ -25,6 +26,8 @@ export default function PetsPage() {
   const [busca, setBusca] = useState('')
   const [loading, setLoading] = useState(true)
   const [visiveis, setVisiveis] = useState(POR_PAGINA)
+  const { profile } = useProfile()
+  const isAdmin = profile?.role === 'admin'
 
   // Carrega todos os pets ativos uma vez; busca e ordenação são locais (instantâneas)
   useEffect(() => {
@@ -81,11 +84,13 @@ export default function PetsPage() {
             </span>
           )}
         </div>
-        <Link href="/pets/novo">
-          <Button size="sm" variant="secondary">
-            <Plus size={18} /> Novo
-          </Button>
-        </Link>
+        {isAdmin && (
+          <Link href="/pets/novo">
+            <Button size="sm" variant="secondary">
+              <Plus size={18} /> Novo
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="relative">
@@ -174,9 +179,11 @@ export default function PetsPage() {
             <div className="text-center py-12 text-gray-400">
               <Dog size={48} className="mx-auto mb-3 opacity-30" />
               <p className="font-medium">Nenhum pet encontrado</p>
-              <Link href="/pets/novo" className="text-brand-purple text-sm font-semibold mt-2 inline-block">
-                + Cadastrar primeiro pet
-              </Link>
+              {isAdmin && (
+                <Link href="/pets/novo" className="text-brand-purple text-sm font-semibold mt-2 inline-block">
+                  + Cadastrar primeiro pet
+                </Link>
+              )}
             </div>
           )}
         </div>

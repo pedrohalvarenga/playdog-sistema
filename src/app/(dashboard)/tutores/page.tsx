@@ -8,6 +8,7 @@ import { Search, Users, Plus, ChevronRight, Dog, MessageCircle } from 'lucide-re
 import Link from 'next/link'
 import { whatsappUrl } from '@/lib/utils'
 import type { Tutor } from '@/types'
+import { useProfile } from '@/hooks/useProfile'
 
 type TutorComPets = Tutor & { pets: { id: string; nome: string }[] }
 
@@ -15,6 +16,8 @@ export default function TutoresPage() {
   const [tutores, setTutores] = useState<TutorComPets[]>([])
   const [busca, setBusca] = useState('')
   const [loading, setLoading] = useState(true)
+  const { profile } = useProfile()
+  const isAdmin = profile?.role === 'admin'
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -41,11 +44,13 @@ export default function TutoresPage() {
     <div className="py-6 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Tutores</h1>
-        <Link href="/tutores/novo">
-          <Button size="sm" variant="secondary">
-            <Plus size={18} /> Novo
-          </Button>
-        </Link>
+        {isAdmin && (
+          <Link href="/tutores/novo">
+            <Button size="sm" variant="secondary">
+              <Plus size={18} /> Novo
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="relative">

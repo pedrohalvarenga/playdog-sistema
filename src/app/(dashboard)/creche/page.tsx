@@ -10,6 +10,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import type { Pet, Presenca } from '@/types'
 import { hojeLocal } from '@/lib/datas'
+import { useProfile } from '@/hooks/useProfile'
 
 type PetComTutor = Pet & { tutor: { nome: string } }
 type PresencaComPet = Presenca & { pet: PetComTutor }
@@ -23,6 +24,8 @@ export default function CrechePage() {
   const [fazendoCheckin, setFazendoCheckin] = useState<string | null>(null)
   const [mostrarTodos, setMostrarTodos] = useState(false)
   const [hoje] = useState(() => hojeLocal())
+  const { profile } = useProfile()
+  const isAdmin = profile?.role === 'admin'
 
   const carregar = useCallback(async () => {
     const supabase = createClient()
@@ -237,12 +240,14 @@ export default function CrechePage() {
                           <span className="text-[9px] font-semibold mt-0.5">SAÍDA</span>
                         </button>
                         <div className="flex gap-1">
-                          <Link
-                            href={`/creche/comprar-diarias/${p.pet.id}`}
-                            className="w-[26px] h-7 rounded-xl bg-purple-100 flex items-center justify-center text-brand-purple active:bg-purple-200"
-                          >
-                            <CreditCard size={14} />
-                          </Link>
+                          {isAdmin && (
+                            <Link
+                              href={`/creche/comprar-diarias/${p.pet.id}`}
+                              className="w-[26px] h-7 rounded-xl bg-purple-100 flex items-center justify-center text-brand-purple active:bg-purple-200"
+                            >
+                              <CreditCard size={14} />
+                            </Link>
+                          )}
                           <button
                             onClick={() => desfazerCheckin(p.id, p.pet.nome)}
                             disabled={desfazendo !== null}

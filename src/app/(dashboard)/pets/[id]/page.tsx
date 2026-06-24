@@ -81,9 +81,11 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
         <Link href="/pets" className="p-2 rounded-xl text-gray-400">
           <ArrowLeft size={24} />
         </Link>
-        <Link href={`/pets/${id}/editar`} className="p-2 rounded-xl text-gray-400">
-          <Edit size={22} />
-        </Link>
+        {isAdmin && (
+          <Link href={`/pets/${id}/editar`} className="p-2 rounded-xl text-gray-400">
+            <Edit size={22} />
+          </Link>
+        )}
       </div>
 
       {/* Alerta de vacina vencida */}
@@ -184,7 +186,7 @@ export default async function PetPage({ params }: { params: Promise<{ id: string
             </p>
             {p.saldo_diarias < 0 && <p className="text-xs text-red-500 font-semibold mt-0.5">Saldo negativo</p>}
           </div>
-          {podeEditar && (
+          {isAdmin && (
             <div className="flex gap-2">
               <Link href={`/creche/comprar-diarias/${id}`} className="flex items-center gap-1.5 bg-brand-purple text-white px-3 py-2 rounded-xl text-xs font-semibold">
                 <CreditCard size={14} /> Comprar
