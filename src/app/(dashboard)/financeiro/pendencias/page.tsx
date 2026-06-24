@@ -57,9 +57,10 @@ export default async function PendenciasPage() {
     const atraso = item.data_vencimento ? diasAtraso(item.data_vencimento) : 0
     const vencido = atraso > 0
     return (
-      <Card className={`flex items-center gap-3 ${vencido ? 'border-l-4 border-l-red-400' : isR ? '' : 'border-l-4 border-l-gray-200'}`}>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+      <Card className={`flex flex-col gap-2 ${vencido ? 'border-l-4 border-l-red-400' : isR ? '' : 'border-l-4 border-l-gray-200'}`}>
+        {/* Info do lançamento — ocupa a largura toda para o nome ficar legível */}
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${AREA_CORES[item.area]}`}>
               {AREA_LABELS[item.area]}
             </span>
@@ -68,10 +69,10 @@ export default async function PendenciasPage() {
               {isR ? 'A receber' : 'A pagar'}
             </span>
           </div>
-          <p className="text-sm font-semibold text-gray-800 truncate">
+          <p className="text-sm font-semibold text-gray-800 leading-snug line-clamp-2">
             {item.descricao || (isR ? CATEGORIA_RECEITA_LABELS[r.categoria] : CATEGORIA_DESPESA_LABELS[d.categoria])}
           </p>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-400 mt-0.5">
             {item.data_vencimento ? `Vence ${formatDate(item.data_vencimento)}` : `Lançado ${formatDate(item.data)}`}
             {isR && r.tutor?.nome ? ` · ${r.tutor.nome}` : ''}
             {!isR && d.fornecedor ? ` · ${d.fornecedor}` : ''}
@@ -82,8 +83,9 @@ export default async function PendenciasPage() {
             </p>
           )}
         </div>
-        <div className="flex flex-col items-end gap-2 flex-shrink-0">
-          <p className={`font-bold text-sm ${isR ? 'text-green-600' : 'text-red-600'}`}>
+        {/* Linha de ação — valor à esquerda, botão à direita */}
+        <div className="flex items-center justify-between gap-3 pt-2 border-t border-gray-100">
+          <p className={`font-bold text-base ${isR ? 'text-green-600' : 'text-red-600'}`}>
             {isR ? '+' : '−'}{formatCurrency(isR ? (r.valor_liquido ?? r.valor) : d.valor)}
           </p>
           <PendenciaActions id={item.id} tipo={tipo} />

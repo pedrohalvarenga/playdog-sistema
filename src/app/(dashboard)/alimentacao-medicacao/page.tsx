@@ -46,7 +46,7 @@ const STATUS_OPCOES: { valor: StatusRefeicao; label: string; sel: string; unsel:
   { valor: 'comeu',       label: 'Comeu',       sel: 'bg-green-500 text-white',   unsel: 'bg-green-50 text-green-700 border border-green-200' },
   { valor: 'ainda_nao',   label: 'Ainda não',   sel: 'bg-brand-purple text-white', unsel: 'bg-purple-50 text-brand-purple border border-purple-200' },
   { valor: 'nao_quis_1x', label: 'Não quis 1x', sel: 'bg-brand-orange text-white', unsel: 'bg-orange-50 text-brand-orange border border-orange-200' },
-  { valor: 'nao_quis_2x', label: 'Não quis 2x', sel: 'bg-red-500 text-white',     unsel: 'bg-red-50 text-red-700 border border-red-200' },
+  { valor: 'nao_quis_2x', label: 'Não comeu',   sel: 'bg-red-500 text-white',     unsel: 'bg-red-50 text-red-700 border border-red-200' },
 ]
 
 const PERIODOS: { campo: StatusCampo; off: OffCampo; label: string; Icon: LucideIcon }[] = [
