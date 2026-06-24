@@ -16,7 +16,8 @@ ALTER TABLE public.profiles
 UPDATE public.profiles SET tarefas_perm = 'gerente'
   WHERE id IN (
     '411743d0-5d43-4a5e-9240-dcd12d128d79', -- Anna Carolina Staico (Carol)
-    '230ac3a3-efd2-42d9-a775-0861e6aa34c9'  -- Mari
+    '230ac3a3-efd2-42d9-a775-0861e6aa34c9', -- Mari
+    '5f7dde33-83ee-4d76-aa17-50fa11862107'  -- Pedro Alvarenga (superadmin)
   );
 UPDATE public.profiles SET tarefas_perm = 'criador'
   WHERE id = 'fd1af081-3338-474e-ba89-109c22b4327b'; -- Luiza Moreira Liota
