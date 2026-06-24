@@ -17,6 +17,8 @@ export interface Profile {
   role: UserRole
   ativo: boolean
   menus?: string[] | null
+  empresa_id?: string | null
+  tarefas_perm?: 'gerente' | 'criador' | null
   created_at: string
 }
 

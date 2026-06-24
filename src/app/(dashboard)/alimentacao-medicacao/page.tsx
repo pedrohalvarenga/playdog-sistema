@@ -4,13 +4,15 @@ import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   Coffee, UtensilsCrossed, Moon, Dog, Building2, Utensils,
-  ChevronLeft, ChevronRight, Pill, NotebookPen, type LucideIcon,
+  ChevronLeft, ChevronRight, Pill, NotebookPen, Eye, EyeOff, type LucideIcon,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { hojeLocal, diaLocal } from '@/lib/datas'
 
 type Local = 'creche' | 'hotel'
 type StatusRefeicao = 'comeu' | 'ainda_nao' | 'nao_quis_1x' | 'nao_quis_2x'
+type StatusCampo = 'status_cafe' | 'status_almoco' | 'status_janta'
+type OffCampo = 'cafe_off' | 'almoco_off' | 'janta_off'
 
 interface PetLista {
   petId: string
@@ -27,24 +29,30 @@ interface RegistroState {
   status_janta: StatusRefeicao | null
   instrucao_refeicao: string
   medicacao: string
+  sem_alimentacao: boolean
+  cafe_off: boolean
+  almoco_off: boolean
+  janta_off: boolean
 }
 
 const VAZIO: RegistroState = {
   status_cafe: null, status_almoco: null, status_janta: null,
   instrucao_refeicao: '', medicacao: '',
+  sem_alimentacao: false, cafe_off: false, almoco_off: false, janta_off: false,
 }
 
+// Cores da Play Dog: roxo (ainda não) e laranja (não quis 1x); verde/vermelho mantidos.
 const STATUS_OPCOES: { valor: StatusRefeicao; label: string; sel: string; unsel: string }[] = [
-  { valor: 'comeu',       label: 'Comeu',       sel: 'bg-green-500 text-white', unsel: 'bg-green-50 text-green-700 border border-green-200' },
-  { valor: 'ainda_nao',   label: 'Ainda não',   sel: 'bg-gray-500 text-white',  unsel: 'bg-gray-50 text-gray-500 border border-gray-200' },
-  { valor: 'nao_quis_1x', label: 'Não quis 1x', sel: 'bg-amber-500 text-white', unsel: 'bg-amber-50 text-amber-700 border border-amber-200' },
-  { valor: 'nao_quis_2x', label: 'Não quis 2x', sel: 'bg-red-500 text-white',   unsel: 'bg-red-50 text-red-700 border border-red-200' },
+  { valor: 'comeu',       label: 'Comeu',       sel: 'bg-green-500 text-white',   unsel: 'bg-green-50 text-green-700 border border-green-200' },
+  { valor: 'ainda_nao',   label: 'Ainda não',   sel: 'bg-brand-purple text-white', unsel: 'bg-purple-50 text-brand-purple border border-purple-200' },
+  { valor: 'nao_quis_1x', label: 'Não quis 1x', sel: 'bg-brand-orange text-white', unsel: 'bg-orange-50 text-brand-orange border border-orange-200' },
+  { valor: 'nao_quis_2x', label: 'Não quis 2x', sel: 'bg-red-500 text-white',     unsel: 'bg-red-50 text-red-700 border border-red-200' },
 ]
 
-const PERIODOS: { campo: 'status_cafe' | 'status_almoco' | 'status_janta'; label: string; Icon: LucideIcon }[] = [
-  { campo: 'status_cafe',   label: 'Café',   Icon: Coffee },
-  { campo: 'status_almoco', label: 'Almoço', Icon: UtensilsCrossed },
-  { campo: 'status_janta',  label: 'Janta',  Icon: Moon },
+const PERIODOS: { campo: StatusCampo; off: OffCampo; label: string; Icon: LucideIcon }[] = [
+  { campo: 'status_cafe',   off: 'cafe_off',   label: 'Café',   Icon: Coffee },
+  { campo: 'status_almoco', off: 'almoco_off', label: 'Almoço', Icon: UtensilsCrossed },
+  { campo: 'status_janta',  off: 'janta_off',  label: 'Janta',  Icon: Moon },
 ]
 
 type PetJoin = { id: string; nome: string; identificador: string | null; foto_url: string | null; tutor: { nome: string } | null }
@@ -108,40 +116,49 @@ export default function AlimentacaoMedicacaoPage() {
       const [{ data: hojeRows }, { data: histRows }] = await Promise.all([
         supabase
           .from('registros_alimentacao')
-          .select('pet_id, status_cafe, status_almoco, status_janta, instrucao_refeicao, medicacao')
+          .select('pet_id, status_cafe, status_almoco, status_janta, instrucao_refeicao, medicacao, sem_alimentacao, cafe_off, almoco_off, janta_off')
           .eq('data', dia).in('pet_id', ids),
         supabase
           .from('registros_alimentacao')
-          .select('pet_id, instrucao_refeicao, medicacao, data')
+          .select('pet_id, instrucao_refeicao, medicacao, cafe_off, almoco_off, janta_off, data')
           .lt('data', dia).in('pet_id', ids)
           .order('data', { ascending: false }),
       ])
 
-      // Carry-over: última instrução / medicação não-vazia de cada cão
+      // Carry-over: última instrução/medicação não-vazia e a config de refeições do cão.
       const ultInstr: Record<string, string> = {}
       const ultMed: Record<string, string> = {}
-      for (const h of (histRows ?? []) as { pet_id: string; instrucao_refeicao: string | null; medicacao: string | null }[]) {
+      const ultOff: Record<string, { cafe_off: boolean; almoco_off: boolean; janta_off: boolean }> = {}
+      for (const h of (histRows ?? []) as { pet_id: string; instrucao_refeicao: string | null; medicacao: string | null; cafe_off: boolean | null; almoco_off: boolean | null; janta_off: boolean | null }[]) {
         if (ultInstr[h.pet_id] === undefined && h.instrucao_refeicao) ultInstr[h.pet_id] = h.instrucao_refeicao
         if (ultMed[h.pet_id] === undefined && h.medicacao) ultMed[h.pet_id] = h.medicacao
+        if (ultOff[h.pet_id] === undefined) ultOff[h.pet_id] = { cafe_off: !!h.cafe_off, almoco_off: !!h.almoco_off, janta_off: !!h.janta_off }
       }
 
       const hojeByPet: Record<string, RegistroState> = {}
-      for (const r of (hojeRows ?? []) as (RegistroState & { pet_id: string })[]) {
-        hojeByPet[r.pet_id] = {
-          status_cafe: r.status_cafe ?? null,
-          status_almoco: r.status_almoco ?? null,
-          status_janta: r.status_janta ?? null,
-          instrucao_refeicao: r.instrucao_refeicao ?? '',
-          medicacao: r.medicacao ?? '',
+      for (const r of (hojeRows ?? []) as Record<string, unknown>[]) {
+        hojeByPet[r.pet_id as string] = {
+          status_cafe: (r.status_cafe as StatusRefeicao) ?? null,
+          status_almoco: (r.status_almoco as StatusRefeicao) ?? null,
+          status_janta: (r.status_janta as StatusRefeicao) ?? null,
+          instrucao_refeicao: (r.instrucao_refeicao as string) ?? '',
+          medicacao: (r.medicacao as string) ?? '',
+          sem_alimentacao: !!r.sem_alimentacao,
+          cafe_off: !!r.cafe_off,
+          almoco_off: !!r.almoco_off,
+          janta_off: !!r.janta_off,
         }
       }
 
       for (const id of ids) {
-        // Já há registro hoje → vale o de hoje. Senão, repete a última anotação.
+        // Já há registro hoje → vale o de hoje. Senão, repete a última anotação e a config de refeições.
         regMap[id] = hojeByPet[id] ?? {
           ...VAZIO,
           instrucao_refeicao: ultInstr[id] ?? '',
           medicacao: ultMed[id] ?? '',
+          cafe_off: ultOff[id]?.cafe_off ?? false,
+          almoco_off: ultOff[id]?.almoco_off ?? false,
+          janta_off: ultOff[id]?.janta_off ?? false,
         }
       }
     }
@@ -166,13 +183,33 @@ export default function AlimentacaoMedicacaoPage() {
       status_janta: novo.status_janta,
       instrucao_refeicao: novo.instrucao_refeicao.trim() || null,
       medicacao: novo.medicacao.trim() || null,
+      sem_alimentacao: novo.sem_alimentacao,
+      cafe_off: novo.cafe_off,
+      almoco_off: novo.almoco_off,
+      janta_off: novo.janta_off,
       registrado_por: userId,
     }, { onConflict: 'pet_id,data' })
   }
 
-  function alternarStatus(pet: PetLista, campo: 'status_cafe' | 'status_almoco' | 'status_janta', valor: StatusRefeicao) {
+  function alternarStatus(pet: PetLista, campo: StatusCampo, valor: StatusRefeicao) {
     const atual = registros[pet.petId] ?? VAZIO
     const novo = { ...atual, [campo]: atual[campo] === valor ? null : valor }
+    salvar(pet, novo)
+  }
+
+  function alternarRefeicao(pet: PetLista, off: OffCampo, campo: StatusCampo) {
+    const atual = registros[pet.petId] ?? VAZIO
+    const novoOff = !atual[off]
+    const novo = { ...atual, [off]: novoOff }
+    if (novoOff) novo[campo] = null // desabilitou: limpa o status daquela refeição
+    salvar(pet, novo)
+  }
+
+  function alternarSemAlimentacao(pet: PetLista) {
+    const atual = registros[pet.petId] ?? VAZIO
+    const novoSem = !atual.sem_alimentacao
+    const novo = { ...atual, sem_alimentacao: novoSem }
+    if (novoSem) { novo.status_cafe = null; novo.status_almoco = null; novo.status_janta = null }
     salvar(pet, novo)
   }
 
@@ -184,7 +221,7 @@ export default function AlimentacaoMedicacaoPage() {
   const hoje = hojeLocal()
   const comeramCount = lista.filter(p => {
     const r = registros[p.petId]
-    return r && (r.status_cafe === 'comeu' || r.status_almoco === 'comeu' || r.status_janta === 'comeu')
+    return r && !r.sem_alimentacao && (r.status_cafe === 'comeu' || r.status_almoco === 'comeu' || r.status_janta === 'comeu')
   }).length
 
   function navDia(passo: number) {
@@ -255,6 +292,8 @@ export default function AlimentacaoMedicacaoPage() {
                 pet={pet}
                 registro={registros[pet.petId] ?? VAZIO}
                 onStatus={alternarStatus}
+                onRefeicao={alternarRefeicao}
+                onSemAlimentacao={alternarSemAlimentacao}
                 onTexto={mudarTexto}
                 onBlurSalvar={() => salvar(pet, registros[pet.petId] ?? VAZIO)}
               />
@@ -267,14 +306,18 @@ export default function AlimentacaoMedicacaoPage() {
 }
 
 function PetCard({
-  pet, registro, onStatus, onTexto, onBlurSalvar,
+  pet, registro, onStatus, onRefeicao, onSemAlimentacao, onTexto, onBlurSalvar,
 }: {
   pet: PetLista
   registro: RegistroState
-  onStatus: (pet: PetLista, campo: 'status_cafe' | 'status_almoco' | 'status_janta', valor: StatusRefeicao) => void
+  onStatus: (pet: PetLista, campo: StatusCampo, valor: StatusRefeicao) => void
+  onRefeicao: (pet: PetLista, off: OffCampo, campo: StatusCampo) => void
+  onSemAlimentacao: (pet: PetLista) => void
   onTexto: (petId: string, campo: 'instrucao_refeicao' | 'medicacao', valor: string) => void
   onBlurSalvar: () => void
 }) {
+  const sem = registro.sem_alimentacao
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
       {/* Cabeçalho do pet */}
@@ -300,46 +343,84 @@ function PetCard({
         )}
       </div>
 
-      {/* Refeições */}
-      {PERIODOS.map(({ campo, label, Icon }) => (
-        <div key={campo} className="mt-3">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <Icon size={14} className="text-gray-500" />
-            <span className="text-xs font-semibold text-gray-700">{label}</span>
-          </div>
-          <div className="grid grid-cols-4 gap-1.5">
-            {STATUS_OPCOES.map(op => {
-              const ativo = registro[campo] === op.valor
-              return (
-                <button
-                  key={op.valor}
-                  onClick={() => onStatus(pet, campo, op.valor)}
-                  className={`text-[11px] font-semibold py-2 px-1 rounded-lg leading-tight text-center transition-colors ${ativo ? op.sel : op.unsel}`}
-                >
-                  {op.label}
-                </button>
-              )
-            })}
-          </div>
+      {/* Creche: não levou ração hoje */}
+      {pet.local === 'creche' && (
+        <button
+          onClick={() => onSemAlimentacao(pet)}
+          className={`mt-3 w-full flex items-center justify-between rounded-xl px-3 py-2.5 border transition-colors ${sem ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-100'}`}
+        >
+          <span className={`flex items-center gap-2 text-sm font-medium ${sem ? 'text-brand-orange' : 'text-gray-600'}`}>
+            <Utensils size={15} className={sem ? 'text-brand-orange' : 'text-gray-400'} /> Não levou ração hoje
+          </span>
+          <span className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${sem ? 'bg-brand-orange' : 'bg-gray-300'}`}>
+            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${sem ? 'translate-x-5' : 'translate-x-0.5'}`} />
+          </span>
+        </button>
+      )}
+
+      {sem ? (
+        <div className="mt-3 text-xs text-gray-400 italic">
+          Sem ração hoje — ficha de alimentação oculta.
         </div>
-      ))}
+      ) : (
+        <>
+          {/* Refeições */}
+          {PERIODOS.map(({ campo, off, label, Icon }) => {
+            const desativada = registro[off]
+            return (
+              <div key={campo} className="mt-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Icon size={14} className={desativada ? 'text-gray-300' : 'text-gray-500'} />
+                    <span className={`text-xs font-semibold ${desativada ? 'text-gray-300 line-through' : 'text-gray-700'}`}>{label}</span>
+                  </div>
+                  <button
+                    onClick={() => onRefeicao(pet, off, campo)}
+                    className="flex items-center gap-1 text-[10px] font-semibold text-gray-400 hover:text-gray-600 px-1.5 py-0.5 rounded-full"
+                  >
+                    {desativada ? <><Eye size={11} /> ativar</> : <><EyeOff size={11} /> não se aplica</>}
+                  </button>
+                </div>
+                {desativada ? (
+                  <p className="text-[11px] text-gray-300 italic pl-5">não se aplica a este cão</p>
+                ) : (
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {STATUS_OPCOES.map(op => {
+                      const ativo = registro[campo] === op.valor
+                      return (
+                        <button
+                          key={op.valor}
+                          onClick={() => onStatus(pet, campo, op.valor)}
+                          className={`text-[11px] font-semibold py-2 px-1 rounded-lg leading-tight text-center transition-colors ${ativo ? op.sel : op.unsel}`}
+                        >
+                          {op.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
 
-      {/* Instrução da refeição */}
-      <div className="mt-4">
-        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
-          <NotebookPen size={13} className="text-gray-400" /> Instrução da refeição
-        </label>
-        <textarea
-          rows={2}
-          value={registro.instrucao_refeicao}
-          onChange={e => onTexto(pet.petId, 'instrucao_refeicao', e.target.value)}
-          onBlur={onBlurSalvar}
-          placeholder="Ex: 1 medida de ração + sachê, molhar a ração..."
-          className="w-full px-3 py-2 rounded-xl border-2 border-gray-200 focus:border-brand-purple outline-none text-sm bg-white resize-none"
-        />
-      </div>
+          {/* Instrução da refeição */}
+          <div className="mt-4">
+            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
+              <NotebookPen size={13} className="text-gray-400" /> Instrução da refeição
+            </label>
+            <textarea
+              rows={2}
+              value={registro.instrucao_refeicao}
+              onChange={e => onTexto(pet.petId, 'instrucao_refeicao', e.target.value)}
+              onBlur={onBlurSalvar}
+              placeholder="Ex: 1 medida de ração + sachê, molhar a ração..."
+              className="w-full px-3 py-2 rounded-xl border-2 border-gray-200 focus:border-brand-purple outline-none text-sm bg-white resize-none"
+            />
+          </div>
+        </>
+      )}
 
-      {/* Medicação */}
+      {/* Medicação (sempre disponível) */}
       <div className="mt-3">
         <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
           <Pill size={13} className="text-amber-500" /> Medicação

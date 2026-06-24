@@ -17,12 +17,23 @@ CREATE TABLE IF NOT EXISTS public.registros_alimentacao (
   status_janta       TEXT CHECK (status_janta  IN ('comeu','ainda_nao','nao_quis_1x','nao_quis_2x')),
   instrucao_refeicao TEXT,
   medicacao          TEXT,
+  sem_alimentacao    BOOLEAN NOT NULL DEFAULT false,  -- creche: o cão não levou ração neste dia
+  cafe_off           BOOLEAN NOT NULL DEFAULT false,  -- refeição não se aplica a este cão
+  almoco_off         BOOLEAN NOT NULL DEFAULT false,
+  janta_off          BOOLEAN NOT NULL DEFAULT false,
   empresa_id         UUID DEFAULT '00000000-0000-0000-0000-000000000001',
   registrado_por     UUID REFERENCES public.profiles(id),
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (pet_id, data)
 );
+
+-- Colunas adicionadas nesta versão (idempotente, caso a tabela já exista)
+ALTER TABLE public.registros_alimentacao
+  ADD COLUMN IF NOT EXISTS sem_alimentacao BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS cafe_off        BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS almoco_off      BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS janta_off       BOOLEAN NOT NULL DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS idx_reg_alim_data ON public.registros_alimentacao(data);
 CREATE INDEX IF NOT EXISTS idx_reg_alim_pet  ON public.registros_alimentacao(pet_id);
