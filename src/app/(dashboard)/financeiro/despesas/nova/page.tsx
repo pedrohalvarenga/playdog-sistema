@@ -80,6 +80,7 @@ export default function NovaDespesaPage() {
   }, [petBusca])
 
   async function salvar() {
+    if (saving) return
     if (valor <= 0) { setErro('Informe o valor.'); return }
     if (!contaId) { setErro('Selecione a conta.'); return }
     if (status === 'pendente' && !dataVenc) { setErro('Informe a data de vencimento.'); return }
@@ -99,8 +100,7 @@ export default function NovaDespesaPage() {
       recorrente,
       dia_vencimento: recorrente ? Number(diaVencimento) : null,
     })
-    setSaving(false)
-    if (error) { setErro(error.message); return }
+    if (error) { setErro(error.message); setSaving(false); return }
     router.push('/financeiro/despesas')
   }
 

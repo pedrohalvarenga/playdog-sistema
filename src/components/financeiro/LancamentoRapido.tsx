@@ -108,6 +108,7 @@ export default function LancamentoRapido() {
   }
 
   async function salvar(contaId: string | null = conta, pet: PetOption | null = null) {
+    if (saving) return
     if (!area || !categoria || !contaId) return
     setSaving(true)
     const supabase = createClient()
