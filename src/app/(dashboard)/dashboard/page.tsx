@@ -17,9 +17,10 @@ async function getStats() {
 
   const inicioMes = hoje.slice(0, 8) + '01'
 
-  const [presencasHoje, totalPetsRes, receitasMes, vetHojeRes] = await Promise.all([
+  const [presencasHoje, agendamentosHoje, receitasMes, vetHojeRes] = await Promise.all([
     supabase.from('presencas').select('id', { count: 'exact' }).eq('data', hoje).is('checkout_at', null),
-    supabase.from('pets').select('id', { count: 'exact', head: true }).eq('ativo', true),
+    supabase.from('agendamentos_banho_tosa').select('id', { count: 'exact', head: true })
+      .eq('data', hoje).neq('status', 'cancelado'),
     supabase.from('receitas').select('valor, valor_liquido').eq('status', 'pago').gte('data', inicioMes).lte('data', hoje),
     supabase.from('agendamentos_veterinario').select('id', { count: 'exact', head: true })
       .eq('data', hoje).neq('status', 'cancelado'),
@@ -30,7 +31,7 @@ async function getStats() {
 
   return {
     petsPresentes: presencasHoje.count ?? 0,
-    totalPets: totalPetsRes.count ?? 0,
+    agendamentosHoje: agendamentosHoje.count ?? 0,
     vetHoje: vetHojeRes.count ?? 0,
     receitaMes,
   }
@@ -132,17 +133,21 @@ export default async function DashboardPage() {
 
       {/* Cards de estatísticas */}
       <div className="grid grid-cols-2 gap-3">
-        <Card className="bg-brand-purple text-white">
-          <Dog size={28} className="mb-2 opacity-80" />
-          <p className="text-3xl font-bold">{stats.petsPresentes}</p>
-          <p className="text-sm opacity-80">Pets na creche hoje</p>
-        </Card>
+        <Link href="/creche">
+          <Card className="bg-brand-purple text-white h-full active:scale-98 transition-transform">
+            <Dog size={28} className="mb-2 opacity-80" />
+            <p className="text-3xl font-bold">{stats.petsPresentes}</p>
+            <p className="text-sm opacity-80">Pets na creche hoje</p>
+          </Card>
+        </Link>
 
-        <Card>
-          <CalendarCheck size={28} className="mb-2 text-brand-orange" />
-          <p className="text-3xl font-bold text-gray-900">{stats.totalPets}</p>
-          <p className="text-sm text-gray-500">Pets cadastrados</p>
-        </Card>
+        <Link href="/banho-tosa/agendamentos">
+          <Card className="h-full active:scale-98 transition-transform">
+            <CalendarCheck size={28} className="mb-2 text-brand-orange" />
+            <p className="text-3xl font-bold text-gray-900">{stats.agendamentosHoje}</p>
+            <p className="text-sm text-gray-500">Agendamentos hoje</p>
+          </Card>
+        </Link>
 
         <Link href="/veterinario">
           <Card className="h-full active:scale-98 transition-transform">
