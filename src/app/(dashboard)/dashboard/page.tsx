@@ -19,8 +19,8 @@ async function getStats() {
 
   const [presencasHoje, agendamentosHoje, receitasMes, vetHojeRes] = await Promise.all([
     supabase.from('presencas').select('id', { count: 'exact' }).eq('data', hoje).is('checkout_at', null),
-    supabase.from('agendamentos_banho_tosa').select('id', { count: 'exact', head: true })
-      .eq('data', hoje).neq('status', 'cancelado'),
+    supabase.from('adaptacoes').select('id', { count: 'exact', head: true })
+      .eq('data', hoje).neq('status', 'cancelada'),
     supabase.from('receitas').select('valor, valor_liquido').eq('status', 'pago').gte('data', inicioMes).lte('data', hoje),
     supabase.from('agendamentos_veterinario').select('id', { count: 'exact', head: true })
       .eq('data', hoje).neq('status', 'cancelado'),
@@ -31,7 +31,7 @@ async function getStats() {
 
   return {
     petsPresentes: presencasHoje.count ?? 0,
-    agendamentosHoje: agendamentosHoje.count ?? 0,
+    adaptacoesHoje: agendamentosHoje.count ?? 0,
     vetHoje: vetHojeRes.count ?? 0,
     receitaMes,
   }
@@ -141,11 +141,11 @@ export default async function DashboardPage() {
           </Card>
         </Link>
 
-        <Link href="/banho-tosa/agendamentos">
+        <Link href="/adaptacao">
           <Card className="h-full active:scale-98 transition-transform">
             <CalendarCheck size={28} className="mb-2 text-brand-orange" />
-            <p className="text-3xl font-bold text-gray-900">{stats.agendamentosHoje}</p>
-            <p className="text-sm text-gray-500">Agendamentos hoje</p>
+            <p className="text-3xl font-bold text-gray-900">{stats.adaptacoesHoje}</p>
+            <p className="text-sm text-gray-500">Adaptações hoje</p>
           </Card>
         </Link>
 
