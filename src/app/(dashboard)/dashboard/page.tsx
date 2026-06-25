@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Dog, CalendarCheck, Users, TrendingUp, Moon, Scissors, Car, AlertTriangle, ChevronRight, ListTodo } from 'lucide-react'
+import { Dog, CalendarCheck, Stethoscope, UtensilsCrossed, TrendingUp, Car, AlertTriangle, ChevronRight, ListTodo } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import { formatDate } from '@/lib/utils'
 import { formatCurrency } from '@/lib/financeiro'
@@ -17,28 +17,21 @@ async function getStats() {
 
   const inicioMes = hoje.slice(0, 8) + '01'
 
-  const [presencasHoje, petsAtivos, hospedadosHoje, banhoHoje, receitasMes] = await Promise.all([
+  const [presencasHoje, totalPetsRes, receitasMes, vetHojeRes] = await Promise.all([
     supabase.from('presencas').select('id', { count: 'exact' }).eq('data', hoje).is('checkout_at', null),
-    // Uma única fonte para pets e tutores: assim os dois cards usam a mesma base
-    // (pets ativos) e o nº de tutores nunca passa o de pets.
-    supabase.from('pets').select('tutor_id').eq('ativo', true),
-    supabase.from('hospedagens').select('id', { count: 'exact' }).eq('status', 'hospedado'),
-    supabase.from('agendamentos_banho_tosa').select('id', { count: 'exact' })
-      .eq('data', hoje).not('status', 'in', '(cancelado,entregue)'),
+    supabase.from('pets').select('id', { count: 'exact', head: true }).eq('ativo', true),
     supabase.from('receitas').select('valor, valor_liquido').eq('status', 'pago').gte('data', inicioMes).lte('data', hoje),
+    supabase.from('agendamentos_veterinario').select('id', { count: 'exact', head: true })
+      .eq('data', hoje).neq('status', 'cancelado'),
   ])
 
-  const pets = (petsAtivos.data ?? []) as { tutor_id: string }[]
-  const tutoresComPet = new Set(pets.map(p => p.tutor_id))
   const receitaMes = ((receitasMes.data ?? []) as { valor: number; valor_liquido: number | null }[])
     .reduce((s, r) => s + (r.valor_liquido ?? r.valor), 0)
 
   return {
     petsPresentes: presencasHoje.count ?? 0,
-    totalPets: pets.length,
-    totalTutores: tutoresComPet.size,
-    hospedados: hospedadosHoje.count ?? 0,
-    banhoHoje: banhoHoje.count ?? 0,
+    totalPets: totalPetsRes.count ?? 0,
+    vetHoje: vetHojeRes.count ?? 0,
     receitaMes,
   }
 }
@@ -151,11 +144,13 @@ export default async function DashboardPage() {
           <p className="text-sm text-gray-500">Pets cadastrados</p>
         </Card>
 
-        <Card>
-          <Users size={28} className="mb-2 text-brand-teal" />
-          <p className="text-3xl font-bold text-gray-900">{stats.totalTutores}</p>
-          <p className="text-sm text-gray-500">Tutores</p>
-        </Card>
+        <Link href="/veterinario">
+          <Card className="h-full active:scale-98 transition-transform">
+            <Stethoscope size={28} className="mb-2 text-rose-500" />
+            <p className="text-3xl font-bold text-gray-900">{stats.vetHoje}</p>
+            <p className="text-sm text-gray-500">Consultas vet hoje</p>
+          </Card>
+        </Link>
 
         {temFinanceiro ? (
           <Link href="/financeiro">
@@ -213,50 +208,33 @@ export default async function DashboardPage() {
       <div>
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Ações rápidas</h2>
         <div className="flex flex-col gap-2">
-          <Link href="/creche" className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 active:bg-gray-50">
+          <Link href="/alimentacao-medicacao" className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 active:bg-gray-50">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center">
+              <UtensilsCrossed size={24} className="text-amber-500" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900">Alimentação</p>
+              <p className="text-sm text-gray-400">Alimentação e medicação dos pets</p>
+            </div>
+          </Link>
+
+          <Link href="/tarefas" className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 active:bg-gray-50">
             <div className="w-12 h-12 rounded-2xl bg-purple-100 flex items-center justify-center">
-              <CalendarCheck size={24} className="text-brand-purple" />
+              <ListTodo size={24} className="text-brand-purple" />
             </div>
             <div>
-              <p className="font-semibold text-gray-900">Controle de Presença</p>
-              <p className="text-sm text-gray-400">Check-in e check-out de hoje</p>
+              <p className="font-semibold text-gray-900">Tarefas do Dia</p>
+              <p className="text-sm text-gray-400">Checklist da equipe</p>
             </div>
           </Link>
 
-          <Link href="/hotel" className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 active:bg-gray-50">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center">
-              <Moon size={24} className="text-indigo-500" />
-            </div>
-            <div>
-              <p className="font-semibold text-gray-900">Hotel — {stats.hospedados} hospedados</p>
-              <p className="text-sm text-gray-400">Reservas e agenda do hotel</p>
-            </div>
-          </Link>
-
-          <Link href="/hotel/reservas/nova" className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 active:bg-gray-50">
+          <Link href="/transportes" className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 active:bg-gray-50">
             <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center">
-              <Dog size={24} className="text-brand-orange" />
+              <Car size={24} className="text-brand-orange" />
             </div>
             <div>
-              <p className="font-semibold text-gray-900">Nova Reserva Hotel</p>
-              <p className="text-sm text-gray-400">Agendar hospedagem</p>
-            </div>
-          </Link>
-
-          <Link href="/banho-tosa" className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 active:bg-gray-50">
-            <div className="w-12 h-12 rounded-2xl bg-teal-100 flex items-center justify-center">
-              <Scissors size={24} className="text-brand-teal" />
-            </div>
-            <div>
-              <p className="font-semibold text-gray-900">
-                Banho &amp; Tosa
-                {stats.banhoHoje > 0 && (
-                  <span className="ml-2 text-xs bg-brand-teal text-white px-2 py-0.5 rounded-full">
-                    {stats.banhoHoje} hoje
-                  </span>
-                )}
-              </p>
-              <p className="text-sm text-gray-400">Agendamentos e agenda</p>
+              <p className="font-semibold text-gray-900">Transporte</p>
+              <p className="text-sm text-gray-400">Corridas de hoje e agenda</p>
             </div>
           </Link>
         </div>

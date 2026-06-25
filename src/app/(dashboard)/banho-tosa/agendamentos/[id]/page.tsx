@@ -36,6 +36,9 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
   const [erroPag, setErroPag] = useState('')
   const [salvandoPag, setSalvandoPag] = useState(false)
 
+  // Observação do atendimento (registrada na entrega)
+  const [observacaoBanho, setObservacaoBanho] = useState('')
+
   // Modal cancelamento
   const [showCancel, setShowCancel] = useState(false)
   const [motivoCancel, setMotivoCancel] = useState('')
@@ -66,6 +69,7 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
     setErroPag('')
     const temCredito = ag.pet?.tipo_banho === 'pacote' && (ag.pet?.saldo_banhos ?? 0) > 0
     setUsarPacote(!!temCredito)
+    setObservacaoBanho(ag.observacoes ?? '')
   }, [ag, showPag])
 
   async function avancar(novoStatus: StatusAgendamento) {
@@ -103,6 +107,7 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
       status: 'entregue',
       hora_saida_real: new Date().toISOString(),
       pago_com_pacote: pagarComPacote,
+      observacoes: observacaoBanho.trim() || ag.observacoes || null,
     }
 
     if (pagarComPacote) {
@@ -446,6 +451,19 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
             </div>
 
             <SelectExecutadoPor value={execPor} onChange={setExecPor} label="Quem fez o banho/tosa (comissão)" />
+
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
+                Observações (opcional)
+              </label>
+              <textarea
+                rows={3}
+                value={observacaoBanho}
+                onChange={e => setObservacaoBanho(e.target.value)}
+                placeholder="Ex: estava com pulga, otite, machucado... Avisamos o tutor?"
+                className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-brand-teal outline-none text-sm resize-none"
+              />
+            </div>
 
             <div className="bg-teal-50 rounded-2xl p-4">
               <p className="text-xs text-gray-500 mb-2">Registros que serão criados:</p>
