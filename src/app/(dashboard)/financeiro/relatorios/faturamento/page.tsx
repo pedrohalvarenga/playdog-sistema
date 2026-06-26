@@ -15,10 +15,12 @@ import { diaLocal } from '@/lib/datas'
 type Aba = 'pet' | 'tutor'
 type Modo = 'mes' | 'periodo'
 type AreaFiltro = AreaNegocio | 'todas'
+type Regime = 'competencia' | 'caixa'
 
 interface Lancamento {
   id: string
   data: string
+  data_pagamento: string | null
   valor: number
   valor_liquido: number | null
   categoria: CategoriaReceita
@@ -58,6 +60,7 @@ export default function FaturamentoPorPage() {
   const [dataFim, setDataFim] = useState(diaLocal(hoje))
   const [aba, setAba] = useState<Aba>('pet')
   const [areaFiltro, setAreaFiltro] = useState<AreaFiltro>('todas')
+  const [regime, setRegime] = useState<Regime>('competencia')
   const [incluirPendentes, setIncluirPendentes] = useState(false)
   const [raw, setRaw] = useState<RawRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -83,20 +86,26 @@ export default function FaturamentoPorPage() {
     setAberto(null)
     const supabase = createClient()
 
+    const campoDt = regime === 'caixa' ? 'data_pagamento' : 'data'
+
     let query = supabase
       .from('receitas')
       .select(`
-        id, data, valor, valor_liquido, categoria, area, descricao, forma_pagamento, status,
+        id, data, data_pagamento, valor, valor_liquido, categoria, area, descricao, forma_pagamento, status,
         pet:pets(id, nome),
         tutor:tutores(id, nome)
       `)
-      .gte('data', inicio)
-      .lte('data', fim)
-      .order('data', { ascending: false })
+      .gte(campoDt, inicio)
+      .lte(campoDt, fim)
+      .order(campoDt, { ascending: false })
 
-    query = incluirPendentes
-      ? query.in('status', ['pago', 'pendente'])
-      : query.eq('status', 'pago')
+    if (regime === 'caixa') {
+      query = query.not('data_pagamento', 'is', null).eq('status', 'pago')
+    } else {
+      query = incluirPendentes
+        ? query.in('status', ['pago', 'pendente'])
+        : query.eq('status', 'pago')
+    }
 
     const { data } = await query
     setRaw((data as unknown as RawRow[]) ?? [])
@@ -122,7 +131,7 @@ export default function FaturamentoPorPage() {
     setBanhosTotal((banhos ?? []).length)
 
     setLoading(false)
-  }, [inicio, fim, incluirPendentes])
+  }, [inicio, fim, incluirPendentes, regime])
 
   useEffect(() => { buscar() }, [buscar])
 
@@ -144,7 +153,8 @@ export default function FaturamentoPorPage() {
       if (r.status === 'pendente') g.totalPendente += valor
       else g.totalPago += valor
       g.lancamentos.push({
-        id: r.id, data: r.data, valor: r.valor, valor_liquido: r.valor_liquido,
+        id: r.id, data: r.data, data_pagamento: r.data_pagamento,
+        valor: r.valor, valor_liquido: r.valor_liquido,
         categoria: r.categoria, area: r.area, descricao: r.descricao,
         forma_pagamento: r.forma_pagamento, status: r.status,
       })
@@ -167,6 +177,7 @@ export default function FaturamentoPorPage() {
   const periodoLabel = modo === 'mes'
     ? `${MESES[mes]} ${ano}`
     : `${formatDate(inicio)} a ${formatDate(fim)}`
+  const regimeLabel = regime === 'caixa' ? 'Caixa' : 'Competência'
   const areaLabel = areaFiltro === 'todas' ? 'Todas as áreas' : AREA_LABELS[areaFiltro]
 
   // ── Exportar CSV ──────────────────────────────────────────
@@ -254,6 +265,27 @@ export default function FaturamentoPorPage() {
         </button>
       </div>
 
+      {/* Regime: competência x caixa */}
+      <div className="flex rounded-2xl bg-gray-100 p-1 gap-1">
+        <button
+          onClick={() => setRegime('competencia')}
+          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${regime === 'competencia' ? 'bg-white shadow text-brand-purple' : 'text-gray-500'}`}
+        >
+          Competência
+        </button>
+        <button
+          onClick={() => setRegime('caixa')}
+          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${regime === 'caixa' ? 'bg-white shadow text-green-600' : 'text-gray-500'}`}
+        >
+          Caixa
+        </button>
+      </div>
+      {regime === 'caixa' && (
+        <p className="text-xs text-green-700 bg-green-50 rounded-xl px-3 py-2 -mt-2">
+          Mostra receitas pela data em que o pagamento entrou — ideal para bater com extrato bancário.
+        </p>
+      )}
+
       {/* Navegação de mês / intervalo de datas */}
       {modo === 'mes' ? (
         <div className="flex items-center justify-between bg-white rounded-2xl border-2 border-gray-100 px-4 py-3">
@@ -323,21 +355,23 @@ export default function FaturamentoPorPage() {
         ))}
       </div>
 
-      {/* Incluir pendentes */}
-      <button
-        onClick={() => setIncluirPendentes(v => !v)}
-        className="flex items-center justify-between bg-white rounded-2xl border-2 border-gray-100 px-4 py-2.5"
-      >
-        <span className="text-sm font-medium text-gray-700">Incluir contas a receber (pendentes)</span>
-        <span className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${incluirPendentes ? 'bg-brand-purple' : 'bg-gray-300'}`}>
-          <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${incluirPendentes ? 'translate-x-5' : 'translate-x-0.5'}`} />
-        </span>
-      </button>
+      {/* Incluir pendentes — só disponível em regime de competência */}
+      {regime === 'competencia' && (
+        <button
+          onClick={() => setIncluirPendentes(v => !v)}
+          className="flex items-center justify-between bg-white rounded-2xl border-2 border-gray-100 px-4 py-2.5"
+        >
+          <span className="text-sm font-medium text-gray-700">Incluir contas a receber (pendentes)</span>
+          <span className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${incluirPendentes ? 'bg-brand-purple' : 'bg-gray-300'}`}>
+            <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${incluirPendentes ? 'translate-x-5' : 'translate-x-0.5'}`} />
+          </span>
+        </button>
+      )}
 
       {/* Total do período */}
       {!loading && (
         <div className="bg-gradient-to-r from-brand-purple to-purple-600 rounded-2xl px-5 py-4 text-white">
-          <p className="text-sm opacity-80">Total — {periodoLabel}{areaFiltro !== 'todas' ? ` · ${areaLabel}` : ''}</p>
+          <p className="text-sm opacity-80">Total — {periodoLabel}{areaFiltro !== 'todas' ? ` · ${areaLabel}` : ''} · {regimeLabel}</p>
           <p className="text-3xl font-bold mt-0.5">{formatCurrency(total)}</p>
           {incluirPendentes && (totalPendente > 0 || totalPago > 0) && (
             <p className="text-xs opacity-80 mt-1">
@@ -460,7 +494,11 @@ export default function FaturamentoPorPage() {
                             {l.descricao || CATEGORIA_RECEITA_LABELS[l.categoria]}
                           </p>
                           <p className="text-xs text-gray-400">
-                            {formatDate(l.data)} · {AREA_LABELS[l.area]}
+                            {formatDate(l.data)}
+                            {l.data_pagamento && l.data_pagamento !== l.data && (
+                              <span className="text-green-600 font-medium"> · pago {formatDate(l.data_pagamento)}</span>
+                            )}
+                            {' · '}{AREA_LABELS[l.area]}
                             {l.status === 'pendente' && <span className="text-orange-500 font-semibold"> · a receber</span>}
                           </p>
                         </div>

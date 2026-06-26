@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { CircleDollarSign, Check, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { hojeLocal } from '@/lib/datas'
 
 interface PendenciaActionsProps {
   id: string
@@ -23,7 +24,7 @@ export default function PendenciaActions({ id, tipo }: PendenciaActionsProps) {
     const supabase = createClient()
     const tabela = tipo === 'receita' ? 'receitas' : 'despesas'
     // Não sobrescreve `data` (mantém a competência original do lançamento)
-    const { error } = await supabase.from(tabela).update({ status: 'pago' }).eq('id', id)
+    const { error } = await supabase.from(tabela).update({ status: 'pago', data_pagamento: hojeLocal() }).eq('id', id)
     setLoading(false)
     if (error) { setErro(error.message); return }
     router.refresh()

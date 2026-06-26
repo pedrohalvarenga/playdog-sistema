@@ -123,6 +123,7 @@ export default function LancamentoRapido() {
           data: hojeLocal(),
           valor, area, categoria, forma_pagamento: forma,
           conta_id: contaId, taxa_cartao: taxa, valor_liquido, status: 'pago',
+          data_pagamento: hojeLocal(),
           num_diarias: numDiarias !== '' ? numDiarias : null,
           num_banhos: numBanhos !== '' ? numBanhos : null,
           pet_id: pet?.id ?? null,
@@ -131,6 +132,7 @@ export default function LancamentoRapido() {
       : await supabase.from('despesas').insert({
           data: hojeLocal(),
           valor, area, categoria, conta_id: contaId, status: 'pago',
+          data_pagamento: hojeLocal(),
         })
     setSaving(false)
     if (error) { setErroSalvar(error.message); return }

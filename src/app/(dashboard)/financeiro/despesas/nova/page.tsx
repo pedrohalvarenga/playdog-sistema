@@ -97,6 +97,7 @@ export default function NovaDespesaPage() {
       descricao: descricao || null,
       status,
       data_vencimento: status === 'pendente' ? dataVenc : null,
+      data_pagamento: status === 'pago' ? hojeLocal() : null,
       recorrente,
       dia_vencimento: recorrente ? Number(diaVencimento) : null,
     })
