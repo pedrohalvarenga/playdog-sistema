@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, ArrowLeft, TrendingDown, Wrench } from 'lucide-react'
+import { Plus, ArrowLeft, TrendingDown, Wrench, Sparkles } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import StatusBadge from '@/components/financeiro/StatusBadge'
 import { formatDate } from '@/lib/utils'
@@ -53,6 +53,12 @@ export default async function DespesasPage({
       <div className="flex items-center gap-3">
         <Link href="/financeiro" className="p-2 rounded-xl text-gray-400"><ArrowLeft size={24} /></Link>
         <h1 className="text-xl font-bold text-gray-900 flex-1">Despesas</h1>
+        <Link href="/financeiro/despesas/importar-fatura">
+          <div className="h-10 px-3 rounded-2xl bg-purple-50 text-brand-purple border-2 border-brand-purple flex items-center gap-1.5">
+            <Sparkles size={16} />
+            <span className="text-xs font-bold">Importar fatura</span>
+          </div>
+        </Link>
         <Link href="/financeiro/despesas/nova">
           <div className="w-10 h-10 rounded-2xl bg-red-500 text-white flex items-center justify-center">
             <Plus size={20} />
