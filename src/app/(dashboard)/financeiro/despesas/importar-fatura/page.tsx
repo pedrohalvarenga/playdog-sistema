@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Upload, Sparkles, AlertTriangle, CheckCircle2, Trash2, FileText } from 'lucide-react'
+import { ArrowLeft, Upload, Sparkles, AlertTriangle, CheckCircle2, Trash2, FileText, Lock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import { AREA_LABELS, CATEGORIA_DESPESA_LABELS, formatCurrency } from '@/lib/financeiro'
@@ -33,6 +33,8 @@ export default function ImportarFaturaPage() {
 
   const [step, setStep] = useState<'upload' | 'revisar' | 'feito'>('upload')
   const [file, setFile] = useState<File | null>(null)
+  const [senha, setSenha] = useState('')
+  const [precisaSenha, setPrecisaSenha] = useState(false)
   const [analisando, setAnalisando] = useState(false)
   const [erro, setErro] = useState('')
 
@@ -56,9 +58,13 @@ export default function ImportarFaturaPage() {
     try {
       const fd = new FormData()
       fd.append('arquivo', file)
+      if (senha) fd.append('senha', senha)
       const res = await fetch('/api/financeiro/importar-fatura', { method: 'POST', body: fd })
       const json = await res.json()
-      if (!res.ok) { setErro(json.error || 'Falha ao analisar a fatura.'); setAnalisando(false); return }
+      if (!res.ok) {
+        if (json.needsPassword) setPrecisaSenha(true)
+        setErro(json.error || 'Falha ao analisar a fatura.'); setAnalisando(false); return
+      }
       const lidos = (json.itens ?? []) as Omit<ItemFatura, 'incluir'>[]
       if (lidos.length === 0) {
         setErro('A IA não encontrou compras nesta fatura. Tente uma foto mais nítida ou o PDF original.')
@@ -237,6 +243,21 @@ export default function ImportarFaturaPage() {
           {file ? file.name : 'Toque para escolher a fatura (PDF ou foto)'}
         </span>
       </button>
+
+      <div className={`flex flex-col gap-1 ${precisaSenha ? '' : 'opacity-90'}`}>
+        <label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+          <Lock size={14} className={precisaSenha ? 'text-brand-purple' : 'text-gray-400'} />
+          Senha do PDF {precisaSenha ? '(obrigatória)' : '(se tiver)'}
+        </label>
+        <input type="text" inputMode="numeric" value={senha} onChange={e => setSenha(e.target.value)}
+          placeholder="Geralmente o CPF do titular (só números)"
+          className={`w-full py-3 px-4 rounded-2xl border-2 outline-none text-base bg-white ${
+            precisaSenha ? 'border-brand-purple' : 'border-gray-200 focus:border-brand-purple'
+          }`} />
+        <p className="text-xs text-gray-400">
+          Faturas de banco vêm com senha. A senha é usada só para abrir o arquivo, não fica guardada.
+        </p>
+      </div>
 
       {erro && <p className="text-sm text-red-500 text-center">{erro}</p>}
 

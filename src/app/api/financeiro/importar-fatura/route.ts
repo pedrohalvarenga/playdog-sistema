@@ -2,12 +2,14 @@ import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 
+export const runtime = 'nodejs'
+export const maxDuration = 60
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const MAX_BYTES = 12 * 1024 * 1024 // 12 MB
 const TIPOS_IMAGEM = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
-// Categorias e áreas válidas do sistema (a IA deve devolver exatamente uma destas)
 const CATEGORIAS = [
   'racao_petiscos', 'limpeza', 'produtos_banho_tosa', 'salarios', 'comissoes',
   'combustivel', 'manutencao', 'investimento', 'aluguel', 'agua_luz_internet',
@@ -67,14 +69,46 @@ type ItemFatura = {
   confianca: string
 }
 
+type BlocoMidia =
+  | { type: 'document'; source: { type: 'base64'; media_type: 'application/pdf'; data: string } }
+  | { type: 'image'; source: { type: 'base64'; media_type: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif'; data: string } }
+
+// Extrai o texto de um PDF, descriptografando com a senha quando necessário.
+// Lança { code: 'SENHA_NECESSARIA' | 'SENHA_INCORRETA' } para o chamador tratar.
+async function extrairTextoPdf(buffer: ArrayBuffer, senha?: string): Promise<string> {
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  let doc
+  try {
+    doc = await pdfjs.getDocument({
+      data: new Uint8Array(buffer),
+      password: senha || undefined,
+      isEvalSupported: false,
+      useSystemFonts: true,
+    }).promise
+  } catch (e) {
+    const err = e as { name?: string; code?: number }
+    if (err?.name === 'PasswordException') {
+      throw { code: err.code === 2 ? 'SENHA_INCORRETA' : 'SENHA_NECESSARIA' }
+    }
+    throw e
+  }
+  let texto = ''
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i)
+    const content = await page.getTextContent()
+    texto += content.items.map((it) => ('str' in it ? it.str : '')).join(' ') + '\n'
+  }
+  return texto.trim()
+}
+
 export async function POST(request: Request) {
-  // Só usuários logados (consome créditos da API)
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
   const formData = await request.formData()
   const file = formData.get('arquivo') as File | null
+  const senha = (formData.get('senha') as string | null) || undefined
   if (!file) return NextResponse.json({ error: 'Nenhum arquivo enviado' }, { status: 400 })
 
   if (file.size > MAX_BYTES) {
@@ -87,35 +121,77 @@ export async function POST(request: Request) {
   }
 
   const bytes = await file.arrayBuffer()
-  const base64 = Buffer.from(bytes).toString('base64')
 
-  const midia = isPdf
-    ? { type: 'document' as const, source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: base64 } }
-    : { type: 'image' as const, source: { type: 'base64' as const, media_type: tipo as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif', data: base64 } }
+  // Monta o conteúdo enviado à IA: texto (PDF) ou imagem/documento (vision)
+  let conteudoIa: Array<BlocoMidia | { type: 'text'; text: string }>
 
-  let texto = ''
+  if (isPdf) {
+    let texto = ''
+    try {
+      texto = await extrairTextoPdf(bytes, senha)
+    } catch (e) {
+      const err = e as { code?: string }
+      if (err?.code === 'SENHA_NECESSARIA') {
+        return NextResponse.json(
+          { error: 'Esta fatura está protegida por senha. Digite a senha do PDF (geralmente o CPF do titular).', needsPassword: true },
+          { status: 422 },
+        )
+      }
+      if (err?.code === 'SENHA_INCORRETA') {
+        return NextResponse.json(
+          { error: 'Senha incorreta. Confira e tente de novo (costuma ser o CPF do titular, só números).', needsPassword: true },
+          { status: 422 },
+        )
+      }
+      return NextResponse.json({ error: 'Não foi possível abrir o PDF da fatura.' }, { status: 422 })
+    }
+
+    if (texto.length >= 80) {
+      // PDF com texto legível (fatura digital do banco)
+      conteudoIa = [{ type: 'text', text: PROMPT + '\n\nTEXTO DA FATURA:\n' + texto }]
+    } else if (!senha) {
+      // PDF sem camada de texto (digitalizado) e não protegido → manda como documento p/ visão
+      const base64 = Buffer.from(bytes).toString('base64')
+      conteudoIa = [
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+        { type: 'text', text: PROMPT },
+      ]
+    } else {
+      return NextResponse.json(
+        { error: 'A fatura parece ser uma imagem digitalizada protegida. Tire um print/foto da fatura aberta e envie como imagem.' },
+        { status: 422 },
+      )
+    }
+  } else {
+    const base64 = Buffer.from(bytes).toString('base64')
+    conteudoIa = [
+      { type: 'image', source: { type: 'base64', media_type: tipo as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif', data: base64 } },
+      { type: 'text', text: PROMPT },
+    ]
+  }
+
+  let respostaTexto = ''
   try {
     const msg = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 8192,
-      messages: [{ role: 'user', content: [midia, { type: 'text', text: PROMPT }] }],
+      messages: [{ role: 'user', content: conteudoIa }],
     })
     const bloco = msg.content?.[0]
-    texto = bloco && bloco.type === 'text' ? bloco.text.trim() : ''
+    respostaTexto = bloco && bloco.type === 'text' ? bloco.text.trim() : ''
   } catch (e) {
     const m = e instanceof Error ? e.message : 'erro desconhecido'
     return NextResponse.json({ error: 'Falha ao analisar a fatura com a IA: ' + m }, { status: 502 })
   }
 
   try {
-    const clean = texto.replace(/```json|```/g, '').trim()
+    const clean = respostaTexto.replace(/```json|```/g, '').trim()
     const parsed = JSON.parse(clean) as { itens?: ItemFatura[] }
     const itensRaw = Array.isArray(parsed.itens) ? parsed.itens : []
 
-    // Saneamento: garante categoria/área válidas e valor positivo
     const itens = itensRaw
-      .filter(it => typeof it.valor === 'number' && it.valor > 0)
-      .map(it => ({
+      .filter((it) => typeof it.valor === 'number' && it.valor > 0)
+      .map((it) => ({
         data: it.data && /^\d{4}-\d{2}-\d{2}$/.test(it.data) ? it.data : null,
         descricao: String(it.descricao ?? '').slice(0, 120),
         valor: Math.round(it.valor * 100) / 100,
@@ -126,6 +202,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ itens })
   } catch {
-    return NextResponse.json({ error: 'Não foi possível ler a fatura', raw: texto.slice(0, 500) }, { status: 422 })
+    return NextResponse.json({ error: 'Não foi possível interpretar a fatura', raw: respostaTexto.slice(0, 500) }, { status: 422 })
   }
 }
