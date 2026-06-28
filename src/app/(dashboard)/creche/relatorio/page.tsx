@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo, useRef, type ReactNode } from 'react'
+import { useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Download, Share2, Dog, X, Loader2, MessageCircle, Mail, Instagram, ChevronRight } from 'lucide-react'
 import { formatDate, calcIdade, PORTE_LABELS, vacinaStatus } from '@/lib/utils'
 import { hojeLocal } from '@/lib/datas'
-import { carregarImagemDataUrl, montarHtmlRelatorio, elementoParaPDF, type PetPDF } from '@/lib/pdfRelatorio'
+import { carregarImagemDataUrl, gerarRelatorioPdfVetor, type PetPDF, type RelatorioPDF } from '@/lib/pdfRelatorio'
 import type { Pet, Presenca, Ocorrencia } from '@/types'
 
 type PetComTutor = Pet & { tutor: { id: string; nome: string; telefone: string; email?: string } }
@@ -76,7 +76,7 @@ export default function RelatorioCrechePage() {
   const [, setEnviando] = useState(false)
   const [gerando, setGerando] = useState(false)
   const [sheetAberto, setSheetAberto] = useState(false)
-  const pdfRef = useRef<HTMLDivElement>(null)
+  const [pdfData, setPdfData] = useState<RelatorioPDF | null>(null)
 
   // Define o período a partir do preset escolhido
   useEffect(() => {
@@ -231,8 +231,11 @@ export default function RelatorioCrechePage() {
     return `${base}.pdf`
   }
 
-  // Gera o PDF a partir do HTML do layout aprovado (captura com html2canvas)
-  async function gerarDoc() {
+  // Monta os dados do PDF (carrega imagens como dataURL). É feito em segundo
+  // plano sempre que o relatório muda, para que a geração no toque seja
+  // SÍNCRONA — exigência do iPhone: o navigator.share precisa rodar dentro do
+  // gesto do usuário, sem await no meio.
+  const montarPdfData = useCallback(async (): Promise<RelatorioPDF> => {
     const logoDataUrl = await carregarImagemDataUrl('/logo-playdog.png')
     const petsPDF: PetPDF[] = await Promise.all(relatorio.map(async r => ({
       nome: r.pet.nome,
@@ -245,24 +248,24 @@ export default function RelatorioCrechePage() {
       ocorrencias: r.ocorrencias.map(o => ({ data: formatDate(o.created_at, 'dd/MM'), descricao: o.descricao })),
       vacinas: r.vacinas.map(v => ({ label: v.label, vencimento: formatDate(v.vencimento, 'dd/MM/yyyy'), vencida: v.vencida })),
     })))
+    return { periodoLabel, logoDataUrl, pets: petsPDF }
+  }, [relatorio, periodoLabel])
 
-    const host = pdfRef.current
-    if (!host) throw new Error('container indisponível')
-    host.innerHTML = montarHtmlRelatorio({ periodoLabel, logoDataUrl, pets: petsPDF })
-    await new Promise(r => setTimeout(r, 60))
-    try {
-      return await elementoParaPDF(host.firstElementChild as HTMLElement)
-    } finally {
-      host.innerHTML = ''
-    }
-  }
+  // Pré-carrega o PDF assim que o relatório fica pronto
+  useEffect(() => {
+    let cancelado = false
+    if (relatorio.length === 0) { setPdfData(null); return }
+    setPdfData(null)
+    montarPdfData().then(d => { if (!cancelado) setPdfData(d) }).catch(() => {})
+    return () => { cancelado = true }
+  }, [montarPdfData, relatorio.length])
 
   async function salvar() {
     if (relatorio.length === 0) return
     setGerando(true)
     try {
-      const doc = await gerarDoc()
-      doc.save(nomeArquivo())
+      const dados = pdfData ?? await montarPdfData()
+      gerarRelatorioPdfVetor(dados).save(nomeArquivo())
     } catch { alert('Não foi possível gerar o PDF. Tente novamente.') }
     setGerando(false)
     setSheetAberto(false)
@@ -270,17 +273,24 @@ export default function RelatorioCrechePage() {
 
   async function compartilhar() {
     if (relatorio.length === 0) return
-    setGerando(true)
     try {
-      const doc = await gerarDoc()
-      const blob = doc.output('blob')
-      const file = new File([blob], nomeArquivo(), { type: 'application/pdf' })
+      // Quando os dados já estão prontos (caso comum), gera SÍNCRONO para o
+      // navigator.share rodar dentro do gesto do toque no iPhone.
+      let doc
+      if (pdfData) {
+        doc = gerarRelatorioPdfVetor(pdfData)
+      } else {
+        setGerando(true)
+        doc = gerarRelatorioPdfVetor(await montarPdfData())
+        setGerando(false)
+      }
+      const file = new File([doc.output('blob')], nomeArquivo(), { type: 'application/pdf' })
       const nav = navigator as Navigator & { canShare?: (d: unknown) => boolean; share?: (d: unknown) => Promise<void> }
       if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
         await nav.share({ files: [file], title: 'Relatório de presenças — Play Dog' })
       } else {
         doc.save(nomeArquivo())
-        alert('Seu dispositivo não permite compartilhar direto. O PDF foi salvo para você anexar manualmente.')
+        alert('Seu aparelho não permite compartilhar direto. O PDF foi salvo para você anexar manualmente.')
       }
     } catch {
       // usuário pode cancelar o compartilhamento — ignora
@@ -476,9 +486,6 @@ export default function RelatorioCrechePage() {
         </div>
       )}
       <style>{`@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
-
-      {/* Container oculto usado para gerar o PDF (renderizado fora da tela) */}
-      <div ref={pdfRef} aria-hidden="true" style={{ position: 'absolute', left: -99999, top: 0, width: 760 }} />
     </>
   )
 }

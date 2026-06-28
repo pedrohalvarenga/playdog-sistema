@@ -36,114 +36,162 @@ export async function carregarImagemDataUrl(url: string): Promise<string | null>
   }
 }
 
-const esc = (s: string) =>
-  (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-
-/** Monta o HTML do relatório (layout aprovado) — focado no(s) pet(s), sem contagem de tutores. */
-export function montarHtmlRelatorio(d: RelatorioPDF): string {
-  const cardPet = (p: PetPDF) => {
-    const foto = p.fotoDataUrl
-      ? `<img src="${p.fotoDataUrl}" alt="" style="width:60px;height:60px;border-radius:16px;object-fit:cover;border:2px solid #EEEDFE;flex:0 0 auto;" />`
-      : `<div style="width:60px;height:60px;border-radius:16px;background:#F4F0FB;display:flex;align-items:center;justify-content:center;color:#8A05BE;font-weight:700;font-size:22px;flex:0 0 auto;">${esc(p.nome.charAt(0))}</div>`
-
-    const chips = p.presencas.length
-      ? `<div style="display:flex;flex-wrap:wrap;gap:6px;">${p.presencas
-          .map(c => `<span style="background:#F4F0FB;border-radius:9px;padding:6px 11px;font-size:13px;color:#3C3489;font-weight:500;">${esc(c)}</span>`)
-          .join('')}</div>`
-      : `<div style="font-size:13px;color:#888780;">Sem presenças no período.</div>`
-
-    const obs = p.ocorrencias.length
-      ? `<div style="padding:12px 2px 2px;border-top:1px solid #F1EFE8;margin-top:14px;">
-           <div style="font-size:11px;font-weight:600;color:#FF5600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Observações no período</div>
-           ${p.ocorrencias.map(o => `<div style="font-size:13px;color:#444441;line-height:1.55;margin-bottom:3px;">${esc(o.data)} — ${esc(o.descricao)}</div>`).join('')}
-         </div>`
-      : ''
-
-    const vac = p.vacinas.length
-      ? `<div style="padding:12px 2px 2px;border-top:1px solid #F1EFE8;margin-top:14px;">
-           <div style="font-size:11px;font-weight:600;color:#FF5600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;">Vacina(s) a vencer (próximos 30 dias)</div>
-           ${p.vacinas.map(v => `<div style="font-size:13px;color:#444441;line-height:1.5;">${esc(v.label)} ${v.vencida ? 'venceu em' : 'vence em'} ${esc(v.vencimento)} — recomendamos agendar o reforço.</div>`).join('')}
-         </div>`
-      : ''
-
-    const pacote = p.ultimoPacote > 0 ? String(p.ultimoPacote) : '—'
-
-    return `<div style="page-break-inside:avoid;margin-bottom:26px;">
-      <div style="display:flex;gap:14px;align-items:center;margin-bottom:14px;">
-        ${foto}
-        <div style="min-width:0;">
-          <div style="font-size:19px;font-weight:700;color:#8A05BE;line-height:1.1;">${esc(p.nome)}</div>
-          ${p.detalhe ? `<div style="font-size:13px;color:#888780;margin-top:2px;">${esc(p.detalhe)}</div>` : ''}
-          ${p.tutor ? `<div style="font-size:13px;color:#888780;">Tutor: ${esc(p.tutor)}</div>` : ''}
-        </div>
-      </div>
-
-      <div style="display:flex;border-top:1px solid #F1EFE8;border-bottom:1px solid #F1EFE8;padding:12px 0;margin-bottom:14px;">
-        <div style="flex:1;text-align:center;">
-          <div style="font-size:22px;font-weight:700;color:#8A05BE;">${p.presencas.length}</div>
-          <div style="font-size:11px;color:#888780;">Presenças no período</div>
-        </div>
-        <div style="flex:1;text-align:center;border-left:1px solid #F1EFE8;border-right:1px solid #F1EFE8;">
-          <div style="font-size:22px;font-weight:700;color:#00B9A6;">${p.saldo >= 0 ? '+' : ''}${p.saldo}</div>
-          <div style="font-size:11px;color:#888780;">Saldo de diárias</div>
-        </div>
-        <div style="flex:1;text-align:center;">
-          <div style="font-size:22px;font-weight:700;color:#FF5600;">${pacote}</div>
-          <div style="font-size:11px;color:#888780;">Último pacote</div>
-        </div>
-      </div>
-
-      <div style="font-size:11px;font-weight:600;letter-spacing:.04em;color:#8A05BE;text-transform:uppercase;margin-bottom:9px;">Presenças no período (${p.presencas.length})</div>
-      ${chips}
-      ${obs}
-      ${vac}
-    </div>`
-  }
-
-  const logo = d.logoDataUrl
-    ? `<img src="${d.logoDataUrl}" alt="Play Dog" style="height:50px;width:auto;" />`
-    : `<div style="font-size:22px;font-weight:800;color:#8A05BE;">Play Dog</div>`
-
-  return `<div style="width:760px;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#2C2C2A;box-sizing:border-box;">
-    <div style="display:flex;height:7px;">
-      <div style="flex:1;background:#8A05BE;"></div>
-      <div style="flex:1;background:#FF5600;"></div>
-      <div style="flex:1;background:#00E9D2;"></div>
-    </div>
-    <div style="padding:22px 32px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
-        ${logo}
-        <div style="text-align:right;">
-          <div style="font-size:15px;font-weight:700;color:#2C2C2A;">Relatório de presenças</div>
-          <div style="display:inline-block;margin-top:4px;font-size:13px;color:#8A05BE;background:#F4F0FB;padding:4px 12px;border-radius:999px;">${esc(d.periodoLabel)}</div>
-        </div>
-      </div>
-      ${d.pets.map(cardPet).join('')}
-      <div style="margin-top:8px;padding-top:14px;border-top:1px solid #F1EFE8;text-align:center;">
-        <div style="font-size:12px;color:#5F5E5A;">WhatsApp (32) 99165-1894&nbsp;&nbsp;·&nbsp;&nbsp;@playdogjf&nbsp;&nbsp;·&nbsp;&nbsp;playdogjf.com.br</div>
-        <div style="font-size:12px;color:#888780;margin-top:4px;">Av. Presidente Costa e Silva, 2354 — São Pedro · Juiz de Fora / MG</div>
-      </div>
-    </div>
-  </div>`
+function imgFormat(dataUrl: string): 'PNG' | 'JPEG' {
+  return /^data:image\/png/i.test(dataUrl) ? 'PNG' : 'JPEG'
 }
 
 /**
- * Captura um elemento já renderizado e devolve um jsPDF com a página do
- * tamanho EXATO do conteúdo (como um card) — sem espaço em branco sobrando.
+ * Gera o PDF do relatório desenhando texto vetorial direto com jsPDF.
+ * Não usa html2canvas (que trava no Safari do iPhone): é JS puro, roda
+ * de forma síncrona e funciona em qualquer aparelho. Paginação A4 automática.
  */
-export async function elementoParaPDF(el: HTMLElement): Promise<jsPDF> {
-  const html2canvas = (await import('html2canvas-pro')).default
-  const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
-  const img = canvas.toDataURL('image/jpeg', 0.95)
+export function gerarRelatorioPdfVetor(d: RelatorioPDF): jsPDF {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  const W = 210, H = 297, M = 15, CW = W - 2 * M
 
-  const pw = 210 // largura fixa (mm); a altura acompanha o conteúdo
-  const ph = (canvas.height * pw) / canvas.width
+  const PURPLE = [138, 5, 190]
+  const ORANGE = [255, 86, 0]
+  const TEAL = [0, 185, 166]
+  const GRAY = [136, 135, 128]
+  const DARK = [44, 44, 42]
+  const LINE = [233, 229, 243]
+  const CHIPBG = [244, 240, 251]
+  const CHIPTX = [60, 52, 137]
+  const BODY = [68, 68, 65]
 
-  const pdf = new jsPDF({
-    unit: 'mm',
-    format: [pw, ph],
-    orientation: ph >= pw ? 'portrait' : 'landscape',
-  })
-  pdf.addImage(img, 'JPEG', 0, 0, pw, ph)
-  return pdf
+  const fill = (c: number[]) => doc.setFillColor(c[0], c[1], c[2])
+  const txt = (c: number[]) => doc.setTextColor(c[0], c[1], c[2])
+  const stroke = (c: number[]) => doc.setDrawColor(c[0], c[1], c[2])
+
+  let y = 0
+
+  const barraTopo = () => {
+    fill(PURPLE); doc.rect(0, 0, W / 3, 2, 'F')
+    fill(ORANGE); doc.rect(W / 3, 0, W / 3, 2, 'F')
+    doc.setFillColor(0, 233, 210); doc.rect((2 * W) / 3, 0, W - (2 * W) / 3, 2, 'F')
+  }
+  const rodape = () => {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); txt(GRAY)
+    doc.text('WhatsApp (32) 99165-1894   ·   @playdogjf   ·   playdogjf.com.br', W / 2, H - 11, { align: 'center' })
+    doc.text('Av. Presidente Costa e Silva, 2354 — São Pedro · Juiz de Fora / MG', W / 2, H - 7, { align: 'center' })
+  }
+  const novaPagina = () => { doc.addPage(); barraTopo(); rodape(); y = 16 }
+  const garantir = (espaco: number) => { if (y + espaco > H - 18) novaPagina() }
+
+  // ---- Primeira página: cabeçalho ----
+  barraTopo(); rodape(); y = 14
+  let baseCabecalho = y
+  if (d.logoDataUrl) {
+    try { doc.addImage(d.logoDataUrl, imgFormat(d.logoDataUrl), M, y, 17, 14); baseCabecalho = y + 14 } catch { /* logo opcional */ }
+  }
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); txt(DARK)
+  doc.text('Relatório de presenças', W - M, y + 4, { align: 'right' })
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); txt(PURPLE)
+  doc.text(d.periodoLabel || '', W - M, y + 10, { align: 'right' })
+  y = Math.max(baseCabecalho, y + 14) + 7
+
+  // ---- Um bloco por pet ----
+  for (const p of d.pets) {
+    garantir(42)
+
+    // Foto (ou inicial)
+    const fx = M, fy = y
+    let temFoto = false
+    if (p.fotoDataUrl) {
+      try { doc.addImage(p.fotoDataUrl, imgFormat(p.fotoDataUrl), fx, fy, 18, 18); temFoto = true } catch { /* formato não suportado */ }
+    }
+    if (!temFoto) {
+      fill(CHIPBG); doc.roundedRect(fx, fy, 18, 18, 3, 3, 'F')
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(16); txt(PURPLE)
+      doc.text((p.nome.charAt(0) || '?').toUpperCase(), fx + 9, fy + 12, { align: 'center' })
+    }
+
+    // Nome + detalhe + tutor
+    const tx = fx + 23
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); txt(PURPLE)
+    doc.text(p.nome, tx, fy + 5)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); txt(GRAY)
+    let ty = fy + 10
+    if (p.detalhe) { doc.text(p.detalhe, tx, ty); ty += 4 }
+    if (p.tutor) { doc.text('Tutor: ' + p.tutor, tx, ty); ty += 4 }
+    y = Math.max(fy + 18, ty) + 5
+
+    // Linha de números (presenças / saldo / pacote)
+    garantir(18)
+    stroke(LINE); doc.line(M, y, M + CW, y)
+    const colW = CW / 3
+    const numero = (i: number, valor: string, label: string, cor: number[]) => {
+      const cx = M + colW * i + colW / 2
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(16); txt(cor)
+      doc.text(valor, cx, y + 8, { align: 'center' })
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); txt(GRAY)
+      doc.text(label, cx, y + 13, { align: 'center' })
+    }
+    numero(0, String(p.presencas.length), 'Presenças no período', PURPLE)
+    numero(1, (p.saldo >= 0 ? '+' : '') + p.saldo, 'Saldo de diárias', TEAL)
+    numero(2, p.ultimoPacote > 0 ? String(p.ultimoPacote) : '—', 'Último pacote', ORANGE)
+    stroke(LINE)
+    doc.line(M + colW, y + 1, M + colW, y + 14)
+    doc.line(M + 2 * colW, y + 1, M + 2 * colW, y + 14)
+    y += 15
+    doc.line(M, y, M + CW, y)
+    y += 7
+
+    // Presenças (chips)
+    garantir(9)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); txt(PURPLE)
+    doc.text(`PRESENÇAS NO PERÍODO (${p.presencas.length})`, M, y)
+    y += 5
+    if (p.presencas.length === 0) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); txt(GRAY)
+      doc.text('Sem presenças no período.', M, y + 3); y += 7
+    } else {
+      const chipH = 6, gap = 2
+      let cx = M
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
+      for (const c of p.presencas) {
+        const w = doc.getTextWidth(c) + 6
+        if (cx + w > M + CW) { cx = M; y += chipH + gap; garantir(chipH + 4) }
+        fill(CHIPBG); doc.roundedRect(cx, y, w, chipH, 1.5, 1.5, 'F')
+        txt(CHIPTX); doc.text(c, cx + 3, y + 4)
+        cx += w + gap
+      }
+      y += chipH + 5
+    }
+
+    // Observações
+    if (p.ocorrencias.length) {
+      garantir(11)
+      stroke(LINE); doc.line(M, y, M + CW, y); y += 5
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); txt(ORANGE)
+      doc.text('OBSERVAÇÕES NO PERÍODO', M, y); y += 4
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); txt(BODY)
+      for (const o of p.ocorrencias) {
+        const linhas = doc.splitTextToSize(`${o.data} — ${o.descricao}`, CW) as string[]
+        garantir(linhas.length * 4 + 2)
+        doc.text(linhas, M, y); y += linhas.length * 4 + 1
+      }
+      y += 2
+    }
+
+    // Vacinas a vencer
+    if (p.vacinas.length) {
+      garantir(11)
+      stroke(LINE); doc.line(M, y, M + CW, y); y += 5
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); txt(ORANGE)
+      doc.text('VACINA(S) A VENCER (PRÓXIMOS 30 DIAS)', M, y); y += 4
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); txt(BODY)
+      for (const v of p.vacinas) {
+        const t = `${v.label} ${v.vencida ? 'venceu em' : 'vence em'} ${v.vencimento} — recomendamos agendar o reforço.`
+        const linhas = doc.splitTextToSize(t, CW) as string[]
+        garantir(linhas.length * 4 + 2)
+        doc.text(linhas, M, y); y += linhas.length * 4 + 1
+      }
+      y += 2
+    }
+
+    y += 9 // espaço entre pets
+  }
+
+  return doc
 }
