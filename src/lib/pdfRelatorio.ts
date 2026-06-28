@@ -9,7 +9,8 @@ export interface PetPDF {
   fotoDataUrl?: string | null
   presencas: string[]
   saldo: number
-  ultimoPacote: number
+  ultimoPacoteData: string | null
+  saldoNoDiaPacote: number | null
   ocorrencias: OcorrenciaPDF[]
   vacinas: VacinaPDF[]
 }
@@ -58,6 +59,7 @@ export function gerarRelatorioPdfVetor(d: RelatorioPDF): jsPDF {
   const CHIPBG = [244, 240, 251]
   const CHIPTX = [60, 52, 137]
   const BODY = [68, 68, 65]
+  const RED = [220, 38, 38]
 
   const fill = (c: number[]) => doc.setFillColor(c[0], c[1], c[2])
   const txt = (c: number[]) => doc.setTextColor(c[0], c[1], c[2])
@@ -116,24 +118,40 @@ export function gerarRelatorioPdfVetor(d: RelatorioPDF): jsPDF {
     if (p.tutor) { doc.text('Tutor: ' + p.tutor, tx, ty); ty += 4 }
     y = Math.max(fy + 18, ty) + 5
 
-    // Linha de números (presenças / saldo / pacote)
-    garantir(18)
+    // Linha de números (presenças / saldo atual / último pacote pago)
+    garantir(20)
     stroke(LINE); doc.line(M, y, M + CW, y)
     const colW = CW / 3
     const numero = (i: number, valor: string, label: string, cor: number[]) => {
       const cx = M + colW * i + colW / 2
       doc.setFont('helvetica', 'bold'); doc.setFontSize(16); txt(cor)
-      doc.text(valor, cx, y + 8, { align: 'center' })
+      doc.text(valor, cx, y + 7, { align: 'center' })
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8); txt(GRAY)
-      doc.text(label, cx, y + 13, { align: 'center' })
+      doc.text(label, cx, y + 11.5, { align: 'center' })
     }
     numero(0, String(p.presencas.length), 'Presenças no período', PURPLE)
-    numero(1, (p.saldo >= 0 ? '+' : '') + p.saldo, 'Saldo de diárias', TEAL)
-    numero(2, p.ultimoPacote > 0 ? String(p.ultimoPacote) : '—', 'Último pacote', ORANGE)
+    numero(1, (p.saldo >= 0 ? '+' : '') + p.saldo, 'Saldo de diárias hoje', TEAL)
+
+    // 3ª coluna: último pacote pago — saldo do pet naquele dia (pode ser negativo) + data
+    const cx3 = M + colW * 2 + colW / 2
+    if (p.ultimoPacoteData) {
+      const sal = p.saldoNoDiaPacote ?? 0
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(16); txt(sal < 0 ? RED : TEAL)
+      doc.text((sal >= 0 ? '+' : '') + sal, cx3, y + 7, { align: 'center' })
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); txt(GRAY)
+      doc.text('Saldo ao pagar pacote', cx3, y + 11.5, { align: 'center' })
+      doc.text(p.ultimoPacoteData, cx3, y + 15, { align: 'center' })
+    } else {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(16); txt(ORANGE)
+      doc.text('—', cx3, y + 7, { align: 'center' })
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); txt(GRAY)
+      doc.text('Sem pacote pago', cx3, y + 11.5, { align: 'center' })
+    }
+
     stroke(LINE)
-    doc.line(M + colW, y + 1, M + colW, y + 14)
-    doc.line(M + 2 * colW, y + 1, M + 2 * colW, y + 14)
-    y += 15
+    doc.line(M + colW, y + 1, M + colW, y + 16)
+    doc.line(M + 2 * colW, y + 1, M + 2 * colW, y + 16)
+    y += 17
     doc.line(M, y, M + CW, y)
     y += 7
 

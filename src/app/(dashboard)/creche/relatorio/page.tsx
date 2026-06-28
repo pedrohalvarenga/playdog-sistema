@@ -57,7 +57,8 @@ interface PetRelatorio {
   presencas: Presenca[]
   ocorrencias: Ocorrencia[]
   vacinas: { label: string; vencimento: string; vencida: boolean }[]
-  ultimoPacote: number
+  ultimoPacoteData: string | null
+  saldoNoDiaPacote: number | null
 }
 
 export default function RelatorioCrechePage() {
@@ -141,15 +142,45 @@ export default function RelatorioCrechePage() {
 
     if (!ini || !fimP) { setLoading(false); return }
 
-    const [{ data: presencas }, { data: ocorrencias }, { data: compras }] = await Promise.all([
+    const [{ data: presencas }, { data: ocorrencias }, { data: pacotes }] = await Promise.all([
       supabase.from('presencas').select('*').in('pet_id', petIds).gte('data', ini).lte('data', fimP).order('data'),
       supabase.from('ocorrencias').select('*').in('pet_id', petIds).gte('created_at', `${ini}T00:00:00`).lte('created_at', `${fimP}T23:59:59`).order('created_at'),
-      supabase.from('compras_diarias').select('pet_id, quantidade, data').in('pet_id', petIds).order('data', { ascending: false }),
+      supabase.from('receitas').select('pet_id, data, num_diarias, created_at').in('pet_id', petIds).eq('area', 'creche').eq('status', 'pago').not('num_diarias', 'is', null).order('data', { ascending: false }).order('created_at', { ascending: false }),
     ])
 
-    // Quantidade da última compra de diárias (último pacote) por pet
-    const ultimoPacotePorPet = new Map<string, number>()
-    ;(compras ?? []).forEach(c => { if (!ultimoPacotePorPet.has(c.pet_id)) ultimoPacotePorPet.set(c.pet_id, c.quantidade) })
+    // Último pacote PAGO por pet (receita mais recente com diárias) — data + horário
+    const ultimoPacotePet = new Map<string, { data: string; createdAt: string }>()
+    ;(pacotes ?? []).forEach(p => { if (!ultimoPacotePet.has(p.pet_id)) ultimoPacotePet.set(p.pet_id, { data: p.data, createdAt: p.created_at }) })
+
+    // Saldo do pet logo ANTES do último pacote (no momento do pagamento): ancora
+    // no saldo_diarias real e desconta os movimentos a partir desse pacote, pelo
+    // horário de registro. Mostra se o pet renovou já estando no negativo.
+    const tss = [...ultimoPacotePet.values()].map(v => v.createdAt)
+    const minTs = tss.length ? tss.reduce((a, b) => (a < b ? a : b)) : null
+
+    let presSince: { pet_id: string; created_at: string }[] = []
+    let ajuSince: { pet_id: string; quantidade: number; created_at: string }[] = []
+    let freeSince: { pet_id: string; quantidade: number; created_at: string }[] = []
+    if (minTs) {
+      const [r1, r2, r3] = await Promise.all([
+        supabase.from('presencas').select('pet_id, created_at').in('pet_id', petIds).gte('created_at', minTs),
+        supabase.from('ajustes_saldo').select('pet_id, quantidade, created_at').in('pet_id', petIds).gte('created_at', minTs),
+        supabase.from('compras_diarias').select('pet_id, quantidade, created_at').in('pet_id', petIds).eq('valor_pago', 0).gte('created_at', minTs),
+      ])
+      presSince = r1.data ?? []
+      ajuSince = r2.data ?? []
+      freeSince = r3.data ?? []
+    }
+
+    const saldoNoDiaPet = new Map<string, number>()
+    ultimoPacotePet.forEach((lp, petId) => {
+      const live = escopo.find(p => p.id === petId)?.saldo_diarias ?? 0
+      const credSince = (pacotes ?? []).filter(p => p.pet_id === petId && (p.created_at ?? '') >= lp.createdAt).reduce((s, p) => s + (p.num_diarias ?? 0), 0)
+        + freeSince.filter(c => c.pet_id === petId && c.created_at >= lp.createdAt).reduce((s, c) => s + c.quantidade, 0)
+      const presCount = presSince.filter(p => p.pet_id === petId && p.created_at >= lp.createdAt).length
+      const ajuSum = ajuSince.filter(a => a.pet_id === petId && a.created_at >= lp.createdAt).reduce((s, a) => s + a.quantidade, 0)
+      saldoNoDiaPet.set(petId, live - (credSince - presCount + ajuSum))
+    })
 
     const resultado: PetRelatorio[] = escopo.map(pet => {
       const p = pet as Pet & Record<string, string | null>
@@ -160,12 +191,14 @@ export default function RelatorioCrechePage() {
           return { label: v.label, vencimento: venc, vencida: vacinaStatus(p[v.campo]) === 'vencida' }
         })
         .filter(Boolean) as PetRelatorio['vacinas']
+      const lp = ultimoPacotePet.get(pet.id)
       return {
         pet,
         presencas: (presencas ?? []).filter(x => x.pet_id === pet.id),
         ocorrencias: (ocorrencias ?? []).filter(x => x.pet_id === pet.id),
         vacinas: vacs,
-        ultimoPacote: ultimoPacotePorPet.get(pet.id) ?? 0,
+        ultimoPacoteData: lp?.data ?? null,
+        saldoNoDiaPacote: lp ? (saldoNoDiaPet.get(pet.id) ?? 0) : null,
       }
     }).filter(r => r.presencas.length > 0 || r.ocorrencias.length > 0 || r.vacinas.length > 0)
 
@@ -244,7 +277,8 @@ export default function RelatorioCrechePage() {
       fotoDataUrl: r.pet.foto_url ? await carregarImagemDataUrl(r.pet.foto_url) : null,
       presencas: r.presencas.map(p => formatDate(p.data, 'dd/MM (EEE)')),
       saldo: r.pet.saldo_diarias ?? 0,
-      ultimoPacote: r.ultimoPacote,
+      ultimoPacoteData: r.ultimoPacoteData ? formatDate(r.ultimoPacoteData, 'dd/MM/yyyy') : null,
+      saldoNoDiaPacote: r.saldoNoDiaPacote,
       ocorrencias: r.ocorrencias.map(o => ({ data: formatDate(o.created_at, 'dd/MM'), descricao: o.descricao })),
       vacinas: r.vacinas.map(v => ({ label: v.label, vencimento: formatDate(v.vencimento, 'dd/MM/yyyy'), vencida: v.vencida })),
     })))
