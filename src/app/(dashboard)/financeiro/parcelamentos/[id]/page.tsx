@@ -35,7 +35,9 @@ export default async function ParcelamentoDetalhe({ params }: { params: Promise<
 
   const lista = (parcelas ?? []) as Despesa[]
   const pagas = lista.filter(p => p.status === 'pago').length
-  const saldoDevedor = (parc.num_parcelas - pagas) * parc.valor_parcela
+  // Saldo devedor real = soma das parcelas ainda pendentes (exclui canceladas).
+  const pendentes = lista.filter(p => p.status === 'pendente')
+  const saldoDevedor = pendentes.reduce((s, p) => s + Number(p.valor), 0)
   const pct = parc.num_parcelas > 0 ? Math.round((pagas / parc.num_parcelas) * 100) : 0
 
   return (
@@ -54,7 +56,7 @@ export default async function ParcelamentoDetalhe({ params }: { params: Promise<
         <div className="mt-3">
           <div className="flex justify-between text-xs opacity-70 mb-1">
             <span>{pagas} pagas</span>
-            <span>{parc.num_parcelas - pagas} restantes</span>
+            <span>{pendentes.length} restantes</span>
           </div>
           <div className="h-2 bg-white/20 rounded-full overflow-hidden">
             <div className="h-full bg-white rounded-full" style={{ width: `${pct}%` }} />

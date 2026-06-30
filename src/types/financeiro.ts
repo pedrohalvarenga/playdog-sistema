@@ -48,6 +48,7 @@ export interface Receita {
   num_banhos?: number
   executado_por?: string
   data_vencimento?: string
+  data_pagamento?: string | null
   registrado_por?: string
   created_at: string
   conta?: ContaFinanceira
@@ -68,6 +69,7 @@ export interface Despesa {
   descricao?: string
   status: StatusFinanceiro
   data_vencimento?: string
+  data_pagamento?: string | null
   recorrente: boolean
   dia_vencimento?: number
   parcelamento_id?: string

@@ -7,7 +7,7 @@ import ProjecaoChart from '@/components/financeiro/ProjecaoChart'
 import { formatCurrency } from '@/lib/financeiro'
 import type { Profile } from '@/types'
 import type { SaldoConta, ProjecaoMes } from '@/types/financeiro'
-import { diaLocal } from '@/lib/datas'
+import { diaLocal, hojeLocal } from '@/lib/datas'
 
 export default async function ProjecaoCaixaPage() {
   const supabase = await createClient()
@@ -16,9 +16,10 @@ export default async function ProjecaoCaixaPage() {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single<Pick<Profile, 'role'>>()
   if (profile?.role !== 'admin') redirect('/financeiro')
 
-  const hoje = new Date()
-  const anoHoje = hoje.getFullYear()
-  const mesHoje = hoje.getMonth() // 0-based
+  // Mês de referência pelo fuso de Juiz de Fora (o servidor é UTC).
+  const hojeStrFull = hojeLocal()
+  const anoHoje = Number(hojeStrFull.slice(0, 4))
+  const mesHoje = Number(hojeStrFull.slice(5, 7)) - 1 // 0-based
 
   // Saldo atual consolidado
   const { data: saldos } = await supabase.from('v_saldo_contas').select('*').returns<SaldoConta[]>()
@@ -65,7 +66,7 @@ export default async function ProjecaoCaixaPage() {
 
   // Parcelas futuras ainda não pagas nos próximos 12 meses
   const em12 = new Date(anoHoje, mesHoje + 12, 1)
-  const hojeStr = diaLocal(hoje)
+  const hojeStr = hojeStrFull
   const em12Str = diaLocal(em12)
 
   const { data: parcelasFuturas } = await supabase

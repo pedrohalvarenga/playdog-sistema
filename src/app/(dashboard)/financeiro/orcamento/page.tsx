@@ -7,7 +7,7 @@ import { formatCurrency, AREA_LABELS, AREA_CORES } from '@/lib/financeiro'
 import { salvarOrcamento } from './actions'
 import type { Profile } from '@/types'
 import type { AreaNegocio, OrcamentoPeriodo, Orcamento } from '@/types/financeiro'
-import { diaLocal } from '@/lib/datas'
+import { mesAtualLocal, fimMes } from '@/lib/datas'
 
 const AREAS_OP: AreaNegocio[] = ['creche', 'hotel', 'loja', 'banho_tosa', 'transporte', 'veterinario', 'outros']
 const PERIODO_LABELS: Record<OrcamentoPeriodo, string> = {
@@ -37,34 +37,29 @@ export default async function OrcamentoPage({
   if (profile?.role !== 'admin') redirect('/financeiro')
 
   const sp = await searchParams
-  const hoje = new Date()
+  const mesRef = mesAtualLocal() // 'YYYY-MM' no fuso JF
   const periodo = (sp.periodo ?? 'mensal') as OrcamentoPeriodo
-  const ano = parseInt(sp.ano ?? String(hoje.getFullYear()))
-  const mes = sp.mes ? parseInt(sp.mes) : hoje.getMonth() + 1
+  const ano = parseInt(sp.ano ?? mesRef.slice(0, 4))
+  const mes = sp.mes ? parseInt(sp.mes) : Number(mesRef.slice(5, 7))
   const editando = sp.editando as AreaNegocio | undefined
+
+  // mês 'YYYY-MM' para o helper fimMes (sem dependência de fuso do servidor)
+  const ym = (m: number) => `${ano}-${String(m).padStart(2, '0')}`
 
   // Calcula intervalo de datas do período selecionado
   function intervalo(): { inicio: string; fim: string } {
     if (periodo === 'mensal') {
-      const inicio = `${ano}-${String(mes).padStart(2, '0')}-01`
-      const fim = diaLocal(new Date(ano, mes, 0))
-      return { inicio, fim }
+      return { inicio: `${ym(mes)}-01`, fim: fimMes(ym(mes)) }
     }
     if (periodo === 'trimestral') {
       const trim = Math.ceil(mes / 3)
       const mesIni = (trim - 1) * 3 + 1
-      return {
-        inicio: `${ano}-${String(mesIni).padStart(2, '0')}-01`,
-        fim: diaLocal(new Date(ano, mesIni + 2, 0)),
-      }
+      return { inicio: `${ym(mesIni)}-01`, fim: fimMes(ym(mesIni + 2)) }
     }
     if (periodo === 'semestral') {
       const sem = mes <= 6 ? 1 : 2
       const mesIni = (sem - 1) * 6 + 1
-      return {
-        inicio: `${ano}-${String(mesIni).padStart(2, '0')}-01`,
-        fim: diaLocal(new Date(ano, mesIni + 5, 0)),
-      }
+      return { inicio: `${ym(mesIni)}-01`, fim: fimMes(ym(mesIni + 5)) }
     }
     return { inicio: `${ano}-01-01`, fim: `${ano}-12-31` }
   }

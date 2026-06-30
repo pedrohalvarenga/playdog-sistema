@@ -7,11 +7,11 @@ import Link from 'next/link'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { ArrowLeft, ChevronLeft, ChevronRight, FileText, Check, X, Percent } from 'lucide-react'
-import { formatCurrency } from '@/lib/financeiro'
+import { formatCurrency, AREA_LABELS } from '@/lib/financeiro'
 import { hojeLocal } from '@/lib/datas'
-import { totalComissao, type RegrasComissao, type ReceitaComissionavel } from '@/lib/comissoes'
+import { totalComissao, comissaoDaReceita, type RegrasComissao, type ReceitaComissionavel } from '@/lib/comissoes'
 import type { Profile } from '@/types'
-import type { ContaFinanceira } from '@/types/financeiro'
+import type { ContaFinanceira, AreaNegocio } from '@/types/financeiro'
 import type { Funcionario, ComissaoRegra, ComissaoPaga } from '@/types/funcionario'
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
@@ -104,20 +104,35 @@ export default function ComissoesPage() {
     const supabase = createClient()
     const nomeMes = `${MESES[mes]}/${ano}`
 
-    const { data: despesa, error: errDesp } = await supabase.from('despesas').insert({
+    // Atrela a comissão à ÁREA que gerou a receita (banho_tosa, creche, etc.),
+    // não a "geral". Quando o funcionário trabalhou em mais de uma área, gera
+    // uma despesa por área para o DRE atribuir o custo a quem gerou a receita.
+    const porArea = new Map<AreaNegocio, number>()
+    for (const r of pagando.receitas) {
+      const c = comissaoDaReceita(r, pagando.regras)
+      if (c > 0) porArea.set(r.area, (porArea.get(r.area) ?? 0) + c)
+    }
+    const linhas = [...porArea.entries()].map(([area, valor]) => ({
       data: dataPag,
-      valor: pagando.totalComissao,
-      area: 'geral',
-      categoria: 'comissoes',
+      valor: Math.round(valor * 100) / 100,
+      area,
+      categoria: 'comissoes' as const,
       conta_id: contaPag || null,
-      descricao: `Comissão ${pagando.funcionario.nome} — ${nomeMes}`,
-      status: 'pago',
+      descricao: porArea.size > 1
+        ? `Comissão ${pagando.funcionario.nome} — ${nomeMes} (${AREA_LABELS[area]})`
+        : `Comissão ${pagando.funcionario.nome} — ${nomeMes}`,
+      status: 'pago' as const,
+      data_pagamento: dataPag,
       recorrente: false,
       funcionario_id: pagando.funcionario.id,
       mes_referencia: mesRef,
-    }).select('id').single()
+    }))
+
+    const { data: despesasInseridas, error: errDesp } = await supabase
+      .from('despesas').insert(linhas).select('id')
 
     if (errDesp) { setSalvandoPag(false); alert(`Erro ao lançar despesa: ${errDesp.message}`); return }
+    const despesa = despesasInseridas?.[0] ?? null
 
     const { error: errPaga } = await supabase.from('comissoes_pagas').insert({
       funcionario_id: pagando.funcionario.id,

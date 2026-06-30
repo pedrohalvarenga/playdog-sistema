@@ -12,6 +12,7 @@ import {
   TAXAS_PADRAO, calcValorLiquido, formatCurrency, CATEGORIAS_POR_AREA,
 } from '@/lib/financeiro'
 import type { ContaFinanceira, AreaNegocio, CategoriaReceita, FormaPagamento } from '@/types/financeiro'
+import { hojeLocal } from '@/lib/datas'
 
 export default function EditarReceitaPage() {
   const router = useRouter()
@@ -108,6 +109,11 @@ export default function EditarReceitaPage() {
       ...(petId && petTutorId ? { tutor_id: petTutorId } : {}),
       status,
       data_vencimento: status === 'pendente' ? dataVenc : null,
+      // Regime de caixa: ao ficar "Recebido" grava a data do recebimento
+      // (mantém a existente se já era paga); ao voltar a "Em aberto", limpa.
+      data_pagamento: status === 'pago'
+        ? ((original?.data_pagamento as string | null | undefined) ?? hojeLocal())
+        : null,
     }
     const { error } = await supabase.from('receitas').update(alteracoes).eq('id', id)
     setSaving(false)

@@ -22,22 +22,22 @@ export default async function ParcelamentosPage() {
     .eq('ativo', true)
     .order('created_at', { ascending: false })
 
-  // Para cada parcelamento busca qtd de parcelas pagas
+  // Para cada parcelamento busca parcelas pagas (contagem) e o saldo devedor
+  // real = soma das parcelas ainda PENDENTES (exclui pagas e canceladas).
   const ids = (parcelamentos ?? []).map(p => p.id)
   const { data: parcelas } = ids.length
-    ? await supabase.from('despesas').select('parcelamento_id, status').in('parcelamento_id', ids)
+    ? await supabase.from('despesas').select('parcelamento_id, status, valor').in('parcelamento_id', ids)
     : { data: [] }
 
   const pagasPorId: Record<string, number> = {}
+  const devedorPorId: Record<string, number> = {}
   ;(parcelas ?? []).forEach(p => {
     if (p.status === 'pago') pagasPorId[p.parcelamento_id] = (pagasPorId[p.parcelamento_id] ?? 0) + 1
+    if (p.status === 'pendente') devedorPorId[p.parcelamento_id] = (devedorPorId[p.parcelamento_id] ?? 0) + Number(p.valor)
   })
 
   const lista = (parcelamentos ?? []) as Parcelamento[]
-  const saldoDevedor = lista.reduce((s, p) => {
-    const pagas = pagasPorId[p.id] ?? 0
-    return s + (p.num_parcelas - pagas) * p.valor_parcela
-  }, 0)
+  const saldoDevedor = lista.reduce((s, p) => s + (devedorPorId[p.id] ?? 0), 0)
 
   return (
     <div className="py-6 flex flex-col gap-4">
@@ -70,8 +70,7 @@ export default async function ParcelamentosPage() {
         <div className="flex flex-col gap-3">
           {lista.map(p => {
             const pagas = pagasPorId[p.id] ?? 0
-            const restantes = p.num_parcelas - pagas
-            const saldo = restantes * p.valor_parcela
+            const saldo = devedorPorId[p.id] ?? 0
             const pct = Math.round((pagas / p.num_parcelas) * 100)
             return (
               <Link key={p.id} href={`/financeiro/parcelamentos/${p.id}`}>

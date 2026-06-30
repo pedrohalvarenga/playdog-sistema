@@ -6,7 +6,7 @@ import Card from '@/components/ui/Card'
 import { formatCurrency, AREA_LABELS, AREA_CORES } from '@/lib/financeiro'
 import type { Profile } from '@/types'
 import type { AreaNegocio, ResultadoArea } from '@/types/financeiro'
-import { diaLocal } from '@/lib/datas'
+import { mesAtualLocal, inicioMes, inicioMesSeguinte } from '@/lib/datas'
 
 const AREAS_OPERACIONAIS: AreaNegocio[] = ['creche', 'hotel', 'loja', 'banho_tosa', 'transporte', 'veterinario', 'outros']
 
@@ -22,11 +22,10 @@ export default async function DREPage({
   if (profile?.role !== 'admin') redirect('/financeiro')
 
   const { mes } = await searchParams
-  const hoje = new Date()
-  const mesAtual = mes ?? `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
+  const mesAtual = mes ?? mesAtualLocal()
   const [ano, mesNum] = mesAtual.split('-').map(Number)
-  const inicio = `${mesAtual}-01`
-  const fim = diaLocal(new Date(ano, mesNum, 0))
+  const inicio = inicioMes(mesAtual)
+  const inicioProximoMes = inicioMesSeguinte(mesAtual) // limite superior exclusivo (corrige fim-de-mês)
   const nomeMes = new Date(ano, mesNum - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 
   const mesAnterior = new Date(ano, mesNum - 2, 1)
@@ -37,10 +36,10 @@ export default async function DREPage({
   const [{ data: receitas }, { data: despesas }] = await Promise.all([
     supabase.from('receitas')
       .select('area, valor, valor_liquido, taxa_cartao, status')
-      .gte('data', inicio).lte('data', fim).eq('status', 'pago'),
+      .gte('data', inicio).lt('data', inicioProximoMes).eq('status', 'pago'),
     supabase.from('despesas')
       .select('area, valor, categoria, status')
-      .gte('data', inicio).lte('data', fim).eq('status', 'pago'),
+      .gte('data', inicio).lt('data', inicioProximoMes).eq('status', 'pago'),
   ])
 
   // Calcula totais de despesas "geral" para rateio
@@ -76,8 +75,14 @@ export default async function DREPage({
     return { area, receita_bruta: receitaBruta, taxas_cartao: taxasCartao, despesas_diretas: despesasDiretas, investimentos, rateio_geral: rateioGeral, resultado }
   })
 
-  const totalResultado = dre.reduce((s, a) => s + a.resultado, 0)
-  const totalReceitaBruta = dre.reduce((s, a) => s + a.receita_bruta, 0)
+  // Receita lançada como "Geral" (ex.: créditos avulsos, conciliação OFX) não
+  // pertence a nenhuma área operacional — entrava como dinheiro "sumido" no DRE.
+  // As despesas gerais já são rateadas nas áreas, então a receita geral vai
+  // direto para o resultado total.
+  const receitaGeral = receitaBrutaPorArea['geral'] ?? 0
+
+  const totalResultado = dre.reduce((s, a) => s + a.resultado, 0) + receitaGeral
+  const totalReceitaBruta = dre.reduce((s, a) => s + a.receita_bruta, 0) + receitaGeral
 
   // Linha "Geral" separada para mostrar no rodapé
   const geralDespesasOp = totalGeralOp
@@ -170,11 +175,17 @@ export default async function DREPage({
         ))}
       </div>
 
-      {/* Despesas gerais (rateadas acima) */}
-      {(geralDespesasOp > 0 || geralInvestimentos > 0) && (
+      {/* Despesas gerais (rateadas acima) + receita geral */}
+      {(geralDespesasOp > 0 || geralInvestimentos > 0 || receitaGeral > 0) && (
         <Card className="border-dashed">
-          <p className="text-xs font-semibold text-slate-500 mb-2">Despesas Gerais (rateadas acima)</p>
+          <p className="text-xs font-semibold text-slate-500 mb-2">Geral (não atribuído a uma área)</p>
           <div className="flex flex-col gap-1.5 text-xs">
+            {receitaGeral > 0 && (
+              <div className="flex justify-between">
+                <span className="text-green-600">Receita geral (entra no resultado)</span>
+                <span className="font-semibold text-green-600">{formatCurrency(receitaGeral)}</span>
+              </div>
+            )}
             {geralDespesasOp > 0 && (
               <div className="flex justify-between">
                 <span className="text-slate-500">Operacionais rateadas</span>

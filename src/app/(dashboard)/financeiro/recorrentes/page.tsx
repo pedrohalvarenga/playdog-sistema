@@ -97,6 +97,7 @@ export default function RecorrentesPage() {
       conta_id: contaPag,
       descricao: descPag || `Salário ${pagandoFunc.nome}`,
       status: 'pago',
+      data_pagamento: dataPag, // regime de caixa: saiu na data do pagamento
       recorrente: false,
       funcionario_id: pagandoFunc.id,
       mes_referencia: mesRef,

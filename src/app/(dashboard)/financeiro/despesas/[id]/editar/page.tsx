@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button'
 import CurrencyInput from '@/components/financeiro/CurrencyInput'
 import { AREA_LABELS, CATEGORIA_DESPESA_LABELS, isInvestimento } from '@/lib/financeiro'
 import type { ContaFinanceira, AreaNegocio, CategoriaDespesa } from '@/types/financeiro'
+import { hojeLocal } from '@/lib/datas'
 
 const CATEGORIAS_DESPESA: CategoriaDespesa[] = [
   'racao_petiscos','limpeza','produtos_banho_tosa','salarios','comissoes',
@@ -76,6 +77,11 @@ export default function EditarDespesaPage() {
       descricao: descricao || null,
       status,
       data_vencimento: status === 'pendente' ? dataVenc : null,
+      // Regime de caixa: ao ficar "Pago" grava a data do pagamento (mantém a
+      // existente se já era paga); ao voltar a "Em aberto", limpa.
+      data_pagamento: status === 'pago'
+        ? ((original?.data_pagamento as string | null | undefined) ?? hojeLocal())
+        : null,
       recorrente,
       dia_vencimento: recorrente ? Number(diaVencimento) : null,
     }

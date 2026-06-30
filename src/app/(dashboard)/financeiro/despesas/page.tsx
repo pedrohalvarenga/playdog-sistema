@@ -9,7 +9,7 @@ import { formatCurrency } from '@/lib/financeiro'
 import { AREA_LABELS, CATEGORIA_DESPESA_LABELS, AREA_CORES, isInvestimento } from '@/lib/financeiro'
 import type { Profile } from '@/types'
 import type { Despesa } from '@/types/financeiro'
-import { diaLocal } from '@/lib/datas'
+import { mesAtualLocal, inicioMes, inicioMesSeguinte } from '@/lib/datas'
 
 export default async function DespesasPage({
   searchParams,
@@ -23,17 +23,13 @@ export default async function DespesasPage({
   if (profile?.role !== 'admin') redirect('/financeiro')
 
   const { mes } = await searchParams
-  const hoje = new Date()
-  const mesAtual = mes ?? `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
-  const [ano, mesNum] = mesAtual.split('-')
-  const inicio = `${mesAtual}-01`
-  const fim = diaLocal(new Date(Number(ano), Number(mesNum), 0))
+  const mesAtual = mes ?? mesAtualLocal()
 
   const { data: despesas } = await supabase
     .from('despesas')
     .select('*, conta:contas_financeiras(nome)')
-    .gte('data', inicio)
-    .lte('data', fim)
+    .gte('data', inicioMes(mesAtual))
+    .lt('data', inicioMesSeguinte(mesAtual)) // limite superior exclusivo (corrige fim-de-mês)
     .order('data', { ascending: false })
 
   const lista = (despesas ?? []) as Despesa[]

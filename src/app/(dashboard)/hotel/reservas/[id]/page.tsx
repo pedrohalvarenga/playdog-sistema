@@ -217,9 +217,14 @@ export default function ReservaDetailPage({ params }: { params: Promise<{ id: st
   }
 
   async function reabrirHospedagem() {
-    if (!window.confirm('Reabrir esta hospedagem? O checkout será desfeito e o pet voltará para "hospedado". Se houver receita lançada no financeiro, ela permanecerá e precisará ser removida manualmente.')) return
+    if (!window.confirm('Reabrir esta hospedagem? O checkout será desfeito e o pet voltará para "hospedado". A receita já lançada no financeiro (se houver) será cancelada automaticamente, para não contar em dobro.')) return
     setAgindo(true)
     const supabase = createClient()
+    // Cancela a receita vinculada (se houver) para não inflar o faturamento.
+    // Fica como 'cancelado' (mantém o histórico) em vez de ser apagada.
+    if (h?.receita_id) {
+      await supabase.from('receitas').update({ status: 'cancelado' }).eq('id', h.receita_id)
+    }
     const { error } = await supabase.from('hospedagens').update({
       status: 'hospedado',
       checkout_real: null,

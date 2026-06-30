@@ -11,7 +11,7 @@ import { formatDate } from '@/lib/utils'
 import { formatCurrency } from '@/lib/financeiro'
 import type { Profile } from '@/types'
 import type { SaldoConta, Receita, Despesa } from '@/types/financeiro'
-import { diaLocal } from '@/lib/datas'
+import { diaLocal, mesAtualLocal, inicioMes, inicioMesSeguinte } from '@/lib/datas'
 
 function ContaCard({ conta }: { conta: SaldoConta }) {
   const icones: Record<string, React.ElementType> = {
@@ -47,25 +47,28 @@ export default async function FinanceiroPage() {
 
   const isAdmin = profile.role === 'admin'
 
-  // Busca saldos
-  const { data: saldos } = await supabase
-    .from('v_saldo_contas')
-    .select('*')
-    .returns<SaldoConta[]>()
+  // Saldos das contas só para admin — a recepção não deve ver o total
+  // de despesas embutido no saldo das contas.
+  const { data: saldos } = isAdmin
+    ? await supabase.from('v_saldo_contas').select('*').returns<SaldoConta[]>()
+    : { data: [] as SaldoConta[] }
 
   const saldoConsolidado = (saldos ?? []).reduce((s, c) => s + c.saldo_atual, 0)
 
-  // Totais do mês atual
+  // Totais do mês atual — mês pelo fuso de Juiz de Fora (servidor é UTC),
+  // com limite superior exclusivo para não pegar lançamentos de outros meses.
   const hoje = new Date()
-  const inicioMes = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-01`
+  const mesRef = mesAtualLocal()
+  const inicioMesRef = inicioMes(mesRef)
+  const inicioProximoMes = inicioMesSeguinte(mesRef)
 
   const [{ data: receitasMes }, { data: despesasMes }] = await Promise.all([
     supabase.from('receitas')
       .select('valor, valor_liquido, status')
-      .gte('data', inicioMes)
+      .gte('data', inicioMesRef).lt('data', inicioProximoMes)
       .eq('status', 'pago'),
     isAdmin
-      ? supabase.from('despesas').select('valor, status, categoria').gte('data', inicioMes).eq('status', 'pago')
+      ? supabase.from('despesas').select('valor, status, categoria').gte('data', inicioMesRef).lt('data', inicioProximoMes).eq('status', 'pago')
       : Promise.resolve({ data: [] }),
   ])
 
@@ -105,14 +108,15 @@ export default async function FinanceiroPage() {
     .select('id, data, valor, valor_liquido, categoria, area, status, descricao, forma_pagamento')
     .order('created_at', { ascending: false }).limit(5)
 
-  const mesNome = hoje.toLocaleDateString('pt-BR', { month: 'long' })
+  const anoHoje = Number(mesRef.slice(0, 4))
+  const mesNome = new Date(anoHoje, Number(mesRef.slice(5, 7)) - 1, 1).toLocaleDateString('pt-BR', { month: 'long' })
 
   return (
     <div className="py-6 flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Financeiro</h1>
-          <p className="text-sm text-gray-500 capitalize">{mesNome} {hoje.getFullYear()}</p>
+          <p className="text-sm text-gray-500 capitalize">{mesNome} {anoHoje}</p>
         </div>
         <Link href="/financeiro/pendencias" className="relative">
           <div className="w-10 h-10 rounded-2xl bg-gray-100 flex items-center justify-center">
@@ -126,20 +130,23 @@ export default async function FinanceiroPage() {
         </Link>
       </div>
 
-      {/* Saldo consolidado */}
-      <Card className="bg-gradient-to-br from-brand-purple to-purple-700 text-white border-0">
-        <p className="text-sm opacity-80">Saldo total consolidado</p>
-        <p className="text-4xl font-bold mt-1">{formatCurrency(saldoConsolidado)}</p>
-        <p className="text-xs opacity-70 mt-2">Soma de todas as contas</p>
-      </Card>
+      {/* Saldo consolidado + saldos por conta — somente admin */}
+      {isAdmin && (
+        <>
+          <Card className="bg-gradient-to-br from-brand-purple to-purple-700 text-white border-0">
+            <p className="text-sm opacity-80">Saldo total consolidado</p>
+            <p className="text-4xl font-bold mt-1">{formatCurrency(saldoConsolidado)}</p>
+            <p className="text-xs opacity-70 mt-2">Soma de todas as contas</p>
+          </Card>
 
-      {/* Saldos por conta */}
-      <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Por conta</p>
-        <div className="flex flex-col gap-2">
-          {(saldos ?? []).map(c => <ContaCard key={c.id} conta={c} />)}
-        </div>
-      </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Por conta</p>
+            <div className="flex flex-col gap-2">
+              {(saldos ?? []).map(c => <ContaCard key={c.id} conta={c} />)}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Resumo do mês */}
       <div>

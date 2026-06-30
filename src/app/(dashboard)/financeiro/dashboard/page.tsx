@@ -7,7 +7,7 @@ import DashboardCharts from '@/components/financeiro/DashboardCharts'
 import { formatCurrency, AREA_LABELS, AREA_CORES } from '@/lib/financeiro'
 import type { Profile } from '@/types'
 import type { SaldoConta } from '@/types/financeiro'
-import { diaLocal } from '@/lib/datas'
+import { diaLocal, mesAtualLocal, inicioMes, inicioMesSeguinte } from '@/lib/datas'
 
 const COR_AREA: Record<string, string> = {
   creche: '#a855f7', hotel: '#3b82f6', loja: '#22c55e',
@@ -23,20 +23,23 @@ export default async function FinanceiroDashboardPage() {
   if (profile?.role !== 'admin') redirect('/financeiro')
 
   const hoje = new Date()
-  const anoHoje = hoje.getFullYear()
-  const mesHoje = hoje.getMonth() + 1
+  // Mês de referência SEMPRE pelo fuso de Juiz de Fora (o servidor da Vercel é UTC).
+  const mesRef = mesAtualLocal()            // 'YYYY-MM'
+  const anoHoje = Number(mesRef.slice(0, 4))
+  const mesHoje = Number(mesRef.slice(5, 7)) // 1-based
 
   // Saldos de contas
   const { data: saldos } = await supabase.from('v_saldo_contas').select('*').returns<SaldoConta[]>()
   const saldoTotal = (saldos ?? []).reduce((s, c) => s + c.saldo_atual, 0)
 
-  // Totais do mês atual
-  const inicioMes = `${anoHoje}-${String(mesHoje).padStart(2, '0')}-01`
-  const fimMes = diaLocal(new Date(anoHoje, mesHoje, 0))
+  // Totais do mês atual — limite superior exclusivo (1º dia do mês seguinte)
+  // evita o bug de fim-de-mês que cortava o último dia.
+  const inicioMesRef = inicioMes(mesRef)
+  const inicioProximoMes = inicioMesSeguinte(mesRef)
 
   const [{ data: recMes }, { data: despMes }] = await Promise.all([
-    supabase.from('receitas').select('valor, valor_liquido, area').gte('data', inicioMes).lte('data', fimMes).eq('status', 'pago'),
-    supabase.from('despesas').select('valor, area, categoria').gte('data', inicioMes).lte('data', fimMes).eq('status', 'pago'),
+    supabase.from('receitas').select('valor, valor_liquido, area').gte('data', inicioMesRef).lt('data', inicioProximoMes).eq('status', 'pago'),
+    supabase.from('despesas').select('valor, area, categoria').gte('data', inicioMesRef).lt('data', inicioProximoMes).eq('status', 'pago'),
   ])
 
   const totalEntradas = (recMes ?? []).reduce((s, r) => s + (r.valor_liquido ?? r.valor), 0)
@@ -107,7 +110,7 @@ export default async function FinanceiroDashboardPage() {
     .order('data_vencimento')
     .limit(10)
 
-  const mesNome = hoje.toLocaleDateString('pt-BR', { month: 'long' })
+  const mesNome = new Date(anoHoje, mesHoje - 1, 1).toLocaleDateString('pt-BR', { month: 'long' })
   const contaIcones: Record<string, React.ElementType> = { pagbank_pj: CreditCard, c6_pf: Wallet, dinheiro: Banknote }
 
   return (

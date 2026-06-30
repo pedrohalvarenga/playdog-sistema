@@ -99,6 +99,7 @@ export default function ConciliacaoPage() {
           data: t.data, valor: t.valor, area: 'geral' as const,
           categoria: 'outros' as const, forma_pagamento: 'pix' as const,
           conta_id: contaId, descricao: t.memo, status: 'pago' as const,
+          data_pagamento: t.data, // regime de caixa: entrou na data do extrato
         }))
       )
       if (error) { alert(`Erro ao importar receitas: ${error.message}`); setImportando(false); return }
@@ -109,6 +110,7 @@ export default function ConciliacaoPage() {
           data: t.data, valor: t.valor, area: 'geral' as const,
           categoria: 'outros' as const,
           conta_id: contaId, descricao: t.memo, status: 'pago' as const,
+          data_pagamento: t.data, // regime de caixa: saiu na data do extrato
         }))
       )
       if (error) { alert(`Erro ao importar despesas: ${error.message}`); setImportando(false); return }

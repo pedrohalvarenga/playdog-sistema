@@ -7,7 +7,7 @@ import { formatDate } from '@/lib/utils'
 import { formatCurrency } from '@/lib/financeiro'
 import { AREA_LABELS, CATEGORIA_RECEITA_LABELS, AREA_CORES } from '@/lib/financeiro'
 import type { Receita } from '@/types/financeiro'
-import { diaLocal } from '@/lib/datas'
+import { mesAtualLocal, inicioMes, inicioMesSeguinte } from '@/lib/datas'
 
 export default async function ReceitasPage({
   searchParams,
@@ -16,17 +16,13 @@ export default async function ReceitasPage({
 }) {
   const { mes } = await searchParams
   const supabase = await createClient()
-  const hoje = new Date()
-  const mesAtual = mes ?? `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
-  const [ano, mesNum] = mesAtual.split('-')
-  const inicio = `${mesAtual}-01`
-  const fim = diaLocal(new Date(Number(ano), Number(mesNum), 0))
+  const mesAtual = mes ?? mesAtualLocal()
 
   const { data: receitas } = await supabase
     .from('receitas')
     .select('*, conta:contas_financeiras(nome), tutor:tutores(nome), pet:pets(nome)')
-    .gte('data', inicio)
-    .lte('data', fim)
+    .gte('data', inicioMes(mesAtual))
+    .lt('data', inicioMesSeguinte(mesAtual)) // limite superior exclusivo (corrige fim-de-mês)
     .order('data', { ascending: false })
 
   const lista = (receitas ?? []) as Receita[]

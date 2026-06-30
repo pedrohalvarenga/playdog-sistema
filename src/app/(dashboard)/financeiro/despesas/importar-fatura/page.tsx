@@ -44,6 +44,7 @@ export default function ImportarFaturaPage() {
   const [dataPagamento, setDataPagamento] = useState(hojeLocal())
   const [salvando, setSalvando] = useState(false)
   const [qtdLancada, setQtdLancada] = useState(0)
+  const [qtdDuplicadas, setQtdDuplicadas] = useState(0)
 
   useEffect(() => {
     const supabase = createClient()
@@ -101,9 +102,32 @@ export default function ImportarFaturaPage() {
       status: 'pago' as const,
       data_pagamento: dataPagamento,
     }))
-    const { error } = await supabase.from('despesas').insert(linhas)
+
+    // Trava anti-duplicidade: se a mesma fatura já foi importada nesta conta,
+    // não lança de novo. Compara por data + valor + descrição.
+    const datasOrd = linhas.map(l => l.data).sort()
+    const { data: existentes } = await supabase
+      .from('despesas')
+      .select('data, valor, descricao')
+      .eq('conta_id', contaId)
+      .gte('data', datasOrd[0])
+      .lte('data', datasOrd[datasOrd.length - 1])
+    const chave = (d: string, v: number, desc: string | null) =>
+      `${d}|${Number(v)}|${(desc ?? '').trim().toLowerCase()}`
+    const ja = new Set((existentes ?? []).map(d => chave(d.data, d.valor, d.descricao)))
+    const linhasNovas = linhas.filter(l => !ja.has(chave(l.data, l.valor, l.descricao)))
+    const duplicadas = linhas.length - linhasNovas.length
+
+    if (linhasNovas.length === 0) {
+      setErro(`Essas ${linhas.length} despesas já tinham sido lançadas nesta conta (fatura já importada).`)
+      setSalvando(false)
+      return
+    }
+
+    const { error } = await supabase.from('despesas').insert(linhasNovas)
     if (error) { setErro(error.message); setSalvando(false); return }
-    setQtdLancada(linhas.length)
+    setQtdLancada(linhasNovas.length)
+    setQtdDuplicadas(duplicadas)
     setStep('feito')
   }
 
@@ -116,6 +140,11 @@ export default function ImportarFaturaPage() {
         <p className="text-sm text-gray-500 max-w-xs">
           As compras da fatura entraram no financeiro já categorizadas. Confira na lista de despesas.
         </p>
+        {qtdDuplicadas > 0 && (
+          <p className="text-sm text-amber-600 bg-amber-50 rounded-xl px-4 py-2 max-w-xs">
+            {qtdDuplicadas} {qtdDuplicadas === 1 ? 'item já existia nesta conta e foi ignorado' : 'itens já existiam nesta conta e foram ignorados'} (evita duplicar a fatura).
+          </p>
+        )}
         <div className="flex flex-col gap-2 w-full max-w-xs mt-2">
           <Link href="/financeiro/despesas">
             <Button size="lg" variant="primary" className="w-full">Ver despesas</Button>

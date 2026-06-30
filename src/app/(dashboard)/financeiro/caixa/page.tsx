@@ -5,7 +5,7 @@ import { ArrowLeft, TrendingUp, TrendingDown, Wallet } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import { formatCurrency, AREA_LABELS, CATEGORIA_RECEITA_LABELS, CATEGORIA_DESPESA_LABELS, FORMA_PAGAMENTO_LABELS, AREA_CORES } from '@/lib/financeiro'
 import type { Profile } from '@/types'
-import type { Receita, Despesa, FormaPagamento } from '@/types/financeiro'
+import type { Receita, Despesa, FormaPagamento, StatusFinanceiro } from '@/types/financeiro'
 import { diaLocal, hojeLocal } from '@/lib/datas'
 
 export default async function CaixaDiarioPage({
@@ -26,21 +26,32 @@ export default async function CaixaDiarioPage({
   const hojeStr = hojeLocal()
   const diaSel = dia && /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : hojeStr
 
+  // "Caixa do Dia" é regime de CAIXA: o que entrou/saiu de fato neste dia.
+  // Para um lançamento pago, a data que vale é a data_pagamento (dia em que o
+  // dinheiro entrou); se não houver, cai para `data` (competência). Por isso
+  // buscamos tudo com data OU data_pagamento no dia e filtramos pela data efetiva.
   const [{ data: receitas }, { data: despesas }] = await Promise.all([
     supabase.from('receitas')
       .select('*, conta:contas_financeiras(nome), pet:pets(nome)')
-      .eq('data', diaSel)
+      .or(`data.eq.${diaSel},data_pagamento.eq.${diaSel}`)
       .order('created_at', { ascending: false }),
     isAdmin
       ? supabase.from('despesas')
           .select('*, conta:contas_financeiras(nome)')
-          .eq('data', diaSel)
+          .or(`data.eq.${diaSel},data_pagamento.eq.${diaSel}`)
           .order('created_at', { ascending: false })
       : Promise.resolve({ data: [] }),
   ])
 
-  const listaReceitas = (receitas ?? []) as Receita[]
-  const listaDespesas = (despesas ?? []) as Despesa[]
+  // Pago: conta no dia em que o dinheiro de fato entrou/saiu (data_pagamento ?? data).
+  // Pendente: aparece como lembrete no dia em que foi lançado/competência (data).
+  const ehCaixaDoDia = (x: { status: StatusFinanceiro; data: string; data_pagamento?: string | null }) =>
+    x.status === 'pago'
+      ? (x.data_pagamento ?? x.data) === diaSel
+      : x.status === 'pendente' && x.data === diaSel
+
+  const listaReceitas = ((receitas ?? []) as Receita[]).filter(ehCaixaDoDia)
+  const listaDespesas = ((despesas ?? []) as Despesa[]).filter(ehCaixaDoDia)
 
   const totalReceitas = listaReceitas.filter(r => r.status === 'pago').reduce((s, r) => s + (r.valor_liquido ?? r.valor), 0)
   const totalDespesas = listaDespesas.filter(d => d.status === 'pago').reduce((s, d) => s + d.valor, 0)
