@@ -41,9 +41,11 @@ export default function ComissoesPage() {
 
   // Modal pagamento
   const [pagando, setPagando] = useState<LinhaFunc | null>(null)
+  const [pagandoLote, setPagandoLote] = useState(false)
   const [contaPag, setContaPag] = useState('')
   const [dataPag, setDataPag] = useState('')
   const [salvandoPag, setSalvandoPag] = useState(false)
+  const [alertas, setAlertas] = useState<{ area: AreaNegocio; atual: number; limite: number; pctBase: number; pctAcima: number; cruzou: boolean }[]>([])
 
   const mesRef = `${ano}-${String(mes + 1).padStart(2, '0')}`
 
@@ -139,6 +141,26 @@ export default function ComissoesPage() {
       return { funcionario: f, detalhes, receitas: recsFunc, totalComissao: total }
     })
 
+    // Alertas de escalonamento: área com regra escalonada perto/acima do limite.
+    const alertasCalc: { area: AreaNegocio; atual: number; limite: number; pctBase: number; pctAcima: number; cruzou: boolean }[] = []
+    const vistosAlerta = new Set<string>()
+    for (const r of regras) {
+      if (r.faturamento_limite != null && r.percentual_acima != null) {
+        const key = `${r.tipo}:${r.faturamento_limite}`
+        if (vistosAlerta.has(key)) continue
+        vistosAlerta.add(key)
+        const atual = faturamentoPorArea[r.tipo] ?? 0
+        if (atual >= Number(r.faturamento_limite) * 0.6) {
+          alertasCalc.push({
+            area: r.tipo, atual, limite: Number(r.faturamento_limite),
+            pctBase: Number(r.percentual), pctAcima: Number(r.percentual_acima),
+            cruzou: atual > Number(r.faturamento_limite),
+          })
+        }
+      }
+    }
+    setAlertas(alertasCalc)
+
     setLinhas(linhasCalc)
     setPagas((pagasRes.data as ComissaoPaga[]) ?? [])
     setContas((contasRes.data as ContaFinanceira[]) ?? [])
@@ -157,60 +179,78 @@ export default function ComissoesPage() {
     setDataPag(hojeLocal())
   }
 
-  async function registrarPagamento() {
-    if (!pagando || pagando.totalComissao <= 0) return
-    setSalvandoPag(true)
-    const supabase = createClient()
-    const nomeMes = `${MESES[mes]}/${ano}`
+  function abrirLote() {
+    setPagandoLote(true)
+    setContaPag(contas[0]?.id ?? '')
+    setDataPag(hojeLocal())
+  }
 
-    // Atrela a comissão à ÁREA que a gerou (banho_tosa, creche, etc.), não a
-    // "geral". Quando há mais de uma área, gera uma despesa por área para o DRE
-    // atribuir o custo corretamente.
+  // Lança a comissão de UM funcionário (uma despesa por área + registro de pago).
+  // Retorna null em sucesso, 'ja_pago' se o mês já foi pago, ou a mensagem de erro.
+  async function lancarComissao(l: LinhaFunc, supabase: ReturnType<typeof createClient>): Promise<string | null> {
+    const nomeMes = `${MESES[mes]}/${ano}`
+    // Atrela a comissão à ÁREA que a gerou (banho_tosa, creche, etc.).
     const porArea = new Map<AreaNegocio, number>()
-    for (const d of pagando.detalhes) {
-      if (d.valor > 0) porArea.set(d.area, (porArea.get(d.area) ?? 0) + d.valor)
-    }
-    const linhas = [...porArea.entries()].map(([area, valor]) => ({
+    for (const d of l.detalhes) if (d.valor > 0) porArea.set(d.area, (porArea.get(d.area) ?? 0) + d.valor)
+    if (porArea.size === 0) return null
+
+    const linhasDesp = [...porArea.entries()].map(([area, valor]) => ({
       data: dataPag,
       valor: Math.round(valor * 100) / 100,
       area,
       categoria: 'comissoes' as const,
       conta_id: contaPag || null,
       descricao: porArea.size > 1
-        ? `Comissão ${pagando.funcionario.nome} — ${nomeMes} (${AREA_LABELS[area]})`
-        : `Comissão ${pagando.funcionario.nome} — ${nomeMes}`,
+        ? `Comissão ${l.funcionario.nome} — ${nomeMes} (${AREA_LABELS[area]})`
+        : `Comissão ${l.funcionario.nome} — ${nomeMes}`,
       status: 'pago' as const,
       data_pagamento: dataPag,
       recorrente: false,
-      funcionario_id: pagando.funcionario.id,
+      funcionario_id: l.funcionario.id,
       mes_referencia: mesRef,
     }))
 
-    const { data: despesasInseridas, error: errDesp } = await supabase
-      .from('despesas').insert(linhas).select('id')
-
-    if (errDesp) { setSalvandoPag(false); alert(`Erro ao lançar despesa: ${errDesp.message}`); return }
-    const despesa = despesasInseridas?.[0] ?? null
-
+    const { data: despInseridas, error: errDesp } = await supabase.from('despesas').insert(linhasDesp).select('id')
+    if (errDesp) return errDesp.message
     const { error: errPaga } = await supabase.from('comissoes_pagas').insert({
-      funcionario_id: pagando.funcionario.id,
+      funcionario_id: l.funcionario.id,
       mes_referencia: mesRef,
-      valor_total: pagando.totalComissao,
-      despesa_id: despesa?.id ?? null,
+      valor_total: l.totalComissao,
+      despesa_id: despInseridas?.[0]?.id ?? null,
     })
+    if (errPaga) return /duplicate|unique/i.test(errPaga.message) ? 'ja_pago' : errPaga.message
+    return null
+  }
 
+  async function registrarPagamento() {
+    if (!pagando || pagando.totalComissao <= 0) return
+    setSalvandoPag(true)
+    const err = await lancarComissao(pagando, createClient())
     setSalvandoPag(false)
-    if (errPaga) {
-      alert(errPaga.message.includes('duplicate') || errPaga.message.includes('unique')
-        ? 'Esse mês já foi pago para este funcionário.'
-        : `Erro: ${errPaga.message}`)
-      return
-    }
+    if (err) { alert(err === 'ja_pago' ? 'Esse mês já foi pago para este funcionário.' : `Erro: ${err}`); return }
     setPagando(null)
     carregar()
   }
 
+  async function pagarTodos() {
+    const pendentes = linhas.filter(l => !jaPago(l.funcionario.id) && l.totalComissao > 0)
+    if (pendentes.length === 0) { setPagandoLote(false); return }
+    setSalvandoPag(true)
+    const supabase = createClient()
+    const falhas: string[] = []
+    for (const l of pendentes) {
+      const err = await lancarComissao(l, supabase)
+      if (err && err !== 'ja_pago') falhas.push(`${l.funcionario.nome}: ${err}`)
+    }
+    setSalvandoPag(false)
+    setPagandoLote(false)
+    if (falhas.length) alert('Não foi possível pagar alguns:\n' + falhas.join('\n'))
+    carregar()
+  }
+
   const totalGeral = linhas.reduce((s, l) => s + l.totalComissao, 0)
+  const pendentesLote = linhas.filter(l => !jaPago(l.funcionario.id) && l.totalComissao > 0)
+  const totalPendente = pendentesLote.reduce((s, l) => s + l.totalComissao, 0)
 
   return (
     <div className="py-6 flex flex-col gap-4">
@@ -236,6 +276,25 @@ export default function ComissoesPage() {
             <p className="text-3xl font-bold mt-0.5">{formatCurrency(totalGeral)}</p>
             <p className="text-xs opacity-70 mt-1">{linhas.length} funcionário{linhas.length !== 1 ? 's' : ''} com comissão</p>
           </div>
+
+          {/* Alertas de escalonamento */}
+          {alertas.map((a, i) => (
+            <div key={i} className={`rounded-2xl px-4 py-3 text-sm ${a.cruzou ? 'bg-teal-50 border border-teal-200 text-teal-800' : 'bg-amber-50 border border-amber-200 text-amber-800'}`}>
+              {a.cruzou ? (
+                <>🔺 <b>{AREA_LABELS[a.area]}</b> já passou de {formatCurrency(a.limite)} este mês ({formatCurrency(a.atual)}). A comissão subiu de {a.pctBase}% para <b>{a.pctAcima}%</b>.</>
+              ) : (
+                <>⏳ <b>{AREA_LABELS[a.area]}</b> está em {formatCurrency(a.atual)} — faltam <b>{formatCurrency(a.limite - a.atual)}</b> para a comissão subir de {a.pctBase}% para {a.pctAcima}%.</>
+              )}
+            </div>
+          ))}
+
+          {/* Pagar todas de uma vez */}
+          {pendentesLote.length > 1 && (
+            <button onClick={abrirLote}
+              className="w-full py-3 rounded-2xl bg-brand-teal text-white font-bold text-sm flex items-center justify-center gap-2">
+              <Check size={16} /> Pagar todas do mês ({pendentesLote.length}) — {formatCurrency(totalPendente)}
+            </button>
+          )}
 
           {linhas.length === 0 ? (
             <div className="text-center py-10 text-gray-400">
@@ -301,22 +360,31 @@ export default function ComissoesPage() {
         </>
       )}
 
-      {/* Modal pagamento */}
-      {pagando && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={() => setPagando(null)}>
+      {/* Modal pagamento (individual ou em lote) */}
+      {(pagando || pagandoLote) && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={() => { setPagando(null); setPagandoLote(false) }}>
           <div className="w-full max-w-lg mx-auto bg-white rounded-t-3xl p-5 pb-10 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h2 className="font-bold text-gray-900 text-lg">Pagar comissão</h2>
-              <button onClick={() => setPagando(null)} className="p-2 rounded-xl text-gray-400"><X size={22} /></button>
+              <h2 className="font-bold text-gray-900 text-lg">{pagandoLote ? 'Pagar todas as comissões' : 'Pagar comissão'}</h2>
+              <button onClick={() => { setPagando(null); setPagandoLote(false) }} className="p-2 rounded-xl text-gray-400"><X size={22} /></button>
             </div>
 
             <div className="bg-teal-50 rounded-2xl px-4 py-3 text-center">
-              <p className="text-xs text-teal-700">{pagando.funcionario.nome} · {MESES[mes]}/{ano}</p>
-              <p className="text-2xl font-bold text-teal-700">{formatCurrency(pagando.totalComissao)}</p>
+              {pagandoLote ? (
+                <>
+                  <p className="text-xs text-teal-700">{pendentesLote.length} funcionário{pendentesLote.length !== 1 ? 's' : ''} · {MESES[mes]}/{ano}</p>
+                  <p className="text-2xl font-bold text-teal-700">{formatCurrency(totalPendente)}</p>
+                </>
+              ) : pagando ? (
+                <>
+                  <p className="text-xs text-teal-700">{pagando.funcionario.nome} · {MESES[mes]}/{ano}</p>
+                  <p className="text-2xl font-bold text-teal-700">{formatCurrency(pagando.totalComissao)}</p>
+                </>
+              ) : null}
             </div>
 
             <p className="text-xs text-gray-400 text-center">
-              Será lançada uma despesa de &quot;Comissões&quot; no financeiro vinculada a este funcionário.
+              Lança uma despesa de “Comissões” no financeiro{pagandoLote ? ' para cada funcionário (por área)' : ' vinculada a este funcionário'}.
             </p>
 
             <div className="flex flex-col gap-1">
@@ -339,7 +407,7 @@ export default function ComissoesPage() {
               </div>
             </div>
 
-            <Button size="lg" onClick={registrarPagamento} loading={salvandoPag}>
+            <Button size="lg" onClick={pagandoLote ? pagarTodos : registrarPagamento} loading={salvandoPag}>
               <Check size={18} /> Confirmar pagamento
             </Button>
           </div>

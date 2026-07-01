@@ -67,8 +67,14 @@ export default function FuncionarioForm({ funcionario }: { funcionario?: Funcion
   // Comissão
   const [recebeComissao, setRecebeComissao] = useState(funcionario?.recebe_comissao ?? false)
   const [regras, setRegras] = useState<RegraEdit[]>([])
+  const [novoTipoCalc, setNovoTipoCalc] = useState<'percentual' | 'por_presenca_creche'>('percentual')
   const [novaArea, setNovaArea] = useState<AreaNegocio>('banho_tosa')
   const [novoPct, setNovoPct] = useState('')
+  const [novoEscalona, setNovoEscalona] = useState(false)
+  const [novoLimite, setNovoLimite] = useState(0)          // faturamento_limite
+  const [novoPctAcima, setNovoPctAcima] = useState('')
+  const [novoValorFixo, setNovoValorFixo] = useState(0)    // R$ por presença
+  const [novaVigencia, setNovaVigencia] = useState('')     // a partir de
 
   useEffect(() => {
     const supabase = createClient()
@@ -97,12 +103,37 @@ export default function FuncionarioForm({ funcionario }: { funcionario?: Funcion
   }, [editId, funcionario?.usuario_id])
 
   function adicionarRegra() {
-    const pct = parseFloat(novoPct.replace(',', '.'))
-    if (isNaN(pct) || pct <= 0) { setErro('Informe um percentual válido.'); return }
-    if (regras.some(r => r.tipo === novaArea)) { setErro('Já existe regra para essa área.'); return }
     setErro('')
-    setRegras([...regras, { tipo: novaArea, percentual: String(pct), tipo_calculo: 'percentual', valor_fixo: null, faturamento_limite: null, percentual_acima: null, vigencia_inicio: null }])
-    setNovoPct('')
+    if (novoTipoCalc === 'por_presenca_creche') {
+      const area: AreaNegocio = 'creche'
+      if (!novoValorFixo || novoValorFixo <= 0) { setErro('Informe o valor por presença.'); return }
+      if (regras.some(r => r.tipo === area)) { setErro('Já existe regra para a Creche.'); return }
+      setRegras([...regras, {
+        tipo: area, percentual: '0', tipo_calculo: 'por_presenca_creche',
+        valor_fixo: novoValorFixo, faturamento_limite: null, percentual_acima: null,
+        vigencia_inicio: novaVigencia || null,
+      }])
+    } else {
+      const pct = parseFloat(novoPct.replace(',', '.'))
+      if (isNaN(pct) || pct <= 0) { setErro('Informe um percentual válido.'); return }
+      if (regras.some(r => r.tipo === novaArea)) { setErro('Já existe regra para essa área.'); return }
+      let limite: number | null = null
+      let pctAcima: number | null = null
+      if (novoEscalona) {
+        const pa = parseFloat(novoPctAcima.replace(',', '.'))
+        if (!novoLimite || novoLimite <= 0 || isNaN(pa) || pa <= 0) {
+          setErro('Preencha o faturamento-limite e o % acima para escalonar.'); return
+        }
+        limite = novoLimite; pctAcima = pa
+      }
+      setRegras([...regras, {
+        tipo: novaArea, percentual: String(pct), tipo_calculo: 'percentual',
+        valor_fixo: null, faturamento_limite: limite, percentual_acima: pctAcima,
+        vigencia_inicio: null,
+      }])
+    }
+    setNovoPct(''); setNovoPctAcima(''); setNovoValorFixo(0); setNovoLimite(0)
+    setNovoEscalona(false); setNovaVigencia('')
   }
 
   function removerRegra(tipo: AreaNegocio) {
@@ -327,25 +358,65 @@ export default function FuncionarioForm({ funcionario }: { funcionario?: Funcion
                 </div>
               )}
 
-              <div className="flex items-end gap-2 bg-gray-50 rounded-2xl p-3">
-                <div className="flex-1 flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-gray-500">Área</label>
-                  <select value={novaArea} onChange={e => setNovaArea(e.target.value as AreaNegocio)}
-                    className="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none text-sm bg-white">
-                    {AREAS_COMISSAO.map(a => (
-                      <option key={a} value={a}>{AREA_LABELS[a]}</option>
-                    ))}
-                  </select>
+              <div className="flex flex-col gap-3 bg-gray-50 rounded-2xl p-3">
+                {/* Tipo de comissão */}
+                <div className="flex gap-1 bg-white rounded-xl p-1 border border-gray-200">
+                  <button type="button" onClick={() => setNovoTipoCalc('percentual')}
+                    className={`flex-1 text-xs py-2 rounded-lg font-semibold transition-colors ${novoTipoCalc === 'percentual' ? 'bg-brand-teal text-white' : 'text-gray-500'}`}>
+                    % do serviço
+                  </button>
+                  <button type="button" onClick={() => setNovoTipoCalc('por_presenca_creche')}
+                    className={`flex-1 text-xs py-2 rounded-lg font-semibold transition-colors ${novoTipoCalc === 'por_presenca_creche' ? 'bg-brand-teal text-white' : 'text-gray-500'}`}>
+                    R$ por presença (creche)
+                  </button>
                 </div>
-                <div className="w-24 flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-gray-500">%</label>
-                  <input type="number" inputMode="decimal" min="0" max="100" step="0.5" value={novoPct}
-                    onChange={e => setNovoPct(e.target.value)} placeholder="10"
-                    className="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none text-sm" />
-                </div>
+
+                {novoTipoCalc === 'percentual' ? (
+                  <>
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1 flex flex-col gap-1">
+                        <label className="text-xs font-semibold text-gray-500">Área</label>
+                        <select value={novaArea} onChange={e => setNovaArea(e.target.value as AreaNegocio)}
+                          className="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none text-sm bg-white">
+                          {AREAS_COMISSAO.map(a => (<option key={a} value={a}>{AREA_LABELS[a]}</option>))}
+                        </select>
+                      </div>
+                      <div className="w-24 flex flex-col gap-1">
+                        <label className="text-xs font-semibold text-gray-500">%</label>
+                        <input type="number" inputMode="decimal" min="0" max="100" step="0.5" value={novoPct}
+                          onChange={e => setNovoPct(e.target.value)} placeholder="5"
+                          className="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none text-sm" />
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs text-gray-600">
+                      <input type="checkbox" checked={novoEscalona} onChange={e => setNovoEscalona(e.target.checked)} className="w-4 h-4 accent-brand-teal" />
+                      Escalonar: aumentar o % quando o faturamento do mês passar de um valor
+                    </label>
+                    {novoEscalona && (
+                      <div className="flex items-end gap-2">
+                        <div className="flex-1">
+                          <CurrencyInput label="Acima deste faturamento (mês)" value={novoLimite} onChange={setNovoLimite} />
+                        </div>
+                        <div className="w-24 flex flex-col gap-1">
+                          <label className="text-xs font-semibold text-gray-500">passa a %</label>
+                          <input type="number" inputMode="decimal" min="0" max="100" step="0.5" value={novoPctAcima}
+                            onChange={e => setNovoPctAcima(e.target.value)} placeholder="10"
+                            className="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 focus:border-brand-teal outline-none text-sm" />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-xs text-gray-500">Cada presença de cachorro na creche paga este valor.</p>
+                    <CurrencyInput label="Valor por presença" value={novoValorFixo} onChange={setNovoValorFixo} />
+                    <DateInput label="A partir de (opcional)" value={novaVigencia} onChange={setNovaVigencia} />
+                  </div>
+                )}
+
                 <button type="button" onClick={adicionarRegra}
-                  className="px-3 py-2.5 rounded-xl bg-brand-teal text-white flex items-center justify-center">
-                  <Plus size={18} />
+                  className="w-full py-2.5 rounded-xl bg-brand-teal text-white font-semibold text-sm flex items-center justify-center gap-1.5">
+                  <Plus size={16} /> Adicionar regra
                 </button>
               </div>
             </div>
