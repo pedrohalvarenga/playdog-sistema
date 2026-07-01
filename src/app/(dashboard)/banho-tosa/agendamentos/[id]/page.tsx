@@ -452,7 +452,7 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
               </div>
             </div>
 
-            <SelectExecutadoPor value={execPor} onChange={setExecPor} label="Quem fez o banho/tosa (comissão)" />
+            <SelectExecutadoPor value={execPor} onChange={setExecPor} label="Quem fez o banho/tosa (comissão)" autoSelectCargo="banho" />
 
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
