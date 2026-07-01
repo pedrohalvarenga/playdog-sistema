@@ -10,9 +10,9 @@ import Input from '@/components/ui/Input'
 import DateInput from '@/components/ui/DateInput'
 import FotoComCrop from '@/components/ui/FotoComCrop'
 import CurrencyInput from '@/components/financeiro/CurrencyInput'
-import { AREA_LABELS } from '@/lib/financeiro'
+import { AREA_LABELS, formatCurrency } from '@/lib/financeiro'
 import { getEmpresaId } from '@/lib/empresa'
-import { ROLE_LABELS } from '@/lib/utils'
+import { ROLE_LABELS, formatDate } from '@/lib/utils'
 import type { AreaNegocio } from '@/types/financeiro'
 import type { Funcionario, ComissaoRegra } from '@/types/funcionario'
 import type { Profile, UserRole } from '@/types'
@@ -21,7 +21,16 @@ import type { Profile, UserRole } from '@/types'
 const AREAS_COMISSAO = (Object.keys(AREA_LABELS) as AreaNegocio[]).filter(a => a !== 'geral')
 const ROLES: UserRole[] = ['admin', 'recepcao', 'banho_tosa', 'motorista']
 
-interface RegraEdit { tipo: AreaNegocio; percentual: string }
+interface RegraEdit {
+  tipo: AreaNegocio
+  percentual: string
+  // Preservados ao salvar (configurados via regras avançadas / SQL):
+  tipo_calculo?: 'percentual' | 'por_presenca_creche'
+  valor_fixo?: number | null
+  faturamento_limite?: number | null
+  percentual_acima?: number | null
+  vigencia_inicio?: string | null
+}
 
 export default function FuncionarioForm({ funcionario }: { funcionario?: Funcionario }) {
   const router = useRouter()
@@ -74,7 +83,15 @@ export default function FuncionarioForm({ funcionario }: { funcionario?: Funcion
     if (editId) {
       supabase.from('comissao_regras').select('*').eq('funcionario_id', editId).then(({ data }) => {
         const rs = (data as ComissaoRegra[]) ?? []
-        setRegras(rs.map(r => ({ tipo: r.tipo, percentual: String(r.percentual) })))
+        setRegras(rs.map(r => ({
+          tipo: r.tipo,
+          percentual: String(r.percentual),
+          tipo_calculo: r.tipo_calculo ?? 'percentual',
+          valor_fixo: r.valor_fixo ?? null,
+          faturamento_limite: r.faturamento_limite ?? null,
+          percentual_acima: r.percentual_acima ?? null,
+          vigencia_inicio: r.vigencia_inicio ?? null,
+        })))
       })
     }
   }, [editId, funcionario?.usuario_id])
@@ -84,7 +101,7 @@ export default function FuncionarioForm({ funcionario }: { funcionario?: Funcion
     if (isNaN(pct) || pct <= 0) { setErro('Informe um percentual válido.'); return }
     if (regras.some(r => r.tipo === novaArea)) { setErro('Já existe regra para essa área.'); return }
     setErro('')
-    setRegras([...regras, { tipo: novaArea, percentual: String(pct) }])
+    setRegras([...regras, { tipo: novaArea, percentual: String(pct), tipo_calculo: 'percentual', valor_fixo: null, faturamento_limite: null, percentual_acima: null, vigencia_inicio: null }])
     setNovoPct('')
   }
 
@@ -143,8 +160,19 @@ export default function FuncionarioForm({ funcionario }: { funcionario?: Funcion
     if (funcId) {
       await supabase.from('comissao_regras').delete().eq('funcionario_id', funcId)
       if (recebeComissao && regras.length > 0) {
+        // Preserva a configuração avançada (escalonamento / por presença) para
+        // não apagar a regra ao editar outros dados do funcionário.
         await supabase.from('comissao_regras').insert(
-          regras.map(r => ({ funcionario_id: funcId, tipo: r.tipo, percentual: parseFloat(r.percentual) }))
+          regras.map(r => ({
+            funcionario_id: funcId,
+            tipo: r.tipo,
+            percentual: parseFloat(r.percentual) || 0,
+            tipo_calculo: r.tipo_calculo ?? 'percentual',
+            valor_fixo: r.valor_fixo ?? null,
+            faturamento_limite: r.faturamento_limite ?? null,
+            percentual_acima: r.percentual_acima ?? null,
+            vigencia_inicio: r.vigencia_inicio ?? null,
+          }))
         )
       }
     }
@@ -275,8 +303,22 @@ export default function FuncionarioForm({ funcionario }: { funcionario?: Funcion
                 <div className="flex flex-col gap-2">
                   {regras.map(r => (
                     <div key={r.tipo} className="flex items-center gap-2 bg-teal-50 rounded-2xl px-4 py-3">
-                      <span className="flex-1 text-sm font-semibold text-teal-800">{AREA_LABELS[r.tipo]}</span>
-                      <span className="font-bold text-teal-700">{r.percentual}%</span>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-semibold text-teal-800">{AREA_LABELS[r.tipo]}</span>
+                        {r.tipo_calculo === 'por_presenca_creche' && (
+                          <span className="block text-xs text-teal-600">
+                            {formatCurrency(r.valor_fixo ?? 0)} por presença{r.vigencia_inicio ? ` · desde ${formatDate(r.vigencia_inicio)}` : ''}
+                          </span>
+                        )}
+                        {r.tipo_calculo !== 'por_presenca_creche' && r.faturamento_limite != null && r.percentual_acima != null && (
+                          <span className="block text-xs text-teal-600">
+                            {r.percentual_acima}% quando o faturamento do mês passar de {formatCurrency(r.faturamento_limite)}
+                          </span>
+                        )}
+                      </div>
+                      <span className="font-bold text-teal-700 flex-shrink-0">
+                        {r.tipo_calculo === 'por_presenca_creche' ? `${formatCurrency(r.valor_fixo ?? 0)}/presença` : `${r.percentual}%`}
+                      </span>
                       <button type="button" onClick={() => removerRegra(r.tipo)} className="text-red-400 p-1">
                         <Trash2 size={16} />
                       </button>

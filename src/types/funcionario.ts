@@ -34,6 +34,12 @@ export interface ComissaoRegra {
   funcionario_id: string
   tipo: AreaNegocio
   percentual: number
+  // Modelo de cálculo: percentual (padrão) ou fixo por presença na creche.
+  tipo_calculo?: 'percentual' | 'por_presenca_creche'
+  valor_fixo?: number | null            // R$ por presença
+  faturamento_limite?: number | null    // escalonamento: acima disso...
+  percentual_acima?: number | null      // ...vale este percentual
+  vigencia_inicio?: string | null       // vale a partir desta data
   created_at?: string
 }
 

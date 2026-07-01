@@ -8,17 +8,23 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { ArrowLeft, ChevronLeft, ChevronRight, FileText, Check, X, Percent } from 'lucide-react'
 import { formatCurrency, AREA_LABELS } from '@/lib/financeiro'
-import { hojeLocal } from '@/lib/datas'
-import { totalComissao, comissaoDaReceita, type RegrasComissao, type ReceitaComissionavel } from '@/lib/comissoes'
+import { hojeLocal, inicioMes, fimMes } from '@/lib/datas'
+import { valorBaseComissao, aliquotaEfetiva, inicioEfetivo, type RegraComissao, type ReceitaComissionavel } from '@/lib/comissoes'
 import type { Profile } from '@/types'
 import type { ContaFinanceira, AreaNegocio } from '@/types/financeiro'
 import type { Funcionario, ComissaoRegra, ComissaoPaga } from '@/types/funcionario'
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
+interface DetalheComissao {
+  area: AreaNegocio
+  descricao: string
+  valor: number
+}
+
 interface LinhaFunc {
   funcionario: Funcionario
-  regras: RegrasComissao
+  detalhes: DetalheComissao[]
   receitas: ReceitaComissionavel[]
   totalComissao: number
 }
@@ -55,16 +61,21 @@ export default function ComissoesPage() {
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single<Pick<Profile, 'role'>>()
     if (profile?.role !== 'admin') { router.push('/dashboard'); return }
 
-    const inicio = `${ano}-${String(mes + 1).padStart(2, '0')}-01`
-    const fim = new Date(ano, mes + 1, 0).toISOString().split('T')[0]
+    const inicio = inicioMes(mesRef)
+    const fim = fimMes(mesRef)
 
-    const [funcRes, regrasRes, recRes, pagasRes, contasRes] = await Promise.all([
+    const [funcRes, regrasRes, recRes, fatRes, presRes, pagasRes, contasRes] = await Promise.all([
       supabase.from('funcionarios').select('*').eq('recebe_comissao', true).order('nome'),
       supabase.from('comissao_regras').select('*'),
       supabase.from('receitas')
         .select('id, data, valor, valor_liquido, area, descricao, executado_por, pet:pets(nome)')
         .eq('status', 'pago').gte('data', inicio).lte('data', fim)
         .not('executado_por', 'is', null),
+      // Faturamento do mês por área (todo o pet shop) — base do escalonamento de %.
+      supabase.from('receitas').select('area, valor, valor_liquido')
+        .eq('status', 'pago').gte('data', inicio).lte('data', fim),
+      // Presenças da creche no mês (comissão fixa por presença).
+      supabase.from('presencas').select('data').gte('data', inicio).lte('data', fim),
       supabase.from('comissoes_pagas').select('*').eq('mes_referencia', mesRef),
       supabase.from('contas_financeiras').select('*').eq('ativo', true),
     ])
@@ -72,12 +83,60 @@ export default function ComissoesPage() {
     const funcs = (funcRes.data as Funcionario[]) ?? []
     const regras = (regrasRes.data as ComissaoRegra[]) ?? []
     const receitas = (recRes.data as unknown as (ReceitaComissionavel & { executado_por: string })[]) ?? []
+    const presencasDatas = ((presRes.data as { data: string }[]) ?? []).map(p => p.data)
+
+    // Faturamento (bruto) do mês por área — usado no escalonamento (ex.: banho & tosa > 10k).
+    const faturamentoPorArea: Record<string, number> = {}
+    for (const r of (fatRes.data as { area: AreaNegocio; valor: number }[]) ?? []) {
+      faturamentoPorArea[r.area] = (faturamentoPorArea[r.area] ?? 0) + Number(r.valor)
+    }
 
     const linhasCalc: LinhaFunc[] = funcs.map(f => {
-      const regrasMap: RegrasComissao = {}
-      for (const r of regras.filter(r => r.funcionario_id === f.id)) regrasMap[r.tipo] = r.percentual
+      const regrasF: RegraComissao[] = regras
+        .filter(r => r.funcionario_id === f.id)
+        .map(r => ({
+          tipo: r.tipo,
+          tipo_calculo: r.tipo_calculo ?? 'percentual',
+          percentual: Number(r.percentual),
+          faturamento_limite: r.faturamento_limite ?? null,
+          percentual_acima: r.percentual_acima ?? null,
+          valor_fixo: r.valor_fixo ?? null,
+          vigencia_inicio: r.vigencia_inicio ?? null,
+        }))
       const recsFunc = receitas.filter(r => r.executado_por === f.id)
-      return { funcionario: f, regras: regrasMap, receitas: recsFunc, totalComissao: totalComissao(recsFunc, regrasMap) }
+      const detalhes: DetalheComissao[] = []
+
+      for (const regra of regrasF) {
+        if (regra.tipo_calculo === 'por_presenca_creche') {
+          const ini = inicioEfetivo(regra, inicio)
+          const n = presencasDatas.filter(d => d >= ini && d <= fim).length
+          const valor = Math.round(n * (regra.valor_fixo ?? 0) * 100) / 100
+          if (n > 0) detalhes.push({
+            area: regra.tipo,
+            descricao: `${n} presença${n !== 1 ? 's' : ''} na creche × ${formatCurrency(regra.valor_fixo ?? 0)}`,
+            valor,
+          })
+        } else {
+          const recsArea = recsFunc.filter(r => r.area === regra.tipo)
+          const base = recsArea.reduce((s, r) => s + valorBaseComissao(r), 0)
+          if (base > 0) {
+            const fatArea = faturamentoPorArea[regra.tipo] ?? 0
+            const aliq = aliquotaEfetiva(regra, fatArea)
+            const valor = Math.round(base * aliq / 100 * 100) / 100
+            const escalonou = regra.faturamento_limite != null && fatArea > regra.faturamento_limite
+            const nota = regra.faturamento_limite != null
+              ? (escalonou ? ` · faturamento acima de ${formatCurrency(regra.faturamento_limite)}` : ` · até ${formatCurrency(regra.faturamento_limite)}`)
+              : ''
+            detalhes.push({
+              area: regra.tipo,
+              descricao: `${AREA_LABELS[regra.tipo]}: ${aliq}% de ${formatCurrency(base)}${nota}`,
+              valor,
+            })
+          }
+        }
+      }
+      const total = Math.round(detalhes.reduce((s, d) => s + d.valor, 0) * 100) / 100
+      return { funcionario: f, detalhes, receitas: recsFunc, totalComissao: total }
     })
 
     setLinhas(linhasCalc)
@@ -104,13 +163,12 @@ export default function ComissoesPage() {
     const supabase = createClient()
     const nomeMes = `${MESES[mes]}/${ano}`
 
-    // Atrela a comissão à ÁREA que gerou a receita (banho_tosa, creche, etc.),
-    // não a "geral". Quando o funcionário trabalhou em mais de uma área, gera
-    // uma despesa por área para o DRE atribuir o custo a quem gerou a receita.
+    // Atrela a comissão à ÁREA que a gerou (banho_tosa, creche, etc.), não a
+    // "geral". Quando há mais de uma área, gera uma despesa por área para o DRE
+    // atribuir o custo corretamente.
     const porArea = new Map<AreaNegocio, number>()
-    for (const r of pagando.receitas) {
-      const c = comissaoDaReceita(r, pagando.regras)
-      if (c > 0) porArea.set(r.area, (porArea.get(r.area) ?? 0) + c)
+    for (const d of pagando.detalhes) {
+      if (d.valor > 0) porArea.set(d.area, (porArea.get(d.area) ?? 0) + d.valor)
     }
     const linhas = [...porArea.entries()].map(([area, valor]) => ({
       data: dataPag,
@@ -194,15 +252,28 @@ export default function ComissoesPage() {
                     <div className="flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-gray-900">{l.funcionario.nome}</p>
-                        <p className="text-xs text-gray-400">
-                          {l.receitas.length} serviço{l.receitas.length !== 1 ? 's' : ''} · salário base {formatCurrency(l.funcionario.salario)}
-                        </p>
+                        {l.funcionario.salario > 0 && (
+                          <p className="text-xs text-gray-400">Salário base {formatCurrency(l.funcionario.salario)}</p>
+                        )}
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] text-gray-400">Comissão</p>
                         <p className="font-bold text-teal-600">{formatCurrency(l.totalComissao)}</p>
                       </div>
                     </div>
+
+                    {l.detalhes.length > 0 ? (
+                      <div className="flex flex-col gap-1 bg-gray-50 rounded-xl px-3 py-2">
+                        {l.detalhes.map((d, i) => (
+                          <div key={i} className="flex justify-between gap-3 text-xs">
+                            <span className="text-gray-500 min-w-0">{d.descricao}</span>
+                            <span className="font-semibold text-gray-700 flex-shrink-0">{formatCurrency(d.valor)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400">Sem comissão a pagar neste mês.</p>
+                    )}
 
                     {paga && (
                       <div className="bg-green-50 rounded-xl px-3 py-2 text-xs text-green-700 font-semibold flex items-center gap-1.5">

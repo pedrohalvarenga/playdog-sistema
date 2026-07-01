@@ -45,8 +45,8 @@ export default function AgendamentoDetailPage({ params }: { params: Promise<{ id
 
   // Admin, recepção e o funcionário do banho podem registrar pagamento/entrega.
   const podePagar   = profile?.role === 'admin' || profile?.role === 'recepcao' || profile?.role === 'banho_tosa'
-  // Editar/cancelar continua com admin e recepção.
-  const podeEditar  = profile?.role === 'admin' || profile?.role === 'recepcao'
+  // Editar/cancelar: admin, recepção e o funcionário do banho & tosa (ex.: Bia).
+  const podeEditar  = profile?.role === 'admin' || profile?.role === 'recepcao' || profile?.role === 'banho_tosa'
   const podeAvancar = profile?.role !== 'motorista'
 
   const carregar = useCallback(async () => {

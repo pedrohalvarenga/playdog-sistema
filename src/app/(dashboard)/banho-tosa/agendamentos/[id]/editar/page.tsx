@@ -18,7 +18,7 @@ export default function EditarAgendamentoPage({ params }: { params: Promise<{ id
   const [erro, setErro] = useState('')
   const [statusAg, setStatusAg] = useState<string>('agendado')
 
-  const podeEditar = profile?.role === 'admin' || profile?.role === 'recepcao'
+  const podeEditar = profile?.role === 'admin' || profile?.role === 'recepcao' || profile?.role === 'banho_tosa'
 
   const [data, setData] = useState('')
   const [horaChegada, setHoraChegada] = useState('')
